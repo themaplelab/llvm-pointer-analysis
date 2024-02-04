@@ -3953,6 +3953,43 @@ Sema::findFailedBooleanCondition(Expr *Cond) {
   return { FailedCond, Description };
 }
 
+static QualType tryToConvertToInjectedClassNameType(DeclContext *Ctx,
+                                                    ASTContext const &Context,
+                                                    QualType CanonType) {
+  for (; Ctx; Ctx = Ctx->getLookupParent()) {
+    // If we get out to a namespace, we're done.
+    if (Ctx->isFileContext())
+      break;
+
+    // If this isn't a record, keep looking.
+    CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(Ctx);
+    if (!Record)
+      continue;
+
+    // Look for one of the two cases with InjectedClassNameTypes
+    // and check whether it's the same template.
+    if (!isa<ClassTemplatePartialSpecializationDecl>(Record) &&
+        !Record->getDescribedClassTemplate())
+      continue;
+
+    // Fetch the injected class name type and check whether its
+    // injected type is equal to the type we just built.
+    QualType ICNT = Context.getTypeDeclType(Record);
+    QualType Injected =
+        cast<InjectedClassNameType>(ICNT)->getInjectedSpecializationType();
+
+    if (CanonType.getCanonicalType() != Injected->getCanonicalTypeInternal())
+      continue;
+
+    // If so, the canonical type of this TST is the injected
+    // class name type of the record we just found.
+    assert(ICNT.isCanonical());
+    CanonType = ICNT;
+    break;
+  }
+  return CanonType;
+}
+
 QualType Sema::CheckTemplateIdType(TemplateName Name,
                                    SourceLocation TemplateLoc,
                                    TemplateArgumentListInfo &TemplateArgs) {
@@ -4016,9 +4053,14 @@ QualType Sema::CheckTemplateIdType(TemplateName Name,
     if (Inst.isInvalid())
       return QualType();
 
-    CanonType = SubstType(Pattern->getUnderlyingType(),
-                          TemplateArgLists, AliasTemplate->getLocation(),
-                          AliasTemplate->getDeclName());
+    {
+      Sema::ContextRAII SavedContext(*this, Pattern->getDeclContext());
+      CanonType =
+          SubstType(Pattern->getUnderlyingType(), TemplateArgLists,
+                    AliasTemplate->getLocation(), AliasTemplate->getDeclName());
+    }
+    CanonType =
+        tryToConvertToInjectedClassNameType(CurContext, Context, CanonType);
     if (CanonType.isNull()) {
       // If this was enable_if and we failed to find the nested type
       // within enable_if in a SFINAE context, dig out the specific
@@ -4076,37 +4118,9 @@ QualType Sema::CheckTemplateIdType(TemplateName Name,
     // TODO: in theory this could be a simple hashtable lookup; most
     // changes to CurContext don't change the set of current
     // instantiations.
-    if (isa<ClassTemplateDecl>(Template)) {
-      for (DeclContext *Ctx = CurContext; Ctx; Ctx = Ctx->getLookupParent()) {
-        // If we get out to a namespace, we're done.
-        if (Ctx->isFileContext()) break;
-
-        // If this isn't a record, keep looking.
-        CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(Ctx);
-        if (!Record) continue;
-
-        // Look for one of the two cases with InjectedClassNameTypes
-        // and check whether it's the same template.
-        if (!isa<ClassTemplatePartialSpecializationDecl>(Record) &&
-            !Record->getDescribedClassTemplate())
-          continue;
-
-        // Fetch the injected class name type and check whether its
-        // injected type is equal to the type we just built.
-        QualType ICNT = Context.getTypeDeclType(Record);
-        QualType Injected = cast<InjectedClassNameType>(ICNT)
-          ->getInjectedSpecializationType();
-
-        if (CanonType != Injected->getCanonicalTypeInternal())
-          continue;
-
-        // If so, the canonical type of this TST is the injected
-        // class name type of the record we just found.
-        assert(ICNT.isCanonical());
-        CanonType = ICNT;
-        break;
-      }
-    }
+    if (isa<ClassTemplateDecl>(Template))
+      CanonType =
+          tryToConvertToInjectedClassNameType(CurContext, Context, CanonType);
   } else if (ClassTemplateDecl *ClassTemplate =
                  dyn_cast<ClassTemplateDecl>(Template)) {
     // Find the class template specialization declaration that
