@@ -7,6 +7,7 @@
 # ===----------------------------------------------------------------------===##
 
 from libcxx.test.dsl import *
+import libcxx.test.config as config
 from lit.BooleanExpression import BooleanExpression
 import re
 import shutil
@@ -22,29 +23,6 @@ _isAnyClangOrGCC = lambda cfg: _isAnyClang(cfg) or _isAnyGCC(cfg)
 _isClExe = lambda cfg: not _isAnyClangOrGCC(cfg)
 _isMSVC = lambda cfg: "_MSC_VER" in compilerMacros(cfg)
 _msvcVersion = lambda cfg: (int(compilerMacros(cfg)["_MSC_VER"]) // 100, int(compilerMacros(cfg)["_MSC_VER"]) % 100)
-
-
-def _getSuitableClangTidy(cfg):
-    try:
-        # If we didn't build the libcxx-tidy plugin via CMake, we can't run the clang-tidy tests.
-        if runScriptExitCode(cfg, ["stat %{test-tools-dir}/clang_tidy_checks/libcxx-tidy.plugin"]) != 0:
-            return None
-
-        # TODO MODULES require ToT due module specific fixes.
-        if runScriptExitCode(cfg, ['clang-tidy-18 --version']) == 0:
-          return 'clang-tidy-18'
-
-        # TODO This should be the last stable release.
-        # LLVM RELEASE bump to latest stable version
-        if runScriptExitCode(cfg, ["clang-tidy-16 --version"]) == 0:
-            return "clang-tidy-16"
-
-        # LLVM RELEASE bump version
-        if int(re.search("[0-9]+", commandOutput(cfg, ["clang-tidy --version"])).group()) >= 16:
-            return "clang-tidy"
-
-    except ConfigurationRuntimeError:
-        return None
 
 
 def _getAndroidDeviceApi(cfg):
@@ -299,10 +277,8 @@ DEFAULT_FEATURES = [
     ),
     Feature(
         name="has-clang-tidy",
-        when=lambda cfg: _getSuitableClangTidy(cfg) is not None,
-        actions=[
-            AddSubstitution("%{clang-tidy}", lambda cfg: _getSuitableClangTidy(cfg))
-        ],
+        when=lambda cfg: config._hasSubstitution("%{clang-tidy}", cfg)
+        and config._getSubstitution("%{clang-tidy}", cfg) != "",
     ),
     # Whether module support for the platform is available.
     Feature(
