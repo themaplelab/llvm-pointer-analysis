@@ -1,74 +1,83 @@
-; ModuleID = 'intraSwap.bc'
-source_filename = "intraSwap.c"
-target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
-target triple = "arm64-apple-macosx14.0.0"
+; RUN: opt -passes="fspa, print-pointer-level" < %s --disable-output | FileCheck %s -check-prefix=PL
+; RUN: opt -passes="fspa, print-points-to-set" < %s --disable-output | FileCheck %s -check-prefix=PPTS
+; RUN: opt -passes="fspa, get-alias-set" < %s --disable-output | FileCheck %s -check-prefix=GAS
 
-; Function Attrs: noinline nounwind optnone ssp uwtable
-define dso_local i32 @main() #0 {
+
+define i32 @main() #0 {
 entry:
   %retval = alloca i32, align 4
   %A = alloca [1 x i8], align 1
   %B = alloca [1 x i8], align 1
-  %a = alloca i8*, align 8
-  %b = alloca i8*, align 8
-  %t1 = alloca i8**, align 8
-  %t2 = alloca i8**, align 8
-  %p = alloca i8**, align 8
-  %q = alloca i8**, align 8
-  %tmp = alloca i8*, align 8
-  store i32 0, i32* %retval, align 4
-  store i8** %a, i8*** %t1, align 8
-  store i8** %b, i8*** %t2, align 8
-  %0 = bitcast [1 x i8]* %A to i8*
-  store i8* %0, i8** %a, align 8
-  %1 = bitcast [1 x i8]* %B to i8*
-  store i8* %1, i8** %b, align 8
-  %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
-  %2 = load i8, i8* %arrayidx, align 1
-  %tobool = icmp ne i8 %2, 0
+  %a = alloca ptr, align 8
+  %b = alloca ptr, align 8
+  %t1 = alloca ptr, align 8
+  %t2 = alloca ptr, align 8
+  %p = alloca ptr, align 8
+  %q = alloca ptr, align 8
+  %tmp = alloca ptr, align 8
+
+; PL: %retval = alloca i32, align 4 => 1
+; PL: %A = alloca [1 x i8], align 1 => 1
+; PL: %B = alloca [1 x i8], align 1 => 1
+; PL: %a = alloca ptr, align 8 => 2
+; PL: %b = alloca ptr, align 8 => 2
+; PL: %t1 = alloca ptr, align 8 => 3
+; PL: %t2 = alloca ptr, align 8 => 3
+; PL: %p = alloca ptr, align 8 => 3
+; PL: %q = alloca ptr, align 8 => 3
+; PL: %tmp = alloca ptr, align 8 => 2
+
+; PPTS: %retval = alloca i32, align 4 => {undef}
+; PPTS: %A = alloca [1 x i8], align 1 => {undef}
+; PPTS: %B = alloca [1 x i8], align 1 => {undef}
+; PPTS: %a = alloca ptr, align 8 => {undef}
+; PPTS: %b = alloca ptr, align 8 => {undef}
+; PPTS: %t1 = alloca ptr, align 8 => {undef}
+; PPTS: %t2 = alloca ptr, align 8 => {undef}
+; PPTS: %p = alloca ptr, align 8 => {undef}
+; PPTS: %q = alloca ptr, align 8 => {undef}
+; PPTS: %tmp = alloca ptr, align 8 => {undef}
+
+  store i32 0, ptr %retval, align 4
+  store ptr %a, ptr %t1, align 8
+  store ptr %b, ptr %t2, align 8
+  store ptr %A, ptr %a, align 8
+  store ptr %B, ptr %b, align 8
+  %arrayidx = getelementptr inbounds [1 x i8], ptr %A, i64 0, i64 0
+  %0 = load i8, ptr %arrayidx, align 1
+  %tobool = icmp ne i8 %0, 0
   br i1 %tobool, label %if.then, label %if.else
 
+; PPTS: %retval = alloca i32, align 4 => {0}
+
+
 if.then:                                          ; preds = %entry
-  %3 = load i8*, i8** %a, align 8
-  store i8 65, i8* %3, align 1
+  %1 = load ptr, ptr %a, align 8
+  store i8 65, ptr %1, align 1
   br label %if.end
 
 if.else:                                          ; preds = %entry
-  %4 = load i8**, i8*** %t1, align 8
-  store i8** %4, i8*** %p, align 8
-  %5 = load i8**, i8*** %t2, align 8
-  store i8** %5, i8*** %q, align 8
-  %6 = load i8**, i8*** %p, align 8
-  %7 = load i8*, i8** %6, align 8
-  store i8* %7, i8** %tmp, align 8
-  %8 = load i8**, i8*** %q, align 8
-  %9 = load i8*, i8** %8, align 8
-  %10 = load i8**, i8*** %p, align 8
-  store i8* %9, i8** %10, align 8
-  %11 = load i8*, i8** %tmp, align 8
-  %12 = load i8**, i8*** %q, align 8
-  store i8* %11, i8** %12, align 8
-  %13 = load i8*, i8** %a, align 8
-  store i8 66, i8* %13, align 1
+  %2 = load ptr, ptr %t1, align 8
+  store ptr %2, ptr %p, align 8
+  %3 = load ptr, ptr %t2, align 8
+  store ptr %3, ptr %q, align 8
+  %4 = load ptr, ptr %p, align 8
+  %5 = load ptr, ptr %4, align 8
+  store ptr %5, ptr %tmp, align 8
+  %6 = load ptr, ptr %q, align 8
+  %7 = load ptr, ptr %6, align 8
+  %8 = load ptr, ptr %p, align 8
+  store ptr %7, ptr %8, align 8
+  %9 = load ptr, ptr %tmp, align 8
+  %10 = load ptr, ptr %q, align 8
+  store ptr %9, ptr %10, align 8
+  %11 = load ptr, ptr %a, align 8
+  store i8 66, ptr %11, align 1
   br label %if.end
 
 if.end:                                           ; preds = %if.else, %if.then
-  %14 = load i8*, i8** %a, align 8
-  store i8 63, i8* %14, align 1
-  %15 = load i32, i32* %retval, align 4
-  ret i32 %15
+  %12 = load ptr, ptr %a, align 8
+  store i8 63, ptr %12, align 1
+  %13 = load i32, ptr %retval, align 4
+  ret i32 %13
 }
-
-attributes #0 = { noinline nounwind optnone ssp uwtable "disable-tail-calls"="false" "frame-pointer"="non-leaf" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="apple-a12" "target-features"="+aes,+crc,+crypto,+fp-armv8,+fullfp16,+lse,+neon,+ras,+rcpc,+rdm,+sha2,+v8.3a,+zcm,+zcz" "unsafe-fp-math"="false" "use-soft-float"="false" }
-
-!llvm.module.flags = !{!0, !1, !2, !3, !4, !5, !6}
-!llvm.ident = !{!7}
-
-!0 = !{i32 2, !"SDK Version", [2 x i32] [i32 14, i32 2]}
-!1 = !{i32 1, !"wchar_size", i32 4}
-!2 = !{i32 1, !"branch-target-enforcement", i32 0}
-!3 = !{i32 1, !"sign-return-address", i32 0}
-!4 = !{i32 1, !"sign-return-address-all", i32 0}
-!5 = !{i32 1, !"sign-return-address-with-bkey", i32 0}
-!6 = !{i32 7, !"PIC Level", i32 2}
-!7 = !{!"clang version 12.0.0 (git@github.com:heturing/FSPA.git a92c83c5f0cdeffd780fe6b27fe6708fddce5329)"}
