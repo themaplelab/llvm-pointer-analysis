@@ -49,12 +49,19 @@ entry:
   br i1 %tobool, label %if.then, label %if.else
 
 ; PPTS: %retval = alloca i32, align 4 => {0}
+; PPTS: %t1 = alloca ptr, align 8 => {%a = alloca ptr, align 8}
+; PPTS: %t2 = alloca ptr, align 8 => {%b = alloca ptr, align 8}
+; PPTS: %a = alloca ptr, align 8 => {%A = alloca [1 x i8], align 1}
+; PPTS: %b = alloca ptr, align 8 => {%B = alloca [1 x i8], align 1}
+
 
 
 if.then:                                          ; preds = %entry
   %1 = load ptr, ptr %a, align 8
   store i8 65, ptr %1, align 1
   br label %if.end
+
+; PPTS: %A = alloca [1 x i8], align 1 => {65}
 
 if.else:                                          ; preds = %entry
   %2 = load ptr, ptr %t1, align 8
@@ -75,9 +82,27 @@ if.else:                                          ; preds = %entry
   store i8 66, ptr %11, align 1
   br label %if.end
 
+; PPTS: %p = alloca ptr, align 8 => {%a = alloca ptr, align 8}
+; PPTS: %q = alloca ptr, align 8 => {%b = alloca ptr, align 8}
+; PPTS: %tmp = alloca ptr, align 8 => {%A = alloca [1 x i8], align 1}
+; PPTS: %a = alloca ptr, align 8 => {%B = alloca [1 x i8], align 1}
+; PPTS: %b = alloca ptr, align 8 => {%A = alloca [1 x i8], align 1}
+; PPTS: %B = alloca [1 x i8], align 1 => {66}
+
+; GAS: MUST(%p = alloca ptr, align 8; %t1 = alloca ptr, align 8)
+; GAS: MUST(%q = alloca ptr, align 8; %t2 = alloca ptr, align 8)
+; GAS: MUST(%tmp = alloca ptr, align 8; %a = alloca ptr, align 8)
+; GAS: MUST(%a = alloca ptr, align 8; %b = alloca ptr, align 8)
+
+
 if.end:                                           ; preds = %if.else, %if.then
   %12 = load ptr, ptr %a, align 8
   store i8 63, ptr %12, align 1
   %13 = load i32, ptr %retval, align 4
   ret i32 %13
 }
+
+; PPTS: %a = alloca ptr, align 8 => {%A = alloca [1 x i8], align 1; %B = alloca [1 x i8], align 1}
+; PPTS: %A = alloca [1 x i8], align 1 => {63} | %B = alloca [1 x i8], align 1 => {63}
+
+; GAS: MAY(%a = alloca ptr, align 8; %b = alloca ptr, align 8) | MAY(%a = alloca ptr, align 8; %tmp = alloca ptr, align 8)
