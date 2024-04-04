@@ -261,6 +261,7 @@
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
 #include <optional>
+#include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
 
 using namespace llvm;
 
