@@ -335,7 +335,7 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
     return;
 }
 
-std::set<const Value*> FlowSensitivePointerAnalysis::getAlias(const ProgramLocationTy *t, const const Instruction *p){
+std::set<const Value*> FlowSensitivePointerAnalysis::getAlias(const ProgramLocationTy *t, const Instruction *p){
     // for a store inst "store a b", we get the alias set of a at t.
     if(auto pt = dyn_cast<StoreInst>(p)){
         std::set<const Value*> pointees = aliasMap[t][pt->getValueOperand()];
@@ -351,6 +351,12 @@ std::set<const Value*> FlowSensitivePointerAnalysis::getAlias(const ProgramLocat
             return std::set<const Value*>{dyn_cast<Instruction>(pt->getPointerOperand())};
         }
         return pointees;
+    }
+    else{
+        std::string str;
+        raw_string_ostream(str) << *p;
+        str = "Getting alias for non store nor load instruction (" + str + ").\n";
+        llvm_unreachable(str.c_str());
     }
 }
 
@@ -379,11 +385,7 @@ std::vector<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitiv
         if(it != iter->second.end()){
             res.push_back(iter->first);
         }
-        // for(auto it = iter->second.begin(); it != iter->second.end(); ++it){
-        //     if(*it == ptr){
-        //         res.push_back(iter->first);
-        //     }
-        // }
+
     }
         
     return res;
@@ -521,9 +523,9 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         matrix.push_back(line);
     }
 
-    for(int i = 0; i != constraints.size(); ++i){
+    for(size_t i = 0; i != constraints.size(); ++i){
         // Find first line that has non zero entry as i-th element.
-        int j = i;
+        size_t j = i;
         while(j != constraints.size() && matrix[j][i] == 0){
             ++j;
         }
@@ -531,7 +533,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         if(j != constraints.size()){
             int coefficient = (matrix[j][i] > 0 ? 1 : -1);
             int temp;
-            for(int k = 0; k != pointers.size() + 1; ++k){
+            for(size_t k = 0; k != pointers.size() + 1; ++k){
                 temp = matrix[i][k];
                 matrix[i][k] = matrix[j][k] * coefficient;
                 matrix[j][k] = temp;
@@ -543,20 +545,20 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         }
 
         // add or subtract i-th line.
-        for(int k = 0; k != constraints.size(); ++k){
+        for(size_t k = 0; k != constraints.size(); ++k){
             if(k == i){
                 continue;
             }
 
             if(matrix[k][i] == 1){
                 // k-th line mins i-th line
-                for(int h = 0; h != pointers.size() + 1; ++h){
+                for(size_t h = 0; h != pointers.size() + 1; ++h){
                     matrix[k][h] -= matrix[i][h];
                 }
             }
             else if(matrix[k][i] == -1){
                 // k-th line plus i-th line
-                for(int h = 0; h != pointers.size() + 1; ++h){
+                for(size_t h = 0; h != pointers.size() + 1; ++h){
                     matrix[k][h] += matrix[i][h];
                 }
             }
@@ -570,24 +572,24 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
     // we need a = x, b = y at the very beginning of the function, and ret = r at the end of the function.
 }
 
-size_t FlowSensitivePointerAnalysis::countPointerLevel(const AllocaInst *allocaInst){
-    /*
-        Pointer level describes how deep a pointer is. 
-        The pointer level for a pointer that points to a non-pointer is 1, and if pl(a) = 1, any pointer that can points-to a without 
-        casting has a pointer level of 2. 
-    */
+// size_t FlowSensitivePointerAnalysis::countPointerLevel(const AllocaInst *allocaInst){
+//     /*
+//         Pointer level describes how deep a pointer is. 
+//         The pointer level for a pointer that points to a non-pointer is 1, and if pl(a) = 1, any pointer that can points-to a without 
+//         casting has a pointer level of 2. 
+//     */
 
-   // TODO: Since llvm-17 only support opaque pointer, we need another to calculate the pointer level.
+//    // TODO: Since llvm-17 only support opaque pointer, we need another to calculate the pointer level.
 
-    size_t pointerLevel = 1;
+//     size_t pointerLevel = 1;
 
-    auto ty = allocaInst->getAllocatedType();
-    while(ty->isPointerTy()){
-        ++pointerLevel;
-        ty = ty->getNonOpaquePointerElementType();
-    }
-    return pointerLevel;
-}
+//     auto ty = allocaInst->getAllocatedType();
+//     while(ty->isPointerTy()){
+//         ++pointerLevel;
+//         ty = ty->getNonOpaquePointerElementType();
+//     }
+//     return pointerLevel;
+// }
 
 
 const Function* FlowSensitivePointerAnalysis::getFunctionInCallGrpahByName(std::string name){
@@ -691,13 +693,13 @@ void FlowSensitivePointerAnalysis::dumpDefUseGraph() const{
     #undef DEBUG_STR_LENGTH
 }
 
-bool FlowSensitivePointerAnalysis::notVisited(const Function *f){
+// bool FlowSensitivePointerAnalysis::notVisited(const Function *f){
 
-}
+// }
 
-std::vector<const Function*> FlowSensitivePointerAnalysis::collectAllCallees(const Function *f){
-    auto node = (*cg)[f];
-}
+// std::vector<const Function*> FlowSensitivePointerAnalysis::collectAllCallees(const Function *f){
+//     auto node = (*cg)[f];
+// }
 
 
 

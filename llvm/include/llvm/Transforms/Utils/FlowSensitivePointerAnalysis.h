@@ -58,7 +58,7 @@ namespace llvm{
             void getCallGraphFromModule(Module &m){
                 cg = std::unique_ptr<CallGraph>(new CallGraph(m));
             }
-            size_t countPointerLevel(const AllocaInst *allocaInst);
+            // size_t countPointerLevel(const AllocaInst *allocaInst);
             void initialize(const Function * const func);
 
 
@@ -77,8 +77,8 @@ namespace llvm{
             void updateAliasInformation(const ProgramLocationTy *t, const LoadInst *pt);
             std::set<const Value*> getAlias(const Instruction *t, const Instruction *p);
             std::vector<const Value*> ptsPointsTo(const Instruction *user, const Instruction *t);
-            bool notVisited(const Function *f);
-            std::vector<const Function*> collectAllCallees(const Function*);
+            // bool notVisited(const Function *f);
+            // std::vector<const Function*> collectAllCallees(const Function*);
             void addDefUseEdge(const ProgramLocationTy *def, const ProgramLocationTy *use, const PointerTy *ptr);
             void updatePointsToSet(const ProgramLocationTy *loc, const PointerTy *ptr, std::set<const Value *> pointsToSet, std::vector<DefUseEdgeTupleTy> &propagateList);
             
@@ -107,7 +107,7 @@ namespace llvm{
         LabelType type;
 
         // Label() = default;
-        Label(const Value *p, Label::LabelType tp) : ptr(ptr), type(tp) {}
+        Label(const Value *p, Label::LabelType tp) : ptr(p), type(tp) {}
     };
 
     raw_ostream& operator<<(raw_ostream &os, const Label &l);
