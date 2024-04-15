@@ -1,5 +1,8 @@
 #include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
 #include <algorithm>
+#include <memory>
+#include <exception>
+#include <vector>
 
 #define RED_BOLD_PREFIX "\033[1;31m"
 #define GREEN_BOLD_PREFIX "\033[1;32m"
@@ -122,6 +125,11 @@ void FlowSensitivePointerAnalysis::propagate(size_t currentPtrLvl, const Functio
             else if(auto *bitcastInst = dyn_cast<BitCastInst>(inst)){
                 #define DEBUG_TYPE "TESTCALLGRAPH"
                 LLVM_DEBUG(dbgs() << *bitcastInst << " is in the user list of pointer " << *ptr << ", but it's neither storeinst nor loadinst.\n");
+                #undef DEBUG_TYPE
+            }
+            else if(auto *cmpInst = dyn_cast<CmpInst>(inst)){
+                #define DEBUG_TYPE "TESTCALLGRAPH"
+                LLVM_DEBUG(dbgs() << *cmpInst << " is in the user list of pointer " << *ptr << ", but it's neither storeinst nor loadinst.\n");
                 #undef DEBUG_TYPE
             }
             else{
@@ -453,15 +461,109 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         Update 2024-04-03: LLVM-17 removes the support of typed pointer with opaque pointer. Now we no longer have access to the detailed 
                             type to a pointer. So we would need some other way to calculate pointer level.
     */
+
+   /*
+    Since two pointers used in load or store different in exact 1 points-to level, we do not need to store the 1.
+    A pair (a,b) means a + 1 = b
+
+    a = b + 1
+    c = a + 1
+
+    b = 1
+
+    a b c
+    1 -1 0 1
+    -1 0 1 1
+    0 1 0 1
+
+    1 0 0 2
+    0 1 0 1
+    0 -1 1 2
+
+    1 0 0 2
+    0 1 0 1
+    0 0 1 3
+
+    a = 2, b = 1, c = 3
+    
+   */
+   std::set<std::pair<const Value*, const Value*>> constraints;
+   std::map<const Value *, int> pointers;
+   int counter = 0;
     for(auto &inst : instructions(*func)){
-        if(const AllocaInst *alloca = dyn_cast<AllocaInst>(&inst)){
-            errs() << *(alloca->getAllocatedType()) << "\n";
-            labelMap[alloca].insert(Label(&inst, Label::LabelType::Def));
-            size_t ptrLvl = countPointerLevel(alloca);
-            worklist[ptrLvl].insert(&inst);
-            // Empty points-to set means the pointer is undefined.
-            pointsToSet[&inst][&inst] = {std::set<const Value*>(), false};
+
+        if(const StoreInst *store = dyn_cast<StoreInst>(&inst)){
+            constraints.insert({store->getValueOperand()->stripPointerCasts(), store->getPointerOperand()->stripPointerCasts()});
         }
+        else if(const LoadInst *load = dyn_cast<LoadInst>(&inst)){
+            constraints.insert({load, load->getPointerOperand()->stripPointerCasts()});
+            if(!pointers.count(&inst)){
+                pointers[&inst] = counter++;
+            }
+        }
+        else if(const AllocaInst *alloca = dyn_cast<AllocaInst>(&inst)){
+            if(!pointers.count(&inst)){
+                pointers[&inst] = counter++;
+            }
+        }
+    }
+
+
+    std::vector<std::vector<int>> matrix;
+
+    for(auto con : constraints){
+        std::vector<int> line(pointers.size() + 1, 0);
+        if(dyn_cast<Instruction>(con.first)){
+            line[pointers[con.first]] = -1;
+        }
+        line[pointers[con.second]] = 1;
+        line[pointers.size()] = 1;
+        matrix.push_back(line);
+    }
+
+    for(int i = 0; i != constraints.size(); ++i){
+        // Find first line that has non zero entry as i-th element.
+        int j = i;
+        while(j != constraints.size() && matrix[j][i] == 0){
+            ++j;
+        }
+
+        if(j != constraints.size()){
+            int coefficient = (matrix[j][i] > 0 ? 1 : -1);
+            int temp;
+            for(int k = 0; k != pointers.size() + 1; ++k){
+                temp = matrix[i][k];
+                matrix[i][k] = matrix[j][k] * coefficient;
+                matrix[j][k] = temp;
+            }
+        }
+        else{
+            // if no such line, then all entry in this column is 0, then we skip to next line.
+            continue;
+        }
+
+        // add or subtract i-th line.
+        for(int k = 0; k != constraints.size(); ++k){
+            if(k == i){
+                continue;
+            }
+
+            if(matrix[k][i] == 1){
+                // k-th line mins i-th line
+                for(int h = 0; h != pointers.size() + 1; ++h){
+                    matrix[k][h] -= matrix[i][h];
+                }
+            }
+            else if(matrix[k][i] == -1){
+                // k-th line plus i-th line
+                for(int h = 0; h != pointers.size() + 1; ++h){
+                    matrix[k][h] += matrix[i][h];
+                }
+            }
+        }
+    }
+    for(auto pointerPair : pointers){
+        worklist[matrix[(pointerPair.second+1)][pointers.size()]].insert(dyn_cast<Instruction>(pointerPair.first));
     }
     // todo: for each call instruction, we need to add auxiliary instructions to enable pointer arguments passing among themselves.
     // For example, for function f(int *a, int *b) that returns int *r and callsite int *ret = f(x,y);, 

@@ -90,6 +90,7 @@ namespace llvm{
 
         public:
             PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
+            DenseMap<size_t, DenseSet<const Instruction*>> getWorkList() {return worklist;}
     };
 
 
