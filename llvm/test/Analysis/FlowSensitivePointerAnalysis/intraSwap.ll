@@ -1,6 +1,6 @@
-; RUN: opt -passes="fspa, print-pointer-level" < %s --disable-output | FileCheck %s -check-prefix=PL
-; RUN: opt -passes="fspa, print-points-to-set" < %s --disable-output | FileCheck %s -check-prefix=PPTS
-; RUN: opt -passes="fspa, get-alias-set" < %s --disable-output | FileCheck %s -check-prefix=GAS
+; RUN: opt -passes="fspa-print" < %s --disable-output | FileCheck %s -check-prefix=PL
+; COM: opt -passes="fspa, print-points-to-set" < %s --disable-output | FileCheck %s -check-prefix=PPTS
+; COM: opt -passes="fspa, get-alias-set" < %s --disable-output | FileCheck %s -check-prefix=GAS
 
 
 define i32 @main() #0 {

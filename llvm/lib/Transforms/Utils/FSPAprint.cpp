@@ -11,7 +11,7 @@ PreservedAnalyses PrintPL::run(Module &m, ModuleAnalysisManager &mam){
         for(auto pointer : pair.second){
             pointerLevel[pointer] = pair.first;
             if(dyn_cast<AllocaInst>(pointer)){
-                errs() << *pointer << " => " << pair.first << "\n";
+                outs() << *pointer << " => " << pair.first << "\n";
             }
         }
     }
