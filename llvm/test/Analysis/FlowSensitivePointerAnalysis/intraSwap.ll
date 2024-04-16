@@ -120,16 +120,16 @@ entry:
 
 ; GAS: %tmp = alloca ptr, align 8
 
-; PL: %retval = alloca i32, align 4 => 1
-; PL: %A = alloca [1 x i8], align 1 => 1
-; PL: %B = alloca [1 x i8], align 1 => 1
-; PL: %a = alloca ptr, align 8 => 2
-; PL: %b = alloca ptr, align 8 => 2
-; PL: %t1 = alloca ptr, align 8 => 3
-; PL: %t2 = alloca ptr, align 8 => 3
-; PL: %p = alloca ptr, align 8 => 3
-; PL: %q = alloca ptr, align 8 => 3
-; PL: %tmp = alloca ptr, align 8 => 2
+; PL-DAG: %retval = alloca i32, align 4 => 1
+; PL-DAG: %A = alloca [1 x i8], align 1 => 1
+; PL-DAG: %B = alloca [1 x i8], align 1 => 1
+; PL-DAG: %a = alloca ptr, align 8 => 2
+; PL-DAG: %b = alloca ptr, align 8 => 2
+; PL-DAG: %t1 = alloca ptr, align 8 => 3
+; PL-DAG: %t2 = alloca ptr, align 8 => 3
+; PL-DAG: %p = alloca ptr, align 8 => 3
+; PL-DAG: %q = alloca ptr, align 8 => 3
+; PL-DAG: %tmp = alloca ptr, align 8 => 2
 
 
   store i32 0, ptr %retval, align 4

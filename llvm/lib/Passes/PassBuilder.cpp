@@ -262,6 +262,7 @@
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
 #include <optional>
 #include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
+#include "llvm/Transforms/Utils/FSPAprint.h"
 
 using namespace llvm;
 

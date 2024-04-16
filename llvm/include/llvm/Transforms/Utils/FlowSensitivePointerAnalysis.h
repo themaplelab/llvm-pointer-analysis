@@ -31,10 +31,23 @@
 */
 
 namespace llvm{
+
+    class FlowSensitivePointerAnalysisResult{
+        DenseMap<size_t, DenseSet<const Instruction*>> worklist;
+
+
+        public:
+            DenseMap<size_t, DenseSet<const Instruction*>> getWorkList() {return worklist;}
+            void setWorkList(DenseMap<size_t, DenseSet<const Instruction*>> wl) {worklist = wl; return;}
+            
+
+    };
+
     struct Label;
 
 
-    class FlowSensitivePointerAnalysis : public PassInfoMixin<FlowSensitivePointerAnalysis>{
+    class FlowSensitivePointerAnalysis : public AnalysisInfoMixin<FlowSensitivePointerAnalysis>{
+        friend AnalysisInfoMixin<FlowSensitivePointerAnalysis>;
         using PointerTy = Instruction;
         using ProgramLocationTy = Instruction;
         using DefUseEdgeTupleTy = std::tuple<const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*>;
@@ -52,6 +65,10 @@ namespace llvm{
         std::stack<const Function*> left2Analysis;
         // Map each pointer to the program location that requires its alias information.
         std::map<const Instruction*, std::set<const User*>> aliasUser;
+        FlowSensitivePointerAnalysisResult result;
+
+        static AnalysisKey Key;
+        static bool isRequired() { return true; }
 
         private:
             const Function* getFunctionInCallGrpahByName(std::string name);
@@ -89,8 +106,10 @@ namespace llvm{
 
 
         public:
-            PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
-            DenseMap<size_t, DenseSet<const Instruction*>> getWorkList() {return worklist;}
+            using Result = FlowSensitivePointerAnalysisResult;
+
+            FlowSensitivePointerAnalysisResult run(Module &m, ModuleAnalysisManager &mam);
+            FlowSensitivePointerAnalysisResult getResult() {return result;}
     };
 
 

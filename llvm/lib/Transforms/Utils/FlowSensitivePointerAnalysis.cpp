@@ -11,11 +11,14 @@
 
 using namespace llvm;
 
+AnalysisKey FlowSensitivePointerAnalysis::Key;
+
+
 
 /*
     Analysis Entry - perform analysis
 */
-PreservedAnalyses FlowSensitivePointerAnalysis::run(Module &m, ModuleAnalysisManager &mam){
+FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, ModuleAnalysisManager &mam){
 
     getCallGraphFromModule(m);
 
@@ -24,7 +27,7 @@ PreservedAnalyses FlowSensitivePointerAnalysis::run(Module &m, ModuleAnalysisMan
     auto mainFunctionPtr = getFunctionInCallGrpahByName("main");
     if(!mainFunctionPtr){
         errs() << "Cannot find main function.\n";
-        return PreservedAnalyses::all();
+        return result;
     } 
     left2Analysis.push(mainFunctionPtr);
 
@@ -34,7 +37,7 @@ PreservedAnalyses FlowSensitivePointerAnalysis::run(Module &m, ModuleAnalysisMan
         left2Analysis.pop();
     }
 
-    return PreservedAnalyses::all();
+    return result;
 }
 
 
@@ -523,6 +526,13 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         matrix.push_back(line);
     }
 
+    // for(auto line : matrix){
+    //     for(auto num : line){
+    //         errs() << num << " ";
+    //     }
+    //     errs() << "\n";
+    // }
+
     for(size_t i = 0; i != constraints.size(); ++i){
         // Find first line that has non zero entry as i-th element.
         size_t j = i;
@@ -530,7 +540,13 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
             ++j;
         }
 
-        if(j != constraints.size()){
+        if(j == i){
+            int coefficient = (matrix[j][i] > 0 ? 1 : -1);
+            for(size_t k = 0; k != pointers.size() + 1; ++k){
+                matrix[i][k] = coefficient * matrix[i][k];
+            }
+        }
+        else if(j != constraints.size()){
             int coefficient = (matrix[j][i] > 0 ? 1 : -1);
             int temp;
             for(size_t k = 0; k != pointers.size() + 1; ++k){
@@ -564,32 +580,24 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
             }
         }
     }
+
+    // for(auto p : pointers){
+    //     errs() << *(p.first) << " " << p.second << "\n";
+    // }
+    // for(auto line : matrix){
+    //     for(auto num : line){
+    //         errs() << num << " ";
+    //     }
+    //     errs() << "\n";
+    // }
     for(auto pointerPair : pointers){
-        worklist[matrix[(pointerPair.second+1)][pointers.size()]].insert(dyn_cast<Instruction>(pointerPair.first));
+        worklist[matrix[pointerPair.second][pointers.size()]].insert(dyn_cast<Instruction>(pointerPair.first));
     }
+    result.setWorkList(worklist);
     // todo: for each call instruction, we need to add auxiliary instructions to enable pointer arguments passing among themselves.
     // For example, for function f(int *a, int *b) that returns int *r and callsite int *ret = f(x,y);, 
     // we need a = x, b = y at the very beginning of the function, and ret = r at the end of the function.
 }
-
-// size_t FlowSensitivePointerAnalysis::countPointerLevel(const AllocaInst *allocaInst){
-//     /*
-//         Pointer level describes how deep a pointer is. 
-//         The pointer level for a pointer that points to a non-pointer is 1, and if pl(a) = 1, any pointer that can points-to a without 
-//         casting has a pointer level of 2. 
-//     */
-
-//    // TODO: Since llvm-17 only support opaque pointer, we need another to calculate the pointer level.
-
-//     size_t pointerLevel = 1;
-
-//     auto ty = allocaInst->getAllocatedType();
-//     while(ty->isPointerTy()){
-//         ++pointerLevel;
-//         ty = ty->getNonOpaquePointerElementType();
-//     }
-//     return pointerLevel;
-// }
 
 
 const Function* FlowSensitivePointerAnalysis::getFunctionInCallGrpahByName(std::string name){
