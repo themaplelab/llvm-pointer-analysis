@@ -34,11 +34,18 @@ namespace llvm{
 
     class FlowSensitivePointerAnalysisResult{
         DenseMap<size_t, DenseSet<const Instruction*>> worklist;
+        std::map<const Instruction*, std::map<const Instruction*, std::pair<std::set<const Value*>, bool>>> pointsToSet;
 
 
         public:
             DenseMap<size_t, DenseSet<const Instruction*>> getWorkList() {return worklist;}
             void setWorkList(DenseMap<size_t, DenseSet<const Instruction*>> wl) {worklist = wl; return;}
+            std::map<const Instruction*, std::map<const Instruction*, std::pair<std::set<const Value*>, bool>>> getPointsToSet(){
+                return pointsToSet;
+            }
+            void setPointsToSet(std::map<const Instruction*, std::map<const Instruction*, std::pair<std::set<const Value*>, bool>>> pts){
+                pointsToSet = pts;
+            }
             
 
     };

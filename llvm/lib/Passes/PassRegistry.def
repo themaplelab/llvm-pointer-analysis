@@ -130,7 +130,8 @@ MODULE_PASS("memprof-module", ModuleMemProfilerPass())
 MODULE_PASS("poison-checking", PoisonCheckingPass())
 MODULE_PASS("pseudo-probe-update", PseudoProbeUpdatePass())
 // Add flow sensitive pointer analysis pass
-MODULE_PASS("fspa-print", PrintPL())
+MODULE_PASS("fspa-pl-print", PrintPL())
+MODULE_PASS("fspa-pts-print", PrintPointsToSet())
 
 #undef MODULE_PASS
 

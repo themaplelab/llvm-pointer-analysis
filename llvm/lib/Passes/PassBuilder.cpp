@@ -263,6 +263,7 @@
 #include <optional>
 #include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
 #include "llvm/Transforms/Utils/FSPAprint.h"
+#include "llvm/Transforms/Utils/PrintPointsToSet.h"
 
 using namespace llvm;
 

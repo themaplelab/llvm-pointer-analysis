@@ -37,6 +37,8 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
         left2Analysis.pop();
     }
 
+    result.setPointsToSet(pointsToSet);
+
     return result;
 }
 
