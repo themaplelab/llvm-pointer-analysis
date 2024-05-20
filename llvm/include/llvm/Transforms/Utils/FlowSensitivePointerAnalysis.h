@@ -91,7 +91,7 @@ namespace llvm{
             void performPointerAnalysisOnFunction(const Function* const func);
             void propagate(size_t currentPtrLvl, const Function* func);
             std::vector<const Instruction*> findDefFromUse(const ProgramLocationTy *loc, const PointerTy *ptr);
-            bool hasDef(const Instruction *pinst, const Instruction *p);
+            bool hasDef(const ProgramLocationTy *loc, const PointerTy *ptr);
             std::vector<const Instruction*> findDefFromBB(const BasicBlock *bb, const PointerTy *p);
             // std::vector<const Instruction*> getDUEdgesOfPtrAtClause(std::map<const Instruction*, std::set<const Instruction *>> u2p, const Instruction *ptr);
             std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy *loc, const PointerTy *ptr);
@@ -138,6 +138,12 @@ namespace llvm{
 
     raw_ostream& operator<<(raw_ostream &os, const Label &l);
     bool operator<(const Label &l1, const Label &l2);
+
+    raw_ostream& operator<<(raw_ostream &os, const std::map<const Instruction*, std::map<const Instruction*, std::pair<std::set<const Value*>, bool>>> &pts);
+    raw_ostream& operator<<(raw_ostream &os, const DenseMap<size_t, DenseSet<const Instruction *>> &wl);
+    raw_ostream& operator<<(raw_ostream &os, const std::vector<const Instruction *> &l);
+    raw_ostream& operator<<(raw_ostream &os, const std::map<const Instruction*, std::map<const Instruction*, std::set<const Instruction*>>> &l);
+
 
 } //namespace llvm
 

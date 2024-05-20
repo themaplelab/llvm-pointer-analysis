@@ -86,6 +86,7 @@ add_llvm_component_library(LLVMTransformUtils
   FlowSensitivePointerAnalysis.cpp
   FSPAprint.cpp
   PrintPointsToSet.cpp
+  FunctionCounter.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms

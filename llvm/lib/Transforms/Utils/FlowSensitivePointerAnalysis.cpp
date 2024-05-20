@@ -26,7 +26,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     auto mainFunctionPtr = getFunctionInCallGrpahByName("main");
     if(!mainFunctionPtr){
-        errs() << "Cannot find main function.\n";
+        outs() << "Cannot find main function.\n";
         return result;
     } 
     left2Analysis.push(mainFunctionPtr);
@@ -36,8 +36,10 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
         performPointerAnalysisOnFunction(cur);
         left2Analysis.pop();
     }
+    
 
     result.setPointsToSet(pointsToSet);
+    outs() << pointsToSet;
 
     return result;
 }
@@ -47,6 +49,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Function * const func){
 
     initialize(func);
+    outs() << worklist;
     size_t currentPointerLevel = worklist.size();
 
     while(currentPointerLevel != 0){
@@ -55,6 +58,7 @@ void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Functi
         --currentPointerLevel;
     }
 
+    
     visited[func] = true;
 }
 
@@ -163,8 +167,11 @@ void FlowSensitivePointerAnalysis::propagate(size_t currentPtrLvl, const Functio
             }
         }
 
+        // outs() << defUseGraph;
+
 
         auto initialDUEdges = getAffectUseLocations(ptr, ptr);
+        // outs() << initialDUEdges.size() << "\n";
 
 
         std::vector<DefUseEdgeTupleTy> propagateList;
@@ -380,18 +387,33 @@ std::set<const Value*> FlowSensitivePointerAnalysis::calculatePointsToInformatio
 }
 
 
-std::vector<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::getAffectUseLocations(const ProgramLocationTy *loc, const Instruction *ptr){
+std::vector<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::getAffectUseLocations(const ProgramLocationTy *loc, const PointerTy *ptr){
     std::vector<const Instruction*> res;
 
+    // outs() << "find for " << *ptr << " at " << *loc << "\n";
+
     for(auto iter = defUseGraph[loc].begin(); iter != defUseGraph[loc].end(); ++iter){
-        auto it = std::find_if(iter->second.begin(), iter->second.end(), [ptr](const PointerTy *p) -> bool{
-            return p == ptr;
-        });
-        if(it != iter->second.end()){
-            res.push_back(iter->first);
+        if(ptr == iter->first){
+            res.insert(res.begin(), iter->second.begin(), iter->second.end());
         }
+        // auto s = iter->second;
+        // auto it = std::find_if(s.begin(), s.end(), [ptr](const PointerTy *p) -> bool{
+        //     outs() << "Comparing " << *p << " with " << *ptr << "\n";
+        //     return p == ptr;
+        // });
+        // if(it != s.end()){
+        //     res.push_back(iter->first);
+        // }
 
     }
+
+    // for(auto iter = defUseGraph[loc].begin(); iter != defUseGraph[loc].end(); ++iter){
+    //     for(auto it = iter->second.begin(); it != iter->second.end(); ++it){
+    //         if(*it == ptr){
+    //             res.push_back(iter->first);
+    //         }
+    //     }
+    // }
         
     return res;
 }
@@ -593,8 +615,19 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
     //     errs() << "\n";
     // }
     for(auto pointerPair : pointers){
-        worklist[matrix[pointerPair.second][pointers.size()]].insert(dyn_cast<Instruction>(pointerPair.first));
+        if(dyn_cast<AllocaInst>(pointerPair.first)){
+            worklist[matrix[pointerPair.second][pointers.size()]].insert(dyn_cast<Instruction>(pointerPair.first));
+        }
     }
+
+    for(auto &inst : instructions(*func)){
+        if(const AllocaInst *alloca = dyn_cast<AllocaInst>(&inst)){
+            labelMap[alloca].insert(Label(&inst, Label::LabelType::Def));
+            // Empty points-to set means the pointer is undefined.
+            pointsToSet[&inst][&inst] = {std::set<const Value*>(), false};
+        }
+    }
+
     result.setWorkList(worklist);
     // todo: for each call instruction, we need to add auxiliary instructions to enable pointer arguments passing among themselves.
     // For example, for function f(int *a, int *b) that returns int *r and callsite int *ret = f(x,y);, 
@@ -755,5 +788,53 @@ namespace llvm{
         }
         return os;
     }
+
+    raw_ostream& operator<<(raw_ostream &os, const std::map<const Instruction*, std::map<const Instruction*, std::pair<std::set<const Value*>, bool>>> &pts){
+        os << "pointsToSet is:\n ";
+        for(auto pair : pts){
+            os << "At " << *pair.first << " " << pair.first <<": \n";
+            for(auto p : pair.second){
+                for(auto e : p.second.first){
+                    os << "\t" << *p.first << " => " << *e << "\n";
+                }
+            }
+        }
+        return os;
+    }
+
+    raw_ostream& operator<<(raw_ostream &os, const DenseMap<size_t, DenseSet<const Instruction *>> &wl){
+        os << "WorkList:\n";
+        for(auto pair : wl){
+            for(auto e : pair.second){
+                os << pair.first << " => " << *e << "\n";
+            }
+        }
+
+        return os;
+    }
+
+    raw_ostream& operator<<(raw_ostream &os, const std::vector<const Instruction *> &l){
+        os << "Initial edges: \n";
+        for(auto e : l){
+            os << *e << "\n";
+        }
+        return os;
+    }
+
+    raw_ostream& operator<<(raw_ostream &os, const std::map<const Instruction*, std::map<const Instruction*, std::set<const Instruction*>>> &l){
+        os << "Def Use Graph: \n";
+        for(auto it = l.begin(); it != l.end(); ++it){
+            for(auto iter = it->second.begin(), end = it->second.end(); iter != end; ++iter){
+                auto ptr = iter->first;
+                for(auto i = iter->second.begin(), e = iter->second.end(); i != e; ++i){
+                    errs() << *(it->first) << " === " << **i << " ===> " << *ptr << "\n";
+                }
+            }
+        }   
+        return os;
+    }
+
+
+
 }
 

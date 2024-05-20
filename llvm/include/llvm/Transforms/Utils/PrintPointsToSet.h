@@ -9,7 +9,7 @@ namespace llvm{
         public:
             PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
             void printPointsToSet(const Instruction*, std::map<const Instruction *, std::map<const Instruction *, std::pair<std::set<const Value *>, bool>>> pts, std::vector<const AllocaInst*> pointers);
-            std::set<const Value *> trackPointsToSet(const Instruction *cur, const Instruction *ptr);
+            std::set<const Value *> trackPointsToSet(const Instruction *cur, const Instruction *ptr, std::map<const Instruction *, std::map<const Instruction *, std::pair<std::set<const Value *>, bool>>> pts);
     };
 }
 
