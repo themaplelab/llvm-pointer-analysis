@@ -87,6 +87,7 @@ add_llvm_component_library(LLVMTransformUtils
   FSPAprint.cpp
   PrintPointsToSet.cpp
   FunctionCounter.cpp
+  PrintAliasToPairs.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms

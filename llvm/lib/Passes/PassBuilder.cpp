@@ -265,6 +265,8 @@
 #include "llvm/Transforms/Utils/FSPAprint.h"
 #include "llvm/Transforms/Utils/PrintPointsToSet.h"
 #include "llvm/Transforms/Utils/FunctionCounter.h"
+#include "llvm/Transforms/Utils/PrintAliasToPairs.h"
+
 
 using namespace llvm;
 

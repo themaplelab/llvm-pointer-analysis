@@ -132,6 +132,11 @@ MODULE_PASS("pseudo-probe-update", PseudoProbeUpdatePass())
 // Add flow sensitive pointer analysis pass
 MODULE_PASS("fspa-pl-print", PrintPL())
 MODULE_PASS("fspa-pts-print", PrintPointsToSet())
+// MODULE_PASS("fspa", FlowSensitivePointerAnalysis())
+MODULE_PASS("fspa-alias-print", PrintAliasToPairs())
+
+
+
 
 #undef MODULE_PASS
 

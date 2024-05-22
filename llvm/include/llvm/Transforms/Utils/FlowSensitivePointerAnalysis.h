@@ -92,7 +92,7 @@ namespace llvm{
             void propagate(size_t currentPtrLvl, const Function* func);
             std::vector<const Instruction*> findDefFromUse(const ProgramLocationTy *loc, const PointerTy *ptr);
             bool hasDef(const ProgramLocationTy *loc, const PointerTy *ptr);
-            std::vector<const Instruction*> findDefFromBB(const BasicBlock *bb, const PointerTy *p);
+            std::vector<const Instruction*> findDefFromBB(const BasicBlock *bb, const PointerTy *p, DenseSet<const BasicBlock*> visited);
             // std::vector<const Instruction*> getDUEdgesOfPtrAtClause(std::map<const Instruction*, std::set<const Instruction *>> u2p, const Instruction *ptr);
             std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy *loc, const PointerTy *ptr);
             
