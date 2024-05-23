@@ -10,14 +10,14 @@ PreservedAnalyses PrintAliasToPairs::run(Module &m, ModuleAnalysisManager &mam){
     auto worklist = result.getWorkList();
 
     // outs() << "size: " << pts.size() << "\n";
-    for(auto pair : pts){
-        outs() << "At " << *pair.first << " " << pair.first << ": \n";
-        for(auto p : pair.second){
-            for(auto e : p.second.first){
-                outs() << "\t" << *p.first << " => " << *e << "\n";
-            }
-        }
-    }
+    // for(auto pair : pts){
+    //     outs() << "At " << *pair.first << " " << pair.first << ": \n";
+    //     for(auto p : pair.second){
+    //         for(auto e : p.second.first){
+    //             outs() << "\t" << *p.first << " => " << *e << "\n";
+    //         }
+    //     }
+    // }
 
     std::vector<const AllocaInst*> allocatedPointers;
     for(auto pair : worklist){
@@ -80,9 +80,9 @@ void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const In
             // outs() << "Size: "<< curPointsToSet.size() << "\n";
 
             curPointsToSet[ptr].first = trackPointsToSet(cur, ptr, pts);
-            for(auto e : curPointsToSet[ptr].first){
-                outs() << *e << "\n";
-            }
+            // for(auto e : curPointsToSet[ptr].first){
+            //     outs() << *e << "\n";
+            // }
             // outs() << "Size: "<< curPointsToSet.size() << "\n";
 
             // outs() << "Size track: "<< curPointsToSet[ptr].first.size() << "\n";
@@ -90,6 +90,7 @@ void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const In
         }
     }
 
+    outs() << *cur << "\n";
 
     for(int i = 0; i < pointers.size() - 1; ++i){
         for(int j = i+1; j <= pointers.size() - 1; ++j){
@@ -109,6 +110,8 @@ void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const In
             }
         }
     }
+    outs() << "\n";
+
     // // outs() << *cur << "\n";
     // for(auto pair : curPointsToSet){
     //     // outs() << *(pair.first) << " => {";

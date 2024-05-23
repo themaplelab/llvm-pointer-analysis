@@ -40,7 +40,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     
 
     result.setPointsToSet(pointsToSet);
-    outs() << pointsToSet;
+    // outs() << pointsToSet;
 
     return result;
     // return PreservedAnalyses::all();
@@ -52,7 +52,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Function * const func){
 
     initialize(func);
-    outs() << worklist;
+    // outs() << worklist;
     size_t currentPointerLevel = worklist.size();
 
     while(currentPointerLevel != 0){
@@ -72,7 +72,7 @@ void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Functi
 void FlowSensitivePointerAnalysis::propagate(size_t currentPtrLvl, const Function* func){
 
     for(auto ptr : worklist[currentPtrLvl]){
-        outs() << "Current working pointer:" << *ptr << "\n";
+        // outs() << "Current working pointer:" << *ptr << "\n";
 
         #define DEBUG_TYPE "TESTCALLGRAPH"
             LLVM_DEBUG(dbgs() << "Current working pointer:" << *ptr << "\n");
@@ -160,7 +160,7 @@ void FlowSensitivePointerAnalysis::propagate(size_t currentPtrLvl, const Functio
             }
         }
 
-        outs() << "1\n";
+        // outs() << "1\n";
 
 
         for(auto useLoc : useList[ptr]){
@@ -183,7 +183,7 @@ void FlowSensitivePointerAnalysis::propagate(size_t currentPtrLvl, const Functio
 
         }
 
-        outs() << "2\n";
+        // outs() << "2\n";
 
 
         auto initialDUEdges = getAffectUseLocations(ptr, ptr);
@@ -195,18 +195,18 @@ void FlowSensitivePointerAnalysis::propagate(size_t currentPtrLvl, const Functio
             propagateList.push_back(std::make_tuple(ptr, pu, ptr));
         }
 
-        outs() << "3\n";
+        // outs() << "3\n";
 
 
 
         while(!propagateList.empty()){
-            outs() << propagateList.size() << "\n";
+            // outs() << propagateList.size() << "\n";
             auto tup = propagateList.front();
             auto f = std::get<0>(tup);
             auto t = std::get<1>(tup);
             auto ptr = std::get<2>(tup);
 
-            outs() << "Propagating along def use edge: " << *f << f << " ===== " << *ptr << " ====> " << *t  << t << "\n";
+            // outs() << "Propagating along def use edge: " << *f << f << " ===== " << *ptr << " ====> " << *t  << t << "\n";
             #define DEBUG_TYPE "TESTCALLGRAPH"
             LLVM_DEBUG(dbgs() << "Propagating along def use edge: " << *f << " ===== " << *ptr << " ====> " << *t << "\n");
             #undef DEBUG_TYPE
@@ -277,11 +277,11 @@ void FlowSensitivePointerAnalysis::propagate(size_t currentPtrLvl, const Functio
                                     // Here, if points2set is changed, we need to propagate.
 
                                     auto tmp = pointsToSet[userInst][p1];
-                                    outs() << "points-to set changed.\n";
+                                    // outs() << "points-to set changed.\n";
                                     auto passList = getAffectUseLocations(userInst, p1);
                                     for(auto u : passList){    
                                             propagateList.push_back(std::make_tuple(userInst,u,p1));
-                                            outs() << "New def use edge added to propagatelist: " << *userInst << "=== " << *p1 << " ===>" << *u << "\n";      
+                                            // outs() << "New def use edge added to propagatelist: " << *userInst << "=== " << *p1 << " ===>" << *u << "\n";      
 
                                     }
                                 }
@@ -321,7 +321,7 @@ void FlowSensitivePointerAnalysis::propagate(size_t currentPtrLvl, const Functio
 
         }
 
-        outs() << "4\n";
+        // outs() << "4\n";
 
     }
 }
@@ -337,26 +337,26 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *lo
     }
     // Here, if points2set is changed, we need to propagate.
     if(tmp != pointsToSet[loc][ptr].first){
-        outs() << "Old set:\n";
-        for(auto s : tmp){
-            outs() << *s << "\n";
-        }
+        // outs() << "Old set:\n";
+        // for(auto s : tmp){
+        //     outs() << *s << "\n";
+        // }
 
-        outs() << "New set:\n";
-        for(auto s : pointsToSet[loc][ptr].first){
-            outs() << *s << "\n";
-        }
+        // outs() << "New set:\n";
+        // for(auto s : pointsToSet[loc][ptr].first){
+        //     outs() << *s << "\n";
+        // }
 
 
         pointsToSet[loc][ptr].second = true;
-        outs() << "points-to set changed in update points to set.\n";
+        // outs() << "points-to set changed in update points to set.\n";
         #define DEBUG_TYPE "TESTCALLGRAPH"
         LLVM_DEBUG(dbgs() << "points-to set changed in update points to set.\n");
         #undef DEBUG_TYPE
         auto affectedUseLocs = getAffectUseLocations(loc, ptr);
         for(auto u : affectedUseLocs){    
                 propagateList.push_back(std::make_tuple(loc,u,ptr));
-                outs() << "New def use edge added to propagatelist: " << *loc << loc << "=== " << *ptr << " ===>" << *u << u << "\n";
+                // outs() << "New def use edge added to propagatelist: " << *loc << loc << "=== " << *ptr << " ===>" << *u << u << "\n";
                 #define DEBUG_TYPE "TESTCALLGRAPH"
                 LLVM_DEBUG(dbgs() << "New def use edge added to propagatelist: " << *loc << "=== " << *ptr << " ===>" << *u << "\n");
                 #undef DEBUG_TYPE
@@ -491,17 +491,17 @@ std::vector<const Instruction*> FlowSensitivePointerAnalysis::findDefFromUse(con
         }
         else{
             std::vector<const ProgramLocationTy*> res;
-            outs() << "loc" << *loc <<  "\n";
+            // outs() << "loc" << *loc <<  "\n";
             for(auto it = pred_begin(loc->getParent()); it != pred_end(loc->getParent()); ++it){
                 DenseSet<const BasicBlock*> visited{loc->getParent()};
                 std::vector<const Instruction*> defs = findDefFromBB(*it, ptr, visited);
                 res.insert(res.end(), defs.begin(), defs.end());
             }
 
-            outs() << "res:\n";
-            for(auto d : res){
-                outs() << *d << "\n";
-            }
+            // outs() << "res:\n";
+            // for(auto d : res){
+            //     outs() << *d << "\n";
+            // }
             
             return res;
         }
@@ -559,14 +559,16 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
     
    */
 
-   outs() << "Initialize " << func->getName() << "\n";
+//    outs() << "Initialize " << func->getName() << "\n";
    std::set<std::pair<const Value*, const Value*>> constraints;
    std::map<const Value *, int> pointers;
    int counter = 0;
     for(auto &inst : instructions(*func)){
 
         if(const StoreInst *store = dyn_cast<StoreInst>(&inst)){
-            if(!pointers.count(store->getValueOperand()->stripPointerCasts())){
+
+            if((dyn_cast<Instruction>(store->getValueOperand()->stripPointerCasts()) && 
+                            (!pointers.count(store->getValueOperand()->stripPointerCasts())))){
                 pointers[store->getValueOperand()->stripPointerCasts()] = counter++;
             }
             if(!pointers.count(store->getPointerOperand()->stripPointerCasts())){
@@ -606,7 +608,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
     std::vector<std::vector<int>> matrix;
 
     for(auto con : constraints){
-        // outs() << *(con.first) << " ==> " << *(con.second) << "\n";
+        // outs() << *(con.first) << " ==> " << *(con.second) << " " << dyn_cast<Instruction>(con.first) << "\n";
         // outs() << pointers[con.first] << " ==> " << pointers[con.second] << "\n";
 
         std::vector<int> line(pointers.size() + 1, 0);
@@ -615,6 +617,10 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         }
         line[pointers[con.second]] = 1;
         line[pointers.size()] = 1;
+        // for(auto e : line){
+        //     outs() << e << " ";
+        // }
+        // outs() << "\n";
         matrix.push_back(line);
     }
 
@@ -674,12 +680,22 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         }
     }
 
+    // for(auto a : matrix){
+    //     for(auto b : a){
+    //         outs() << b << " ";
+    //     }
+    //     outs() << "\n";
+    // }
 
+    // outs() << 1 <<"\n";
     for(auto pointerPair : pointers){
         if(dyn_cast<AllocaInst>(pointerPair.first)){
+            // outs() << "Insert " << *pointerPair.first << "\n";
             worklist[matrix[pointerPair.second][pointers.size()]].insert(dyn_cast<Instruction>(pointerPair.first));
         }
     }
+    // outs() << 2 <<"\n";
+    
 
     for(auto &inst : instructions(*func)){
         if(const AllocaInst *alloca = dyn_cast<AllocaInst>(&inst)){
@@ -689,10 +705,16 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         }
     }
 
+    // outs() << 3 <<"\n";
+
     result.setWorkList(worklist);
+
+    // outs() << 4 <<"\n";
+
     // todo: for each call instruction, we need to add auxiliary instructions to enable pointer arguments passing among themselves.
     // For example, for function f(int *a, int *b) that returns int *r and callsite int *ret = f(x,y);, 
     // we need a = x, b = y at the very beginning of the function, and ret = r at the end of the function.
+    return;
 }
 
 
