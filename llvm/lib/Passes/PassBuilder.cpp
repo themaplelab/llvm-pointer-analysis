@@ -266,6 +266,7 @@
 #include "llvm/Transforms/Utils/PrintPointsToSet.h"
 #include "llvm/Transforms/Utils/FunctionCounter.h"
 #include "llvm/Transforms/Utils/PrintAliasToPairs.h"
+#include "llvm/Transforms/Utils/PointerStats.h"
 
 
 using namespace llvm;
