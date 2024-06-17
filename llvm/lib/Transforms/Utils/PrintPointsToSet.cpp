@@ -3,21 +3,9 @@
 
 using namespace llvm;
 
-PreservedAnalyses PrintPointsToSet::run(Module &m, ModuleAnalysisManager &mam){
-    auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
-    auto pts = result.getPointsToSet();
-    auto worklist = result.getWorkList();
 
-    // outs() << "size: " << pts.size() << "\n";
-    // for(auto pair : pts){
-    //     outs() << "At " << *pair.first << " " << pair.first << ": \n";
-    //     for(auto p : pair.second){
-    //         for(auto e : p.second.first){
-    //             outs() << "\t" << *p.first << " => " << *e << "\n";
-    //         }
-    //     }
-    // }
-
+void PrintPointsToSet::processPointsToSetForFunc(const Function *func, llvm::DenseMap<size_t, llvm::DenseSet<const llvm::Instruction *>> worklist,
+                                                std::map<const llvm::Instruction *, std::map<const llvm::Instruction *, std::pair<DenseSet<const llvm::Value *>, bool>>> pts){
     std::vector<const AllocaInst*> allocatedPointers;
     for(auto pair : worklist){
         for(auto pointer : pair.second){
@@ -27,27 +15,27 @@ PreservedAnalyses PrintPointsToSet::run(Module &m, ModuleAnalysisManager &mam){
         }
     }
 
-    auto cg = CallGraph(m);
-    auto res = std::find_if(cg.begin(), cg.end(), [](std::pair<const Function *const, std::unique_ptr<CallGraphNode>> &p) -> bool {
-        return p.first && p.first->getName() == "main";
-        });
+    // auto cg = CallGraph(m);
+    // auto res = std::find_if(cg.begin(), cg.end(), [](std::pair<const Function *const, std::unique_ptr<CallGraphNode>> &p) -> bool {
+    //     return p.first && p.first->getName() == "main";
+    //     });
 
-    if(res == cg.end()){
-        outs() << "No main function.\n";
-        return PreservedAnalyses::all();
-    }
-    auto ptrToMain = res->first;
-    auto firstBB = &ptrToMain->getEntryBlock();
+    // if(res == cg.end()){
+    //     outs() << "No main function.\n";
+    //     return PreservedAnalyses::all();
+    // }
+    // auto ptrToMain = res->first;
+    auto &firstBB = func->getEntryBlock();
 
     std::stack<const BasicBlock*> bbs;
-    bbs.push(firstBB);
+    bbs.push(&firstBB);
 
     while(!bbs.empty()){
         auto curBB = bbs.top();
         bbs.pop();
         auto cur = curBB->getFirstNonPHIOrDbg();
         while(cur){
-            printPointsToSet(cur, result.getPointsToSet(), allocatedPointers);
+            printPointsToSet(cur, pts, allocatedPointers);
             if(cur->isTerminator()){
                 // outs() << "Terminator: " << *cur << "\n";
                 break;
@@ -64,11 +52,35 @@ PreservedAnalyses PrintPointsToSet::run(Module &m, ModuleAnalysisManager &mam){
         
         
     }
+                                                
+
+}
+
+PreservedAnalyses PrintPointsToSet::run(Module &m, ModuleAnalysisManager &mam){
+    auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
+    auto pts = result.getPointsToSet();
+    auto worklist = result.getWorkList();
+
+    // outs() << "size: " << pts.size() << "\n";
+    // for(auto pair : pts){
+    //     outs() << "At " << *pair.first << " " << pair.first << ": \n";
+    //     for(auto p : pair.second){
+    //         for(auto e : p.second.first){
+    //             outs() << "\t" << *p.first << " => " << *e << "\n";
+    //         }
+    //     }
+    // }
+
+    for(auto &func : m.functions()){
+        processPointsToSetForFunc(&func, worklist[&func], pts);
+    }
+
+    
 
     return PreservedAnalyses::all();
 }
 
-void PrintPointsToSet::printPointsToSet(const Instruction *cur, std::map<const Instruction *, std::map<const Instruction *, std::pair<std::set<const Value *>, bool>>> pts, std::vector<const AllocaInst*> pointers){
+void PrintPointsToSet::printPointsToSet(const Instruction *cur, std::map<const Instruction *, std::map<const Instruction *, std::pair<DenseSet<const Value *>, bool>>> pts, std::vector<const AllocaInst*> pointers){
     
     // outs() << "Print At: "<< *cur << "\n";
     auto curPointsToSet = pts[cur];
@@ -105,9 +117,9 @@ void PrintPointsToSet::printPointsToSet(const Instruction *cur, std::map<const I
 /// @param cur 
 /// @param ptr 
 /// @return 
-std::set<const Value *> PrintPointsToSet::trackPointsToSet(const Instruction *cur, const Instruction *ptr, std::map<const Instruction *, std::map<const Instruction *, std::pair<std::set<const Value *>, bool>>> pts){
+DenseSet<const Value *> PrintPointsToSet::trackPointsToSet(const Instruction *cur, const Instruction *ptr, std::map<const Instruction *, std::map<const Instruction *, std::pair<DenseSet<const Value *>, bool>>> pts){
     
-    std::set<const Value *> res;
+    DenseSet<const Value *> res;
 
     auto prev = cur->getPrevNonDebugInstruction();
     if(!prev){

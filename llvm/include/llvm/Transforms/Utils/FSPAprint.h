@@ -9,6 +9,7 @@ namespace llvm{
     class PrintPL : public PassInfoMixin<PrintPL>{
         public:
             PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
+            void processWorkListForFunction(llvm::DenseMap<size_t, llvm::DenseSet<const llvm::Instruction *>> worklist);
     };
 }
 
