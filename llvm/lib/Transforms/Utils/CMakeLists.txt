@@ -24,6 +24,8 @@ add_llvm_component_library(LLVMTransformUtils
   Evaluator.cpp
   FixIrreducible.cpp
   FlattenCFG.cpp
+  FlowSensitivePointerAnalysis.cpp
+  FSPAprint.cpp
   FunctionComparator.cpp
   FunctionImportUtils.cpp
   GlobalStatus.cpp
@@ -76,6 +78,7 @@ add_llvm_component_library(LLVMTransformUtils
   Utils.cpp
   ValueMapper.cpp
   VNCoercion.cpp
+
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms
