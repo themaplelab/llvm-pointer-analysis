@@ -39,17 +39,17 @@ namespace llvm{
 
     /// @brief Class that keeps result of flow sensitive pointer analysis
     class FlowSensitivePointerAnalysisResult{
-        DenseMap<const Function*, DenseMap<size_t, DenseSet<const Instruction*>>> worklist;
-        std::map<const Instruction*, std::map<const Instruction*, std::pair<DenseSet<const Value*>, bool>>> pointsToSet;
+        DenseMap<const Function*, DenseMap<size_t, DenseSet<const Value*>>> worklist;
+        std::map<const Instruction*, std::map<const Value*, std::pair<DenseSet<const Value*>, bool>>> pointsToSet;
 
 
         public:
-            DenseMap<const Function*, DenseMap<size_t, DenseSet<const Instruction*>>> getWorkList() {return worklist;}
-            void setWorkList(DenseMap<const Function*, DenseMap<size_t, DenseSet<const Instruction*>>> wl) {worklist = wl; return;}
-            std::map<const Instruction*, std::map<const Instruction*, std::pair<DenseSet<const Value*>, bool>>> getPointsToSet(){
+            DenseMap<const Function*, DenseMap<size_t, DenseSet<const Value*>>> getWorkList() {return worklist;}
+            void setWorkList(DenseMap<const Function*, DenseMap<size_t, DenseSet<const Value*>>> wl) {worklist = wl; return;}
+            std::map<const Instruction*, std::map<const Value*, std::pair<DenseSet<const Value*>, bool>>> getPointsToSet(){
                 return pointsToSet;
             }
-            void setPointsToSet(std::map<const Instruction*, std::map<const Instruction*, std::pair<DenseSet<const Value*>, bool>>> pts){
+            void setPointsToSet(std::map<const Instruction*, std::map<const Value*, std::pair<DenseSet<const Value*>, bool>>> pts){
                 pointsToSet = pts;
             }
             
@@ -65,11 +65,11 @@ namespace llvm{
 
 
         friend AnalysisInfoMixin<FlowSensitivePointerAnalysis>;
-        using PointerTy = Instruction;
+        using PointerTy = Value;
         using ProgramLocationTy = Instruction;
         using DefUseEdgeTupleTy = std::tuple<const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*>;
 
-        DenseMap<const Function*, DenseMap<size_t, DenseSet<const Instruction*>>> func2worklist;
+        DenseMap<const Function*, DenseMap<size_t, DenseSet<const PointerTy*>>> func2worklist;
         DenseMap<size_t, DenseSet<const Instruction*>> globalWorkList;
         DenseMap<const Value*, DenseSet<const ProgramLocationTy *>> useList;
         DenseMap<const Function*, DenseSet<const ProgramLocationTy *>> func2CallerLocation;
@@ -77,16 +77,16 @@ namespace llvm{
         std::unique_ptr<CallGraph> cg;
         DenseMap<const Function *, bool> visited; 
         // How to represent a points-to set?
-        std::map<const Instruction*, std::map<const Instruction*, std::pair<DenseSet<const Value*>, bool>>> pointsToSet;
+        std::map<const Instruction*, std::map<const Value*, std::pair<DenseSet<const Value*>, bool>>> pointsToSet;
         DenseMap<const Instruction*, MemoryLocation> memoryLocationMap;
         std::map<const Instruction*, std::set<Label>> labelMap; 
         // DenseMap<size_t, DenseSet<const Instruction*>> worklist;
         DenseMap<const Value*, DenseSet<const ProgramLocationTy*>> useLocations;
-        std::map<const ProgramLocationTy*, std::map<const ProgramLocationTy*, std::set<const PointerTy*>>> defUseGraph;
+        std::map<const ProgramLocationTy*, std::map<const PointerTy*, std::set<const ProgramLocationTy*>>> defUseGraph;
         std::map<const Instruction*, std::map<const Value*, DenseSet<const Value *>>> aliasMap;
         std::stack<const Function*> left2Analysis;
         // Map each pointer to the program location that requires its alias information.
-        std::map<const Instruction*, std::set<const User*>> aliasUser;
+        std::map<const PointerTy*, std::set<const User*>> aliasUser;
         FlowSensitivePointerAnalysisResult result;
 
         static AnalysisKey Key;
@@ -104,21 +104,21 @@ namespace llvm{
             // todo: move intra-procedural pointer analysis here.
             // At each call site, do recursive call on the callee.
             void performPointerAnalysisOnFunction(const Function *func, size_t ptrLvl);
-            DenseSet<const Instruction*> FindDefInBasicBlock(const ProgramLocationTy *loc, const PointerTy *ptr);
+            DenseSet<const Instruction*> FindDefInBasicBlock(const ProgramLocationTy *loc, const PointerTy *ptr, DenseSet<const BasicBlock*> &visited);
             bool hasDef(const ProgramLocationTy *loc, const PointerTy *ptr);
-            DenseSet<const Instruction*> findDefFromBB(const BasicBlock *bb, const PointerTy *p, DenseSet<const BasicBlock*> visited);
+            DenseSet<const Instruction*> findDefFromBB(const BasicBlock *bb, const PointerTy *p, DenseSet<const BasicBlock*> &visited);
             // std::vector<const Instruction*> getDUEdgesOfPtrAtClause(std::map<const Instruction*, std::set<const Instruction *>> u2p, const Instruction *ptr);
-            std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy *loc, const PointerTy *ptr);
+            std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy *loc, const Value *ptr);
             
             void propagatePointsToInformation(const ProgramLocationTy *t, const ProgramLocationTy *f, const PointerTy *pvar);
-            DenseSet<const Value*> calculatePointsToInformationForStoreInst(const ProgramLocationTy *t, const StoreInst *pt, DenseMap<const Value*, DenseSet<const Value*>> para2Alias);
+            DenseSet<const Value*> getRealPointsToSet(const ProgramLocationTy *t, const Value *ValueOperand);
             void updateAliasInformation(const ProgramLocationTy *t, const LoadInst *pt);
             DenseSet<const Value*> getAlias(const ProgramLocationTy *t, const Instruction *p);
             std::vector<const Value*> ptsPointsTo(const Instruction *user, const Instruction *t);
             // bool notVisited(const Function *f);
             // std::vector<const Function*> collectAllCallees(const Function*);
             void addDefUseEdge(const ProgramLocationTy *def, const ProgramLocationTy *use, const PointerTy *ptr);
-            void updatePointsToSet(const ProgramLocationTy *loc, const PointerTy *ptr, DenseSet<const Value *> pointsToSet, std::vector<DefUseEdgeTupleTy> &propagateList);
+            void updatePointsToSet(const ProgramLocationTy *loc, const Value *ptr, DenseSet<const Value *> pointsToSet, std::vector<DefUseEdgeTupleTy> &propagateList);
             
             void dumpWorkList();
             void dumpLabelMap();
@@ -128,7 +128,7 @@ namespace llvm{
             void markLabelsForPtr(const PointerTy*);
             void buildDefUseGraph(DenseSet<const ProgramLocationTy*>, const PointerTy*);
             std::vector<DefUseEdgeTupleTy> initializePropagateList(DenseSet<const PointerTy *>, size_t);
-            void propagate(std::vector<DefUseEdgeTupleTy> pl, DenseMap<const Value*, DenseSet<const Value*>> para2Alias, DenseMap<const Value*, DenseSet<const Value*>> para2Pts);
+            void propagate(std::vector<DefUseEdgeTupleTy> pl, const Function *Func);
             bool updateArgAliasOfFunc(const Function*, DenseSet<const Value *>, size_t);
             bool updateArgPtsofFunc(const Function*, const PointerTy*, DenseSet<const Value*>);
             size_t globalInitialize(Module &m);
@@ -136,13 +136,17 @@ namespace llvm{
             DenseSet<const ProgramLocationTy*> getUseLocations(const PointerTy*);
             void updateAliasUsers(std::set<const User *> users, const ProgramLocationTy *t, std::vector<DefUseEdgeTupleTy> &propagateList);
             size_t computePointerLevel(const Instruction *inst);
-            DenseSet<const Instruction*> findDefFromFunc(const Function *func, const PointerTy *ptr);
+            DenseSet<const Instruction*> findDefFromFunc(const Function *func, const PointerTy *ptr, DenseSet<const BasicBlock*> &visited);
             DenseSet<const Function*> getCallees(const Function *func);
+            DenseSet<const Instruction*> FindDefFromUseLoc(const ProgramLocationTy *, const PointerTy *, DenseSet<const ProgramLocationTy*> &);
+
 
             DenseMap<const Function*, DenseMap<const Value*, DenseSet<const Value*>>> funcParas2AliasSet;
             DenseMap<const Function*, DenseMap<const Value*, DenseSet<const Value*>>> funcParas2PointsToSet;
             DenseMap<const Function*, DenseSet<const BasicBlock *>> func2TerminateBBs;
             DenseMap<const Function*, DenseSet<const Function *>> caller2Callee;
+            // useLoc => {ptr => {defLocs}}
+            DenseMap<const ProgramLocationTy*, DenseMap<const PointerTy*, DenseSet<const ProgramLocationTy*>>> DefLoc;
             WithColor logger = WithColor(outs(), HighlightColor::String);
 
 

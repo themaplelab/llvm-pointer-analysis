@@ -1868,6 +1868,7 @@ BasicAAResult BasicAA::run(Function &F, FunctionAnalysisManager &AM) {
   auto &AC = AM.getResult<AssumptionAnalysis>(F);
   auto *DT = &AM.getResult<DominatorTreeAnalysis>(F);
   auto *PV = AM.getCachedResult<PhiValuesAnalysis>(F);
+  outs() << "BasicAA\n";
   return BasicAAResult(F.getParent()->getDataLayout(), F, TLI, AC, DT, PV);
 }
 
