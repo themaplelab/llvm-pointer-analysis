@@ -1,0 +1,2490 @@
+Analyzing function: main with pointer level: 3				0%
+Building def-use graph for   %t1 = alloca i8**, align 8 at   %4 = load i8**, i8*** %t1, align 8
+Add def use edge   store i8** %a, i8*** %t1, align 8 ===   %t1 = alloca i8**, align 8 ===>   %4 = load i8**, i8*** %t1, align 8
+Building def-use graph for   %t1 = alloca i8**, align 8 at   store i8** %a, i8*** %t1, align 8
+Add def use edge   %t1 = alloca i8**, align 8 ===   %t1 = alloca i8**, align 8 ===>   store i8** %a, i8*** %t1, align 8
+Building def-use graph for   %t2 = alloca i8**, align 8 at   %5 = load i8**, i8*** %t2, align 8
+Add def use edge   store i8** %b, i8*** %t2, align 8 ===   %t2 = alloca i8**, align 8 ===>   %5 = load i8**, i8*** %t2, align 8
+Building def-use graph for   %t2 = alloca i8**, align 8 at   store i8** %b, i8*** %t2, align 8
+Add def use edge   %t2 = alloca i8**, align 8 ===   %t2 = alloca i8**, align 8 ===>   store i8** %b, i8*** %t2, align 8
+Propagating edge   %t1 = alloca i8**, align 8 ===   %t1 = alloca i8**, align 8 ===>   store i8** %a, i8*** %t1, align 8
+
+Propagating edge   %t2 = alloca i8**, align 8 ===   %t2 = alloca i8**, align 8 ===>   store i8** %b, i8*** %t2, align 8
+
+Propagating edge   store i8** %a, i8*** %t1, align 8 ===   %t1 = alloca i8**, align 8 ===>   %4 = load i8**, i8*** %t1, align 8
+Alias of operand at   %4 = load i8**, i8*** %t1, align 8 :   %t1 = alloca i8**, align 8
+Pts of   %t1 = alloca i8**, align 8 at   %4 = load i8**, i8*** %t1, align 8 is
+  %a = alloca i8*, align 8 
+Updating alias user   call void @swap(i8** %4, i8** %5) for   %4 = load i8**, i8*** %t1, align 8
+Propagating edge   store i8** %b, i8*** %t2, align 8 ===   %t2 = alloca i8**, align 8 ===>   %5 = load i8**, i8*** %t2, align 8
+Alias of operand at   %5 = load i8**, i8*** %t2, align 8 :   %t2 = alloca i8**, align 8
+Pts of   %t2 = alloca i8**, align 8 at   %5 = load i8**, i8*** %t2, align 8 is
+  %b = alloca i8*, align 8 
+Updating alias user   call void @swap(i8** %4, i8** %5) for   %5 = load i8**, i8*** %t2, align 8
+Analyzing function: swap with pointer level: 3				0%
+Building def-use graph for   %p.addr = alloca i8**, align 8 at   %4 = load i8**, i8*** %p.addr, align 8
+Add def use edge   store i8** %p, i8*** %p.addr, align 8 ===   %p.addr = alloca i8**, align 8 ===>   %4 = load i8**, i8*** %p.addr, align 8
+Building def-use graph for   %p.addr = alloca i8**, align 8 at   store i8** %p, i8*** %p.addr, align 8
+Add def use edge   %p.addr = alloca i8**, align 8 ===   %p.addr = alloca i8**, align 8 ===>   store i8** %p, i8*** %p.addr, align 8
+Building def-use graph for   %p.addr = alloca i8**, align 8 at   %0 = load i8**, i8*** %p.addr, align 8
+Add def use edge   store i8** %p, i8*** %p.addr, align 8 ===   %p.addr = alloca i8**, align 8 ===>   %0 = load i8**, i8*** %p.addr, align 8
+Building def-use graph for   %q.addr = alloca i8**, align 8 at   store i8** %q, i8*** %q.addr, align 8
+Add def use edge   %q.addr = alloca i8**, align 8 ===   %q.addr = alloca i8**, align 8 ===>   store i8** %q, i8*** %q.addr, align 8
+Building def-use graph for   %q.addr = alloca i8**, align 8 at   %6 = load i8**, i8*** %q.addr, align 8
+Add def use edge   store i8** %q, i8*** %q.addr, align 8 ===   %q.addr = alloca i8**, align 8 ===>   %6 = load i8**, i8*** %q.addr, align 8
+Building def-use graph for   %q.addr = alloca i8**, align 8 at   %2 = load i8**, i8*** %q.addr, align 8
+Add def use edge   store i8** %q, i8*** %q.addr, align 8 ===   %q.addr = alloca i8**, align 8 ===>   %2 = load i8**, i8*** %q.addr, align 8
+Propagating edge   %p.addr = alloca i8**, align 8 ===   %p.addr = alloca i8**, align 8 ===>   store i8** %p, i8*** %p.addr, align 8
+  %a = alloca i8*, align 8 
+Propagating edge   %q.addr = alloca i8**, align 8 ===   %q.addr = alloca i8**, align 8 ===>   store i8** %q, i8*** %q.addr, align 8
+  %b = alloca i8*, align 8 
+Propagating edge   store i8** %p, i8*** %p.addr, align 8 ===   %p.addr = alloca i8**, align 8 ===>   %0 = load i8**, i8*** %p.addr, align 8
+Alias of operand at   %0 = load i8**, i8*** %p.addr, align 8 :   %p.addr = alloca i8**, align 8
+Pts of   %p.addr = alloca i8**, align 8 at   %0 = load i8**, i8*** %p.addr, align 8 is
+  %a = alloca i8*, align 8 
+Updating alias user   %1 = load i8*, i8** %0, align 8 for   %0 = load i8**, i8*** %p.addr, align 8
+Propagating edge   store i8** %p, i8*** %p.addr, align 8 ===   %p.addr = alloca i8**, align 8 ===>   %4 = load i8**, i8*** %p.addr, align 8
+Alias of operand at   %4 = load i8**, i8*** %p.addr, align 8 :   %p.addr = alloca i8**, align 8
+Pts of   %p.addr = alloca i8**, align 8 at   %4 = load i8**, i8*** %p.addr, align 8 is
+  %a = alloca i8*, align 8 
+Updating alias user   store i8* %3, i8** %4, align 8 for   %4 = load i8**, i8*** %p.addr, align 8
+Propagating edge   store i8** %q, i8*** %q.addr, align 8 ===   %q.addr = alloca i8**, align 8 ===>   %2 = load i8**, i8*** %q.addr, align 8
+Alias of operand at   %2 = load i8**, i8*** %q.addr, align 8 :   %q.addr = alloca i8**, align 8
+Pts of   %q.addr = alloca i8**, align 8 at   %2 = load i8**, i8*** %q.addr, align 8 is
+  %b = alloca i8*, align 8 
+Updating alias user   %3 = load i8*, i8** %2, align 8 for   %2 = load i8**, i8*** %q.addr, align 8
+Propagating edge   store i8** %q, i8*** %q.addr, align 8 ===   %q.addr = alloca i8**, align 8 ===>   %6 = load i8**, i8*** %q.addr, align 8
+Alias of operand at   %6 = load i8**, i8*** %q.addr, align 8 :   %q.addr = alloca i8**, align 8
+Pts of   %q.addr = alloca i8**, align 8 at   %6 = load i8**, i8*** %q.addr, align 8 is
+  %b = alloca i8*, align 8 
+Updating alias user   store i8* %5, i8** %6, align 8 for   %6 = load i8**, i8*** %q.addr, align 8
+Analyzing function: swap with pointer level: 3				33%
+Building def-use graph for   %p.addr = alloca i8**, align 8 at   %4 = load i8**, i8*** %p.addr, align 8
+Add def use edge   store i8** %p, i8*** %p.addr, align 8 ===   %p.addr = alloca i8**, align 8 ===>   %4 = load i8**, i8*** %p.addr, align 8
+Building def-use graph for   %p.addr = alloca i8**, align 8 at   store i8** %p, i8*** %p.addr, align 8
+Add def use edge   %p.addr = alloca i8**, align 8 ===   %p.addr = alloca i8**, align 8 ===>   store i8** %p, i8*** %p.addr, align 8
+Building def-use graph for   %p.addr = alloca i8**, align 8 at   %0 = load i8**, i8*** %p.addr, align 8
+Add def use edge   store i8** %p, i8*** %p.addr, align 8 ===   %p.addr = alloca i8**, align 8 ===>   %0 = load i8**, i8*** %p.addr, align 8
+Building def-use graph for   %q.addr = alloca i8**, align 8 at   store i8** %q, i8*** %q.addr, align 8
+Add def use edge   %q.addr = alloca i8**, align 8 ===   %q.addr = alloca i8**, align 8 ===>   store i8** %q, i8*** %q.addr, align 8
+Building def-use graph for   %q.addr = alloca i8**, align 8 at   %6 = load i8**, i8*** %q.addr, align 8
+Add def use edge   store i8** %q, i8*** %q.addr, align 8 ===   %q.addr = alloca i8**, align 8 ===>   %6 = load i8**, i8*** %q.addr, align 8
+Building def-use graph for   %q.addr = alloca i8**, align 8 at   %2 = load i8**, i8*** %q.addr, align 8
+Add def use edge   store i8** %q, i8*** %q.addr, align 8 ===   %q.addr = alloca i8**, align 8 ===>   %2 = load i8**, i8*** %q.addr, align 8
+Propagating edge   %p.addr = alloca i8**, align 8 ===   %p.addr = alloca i8**, align 8 ===>   store i8** %p, i8*** %p.addr, align 8
+  %a = alloca i8*, align 8 
+Propagating edge   %q.addr = alloca i8**, align 8 ===   %q.addr = alloca i8**, align 8 ===>   store i8** %q, i8*** %q.addr, align 8
+  %b = alloca i8*, align 8 
+Analyzing function: main with pointer level: 2				50%
+Building def-use graph for   %a = alloca i8*, align 8 at   store i8* %0, i8** %a, align 8
+Add def use edge   %a = alloca i8*, align 8 ===   %a = alloca i8*, align 8 ===>   store i8* %0, i8** %a, align 8
+Building def-use graph for   %a = alloca i8*, align 8 at   %6 = load i8*, i8** %a, align 8
+Add def use edge   store i8* %3, i8** %4, align 8 ===   %a = alloca i8*, align 8 ===>   %6 = load i8*, i8** %a, align 8
+Building def-use graph for   %a = alloca i8*, align 8 at   store i8* %3, i8** %4, align 8
+Add def use edge   store i8* %0, i8** %a, align 8 ===   %a = alloca i8*, align 8 ===>   store i8* %3, i8** %4, align 8
+Building def-use graph for   %a = alloca i8*, align 8 at   %7 = load i8*, i8** %a, align 8
+Add def use edge   store i8* %0, i8** %a, align 8 ===   %a = alloca i8*, align 8 ===>   %7 = load i8*, i8** %a, align 8
+Add def use edge   store i8* %3, i8** %4, align 8 ===   %a = alloca i8*, align 8 ===>   %7 = load i8*, i8** %a, align 8
+Building def-use graph for   %a = alloca i8*, align 8 at   %1 = load i8*, i8** %0, align 8
+Add def use edge   store i8* %0, i8** %a, align 8 ===   %a = alloca i8*, align 8 ===>   %1 = load i8*, i8** %0, align 8
+Building def-use graph for   %a = alloca i8*, align 8 at   %3 = load i8*, i8** %a, align 8
+Add def use edge   store i8* %0, i8** %a, align 8 ===   %a = alloca i8*, align 8 ===>   %3 = load i8*, i8** %a, align 8
+Building def-use graph for   %b = alloca i8*, align 8 at   store i8* %1, i8** %b, align 8
+Add def use edge   %b = alloca i8*, align 8 ===   %b = alloca i8*, align 8 ===>   store i8* %1, i8** %b, align 8
+Building def-use graph for   %b = alloca i8*, align 8 at   store i8* %5, i8** %6, align 8
+Add def use edge   store i8* %1, i8** %b, align 8 ===   %b = alloca i8*, align 8 ===>   store i8* %5, i8** %6, align 8
+Building def-use graph for   %b = alloca i8*, align 8 at   %3 = load i8*, i8** %2, align 8
+Add def use edge   store i8* %1, i8** %b, align 8 ===   %b = alloca i8*, align 8 ===>   %3 = load i8*, i8** %2, align 8
+Propagating edge   %a = alloca i8*, align 8 ===   %a = alloca i8*, align 8 ===>   store i8* %0, i8** %a, align 8
+
+Propagating edge   %b = alloca i8*, align 8 ===   %b = alloca i8*, align 8 ===>   store i8* %1, i8** %b, align 8
+
+Propagating edge   store i8* %0, i8** %a, align 8 ===   %a = alloca i8*, align 8 ===>   %3 = load i8*, i8** %a, align 8
+Alias of operand at   %3 = load i8*, i8** %a, align 8 :   %a = alloca i8*, align 8
+Pts of   %a = alloca i8*, align 8 at   %3 = load i8*, i8** %a, align 8 is
+  %A = alloca [1 x i8], align 1 
+Updating alias user   store i8 65, i8* %3, align 1 for   %3 = load i8*, i8** %a, align 8
+Propagating edge   store i8* %0, i8** %a, align 8 ===   %a = alloca i8*, align 8 ===>   %7 = load i8*, i8** %a, align 8
+Alias of operand at   %7 = load i8*, i8** %a, align 8 :   %a = alloca i8*, align 8
+Pts of   %a = alloca i8*, align 8 at   %7 = load i8*, i8** %a, align 8 is
+  %A = alloca [1 x i8], align 1 
+Updating alias user   store i8 63, i8* %7, align 1 for   %7 = load i8*, i8** %a, align 8
+Propagating edge   store i8* %0, i8** %a, align 8 ===   %a = alloca i8*, align 8 ===>   %1 = load i8*, i8** %0, align 8
+Alias of operand at   %1 = load i8*, i8** %0, align 8 :   %a = alloca i8*, align 8
+Pts of   %a = alloca i8*, align 8 at   %1 = load i8*, i8** %0, align 8 is
+  %A = alloca [1 x i8], align 1 
+Updating alias user   store i8* %1, i8** %tmp, align 8 for   %1 = load i8*, i8** %0, align 8
+Found change list
+
+Going to insert alias pointer
+  %A = alloca [1 x i8], align 1 
+Propagating edge   store i8* %0, i8** %a, align 8 ===   %a = alloca i8*, align 8 ===>   store i8* %3, i8** %4, align 8
+
+Propagating edge   store i8* %1, i8** %b, align 8 ===   %b = alloca i8*, align 8 ===>   %3 = load i8*, i8** %2, align 8
+Alias of operand at   %3 = load i8*, i8** %2, align 8 :   %b = alloca i8*, align 8
+Pts of   %b = alloca i8*, align 8 at   %3 = load i8*, i8** %2, align 8 is
+  %B = alloca [1 x i8], align 1 
+Updating alias user   store i8* %3, i8** %4, align 8 for   %3 = load i8*, i8** %2, align 8
+Found change list
+  %4 = load i8**, i8*** %p.addr, align 8   %a = alloca i8*, align 8 
+Going to insert alias pointer
+  %B = alloca [1 x i8], align 1 
+Propagating edge   store i8* %1, i8** %b, align 8 ===   %b = alloca i8*, align 8 ===>   store i8* %5, i8** %6, align 8
+
+Propagating edge   store i8* %3, i8** %4, align 8 ===   %a = alloca i8*, align 8 ===>   %6 = load i8*, i8** %a, align 8
+Alias of operand at   %6 = load i8*, i8** %a, align 8 :   %a = alloca i8*, align 8
+Pts of   %a = alloca i8*, align 8 at   %6 = load i8*, i8** %a, align 8 is
+  %B = alloca [1 x i8], align 1   %3 = load i8*, i8** %2, align 8 
+Updating alias user   store i8 66, i8* %6, align 1 for   %6 = load i8*, i8** %a, align 8
+Propagating edge   store i8* %3, i8** %4, align 8 ===   %a = alloca i8*, align 8 ===>   %7 = load i8*, i8** %a, align 8
+Alias of operand at   %7 = load i8*, i8** %a, align 8 :   %a = alloca i8*, align 8
+Pts of   %a = alloca i8*, align 8 at   %7 = load i8*, i8** %a, align 8 is
+  %A = alloca [1 x i8], align 1   %B = alloca [1 x i8], align 1   %3 = load i8*, i8** %2, align 8 
+Updating alias user   store i8 63, i8* %7, align 1 for   %7 = load i8*, i8** %a, align 8
+Propagating edge   store i8* %3, i8** %4, align 8 ===   %a = alloca i8*, align 8 ===>   %6 = load i8*, i8** %a, align 8
+Alias of operand at   %6 = load i8*, i8** %a, align 8 :   %a = alloca i8*, align 8
+Pts of   %a = alloca i8*, align 8 at   %6 = load i8*, i8** %a, align 8 is
+  %B = alloca [1 x i8], align 1   %3 = load i8*, i8** %2, align 8 
+Propagating edge   store i8* %3, i8** %4, align 8 ===   %a = alloca i8*, align 8 ===>   %7 = load i8*, i8** %a, align 8
+Alias of operand at   %7 = load i8*, i8** %a, align 8 :   %a = alloca i8*, align 8
+Pts of   %a = alloca i8*, align 8 at   %7 = load i8*, i8** %a, align 8 is
+  %A = alloca [1 x i8], align 1   %B = alloca [1 x i8], align 1   %3 = load i8*, i8** %2, align 8 
+Analyzing function: swap with pointer level: 2				66%
+Building def-use graph for   %tmp = alloca i8*, align 8 at   %5 = load i8*, i8** %tmp, align 8
+Add def use edge   store i8* %1, i8** %tmp, align 8 ===   %tmp = alloca i8*, align 8 ===>   %5 = load i8*, i8** %tmp, align 8
+Building def-use graph for   %tmp = alloca i8*, align 8 at   store i8* %1, i8** %tmp, align 8
+Add def use edge   %tmp = alloca i8*, align 8 ===   %tmp = alloca i8*, align 8 ===>   store i8* %1, i8** %tmp, align 8
+Propagating edge   %tmp = alloca i8*, align 8 ===   %tmp = alloca i8*, align 8 ===>   store i8* %1, i8** %tmp, align 8
+  %A = alloca [1 x i8], align 1 
+Propagating edge   store i8* %1, i8** %tmp, align 8 ===   %tmp = alloca i8*, align 8 ===>   %5 = load i8*, i8** %tmp, align 8
+Alias of operand at   %5 = load i8*, i8** %tmp, align 8 :   %tmp = alloca i8*, align 8
+Pts of   %tmp = alloca i8*, align 8 at   %5 = load i8*, i8** %tmp, align 8 is
+  %A = alloca [1 x i8], align 1 
+Updating alias user   store i8* %5, i8** %6, align 8 for   %5 = load i8*, i8** %tmp, align 8
+Found change list
+  %6 = load i8**, i8*** %q.addr, align 8   %b = alloca i8*, align 8 
+Going to insert alias pointer
+  %A = alloca [1 x i8], align 1 
+Analyzing function: main with pointer level: 1				83%
+Building def-use graph for   %retval = alloca i32, align 4 at   %8 = load i32, i32* %retval, align 4
+Add def use edge   store i32 0, i32* %retval, align 4 ===   %retval = alloca i32, align 4 ===>   %8 = load i32, i32* %retval, align 4
+Building def-use graph for   %retval = alloca i32, align 4 at   store i32 0, i32* %retval, align 4
+Add def use edge   %retval = alloca i32, align 4 ===   %retval = alloca i32, align 4 ===>   store i32 0, i32* %retval, align 4
+Building def-use graph for   %A = alloca [1 x i8], align 1 at   store i8 65, i8* %3, align 1
+Add def use edge   %A = alloca [1 x i8], align 1 ===   %A = alloca [1 x i8], align 1 ===>   store i8 65, i8* %3, align 1
+Building def-use graph for   %A = alloca [1 x i8], align 1 at   store i8 63, i8* %7, align 1
+Add def use edge   store i8 65, i8* %3, align 1 ===   %A = alloca [1 x i8], align 1 ===>   store i8 63, i8* %7, align 1
+Add def use edge   %A = alloca [1 x i8], align 1 ===   %A = alloca [1 x i8], align 1 ===>   store i8 63, i8* %7, align 1
+Building def-use graph for   %B = alloca [1 x i8], align 1 at   store i8 66, i8* %6, align 1
+Add def use edge   %B = alloca [1 x i8], align 1 ===   %B = alloca [1 x i8], align 1 ===>   store i8 66, i8* %6, align 1
+Building def-use graph for   %B = alloca [1 x i8], align 1 at   store i8 63, i8* %7, align 1
+Add def use edge   store i8 66, i8* %6, align 1 ===   %B = alloca [1 x i8], align 1 ===>   store i8 63, i8* %7, align 1
+Add def use edge   %B = alloca [1 x i8], align 1 ===   %B = alloca [1 x i8], align 1 ===>   store i8 63, i8* %7, align 1
+Propagating edge   %retval = alloca i32, align 4 ===   %retval = alloca i32, align 4 ===>   store i32 0, i32* %retval, align 4
+
+Propagating edge   %A = alloca [1 x i8], align 1 ===   %A = alloca [1 x i8], align 1 ===>   store i8 65, i8* %3, align 1
+
+Propagating edge   %A = alloca [1 x i8], align 1 ===   %A = alloca [1 x i8], align 1 ===>   store i8 63, i8* %7, align 1
+
+Propagating edge   %B = alloca [1 x i8], align 1 ===   %B = alloca [1 x i8], align 1 ===>   store i8 66, i8* %6, align 1
+
+Propagating edge   %B = alloca [1 x i8], align 1 ===   %B = alloca [1 x i8], align 1 ===>   store i8 63, i8* %7, align 1
+
+Propagating edge   store i32 0, i32* %retval, align 4 ===   %retval = alloca i32, align 4 ===>   %8 = load i32, i32* %retval, align 4
+Alias of operand at   %8 = load i32, i32* %retval, align 4 :   %retval = alloca i32, align 4
+Pts of   %retval = alloca i32, align 4 at   %8 = load i32, i32* %retval, align 4 is
+i32 0 
+Updating alias user   ret i32 %8 for   %8 = load i32, i32* %retval, align 4
+Propagating edge   store i8 65, i8* %3, align 1 ===   %A = alloca [1 x i8], align 1 ===>   store i8 63, i8* %7, align 1
+
+Propagating edge   store i8 66, i8* %6, align 1 ===   %B = alloca [1 x i8], align 1 ===>   store i8 63, i8* %7, align 1
+
+Analyzing function: swap with pointer level: 1				100%
+Print label map
+Labels at   ret void
+
+Labels at   %0 = bitcast [1 x i8]* %A to i8*
+
+Labels at   %1 = bitcast [1 x i8]* %B to i8*
+
+Labels at   %2 = load i8, i8* %arrayidx, align 1
+
+Labels at   %3 = load i8*, i8** %a, align 8
+Use(  %a = alloca i8*, align 8) 
+Labels at   br label %if.end
+
+Labels at   %4 = load i8**, i8*** %t1, align 8
+Use(  %t1 = alloca i8**, align 8) 
+Labels at   %5 = load i8**, i8*** %t2, align 8
+Use(  %t2 = alloca i8**, align 8) 
+Labels at   %6 = load i8*, i8** %a, align 8
+Use(  %a = alloca i8*, align 8) 
+Labels at   br label %if.end
+
+Labels at   %7 = load i8*, i8** %a, align 8
+Use(  %a = alloca i8*, align 8) 
+Labels at   %8 = load i32, i32* %retval, align 4
+Use(  %retval = alloca i32, align 4) 
+Labels at   %0 = load i8**, i8*** %p.addr, align 8
+Use(  %p.addr = alloca i8**, align 8) 
+Labels at   %1 = load i8*, i8** %0, align 8
+Use(  %a = alloca i8*, align 8) 
+Labels at   %2 = load i8**, i8*** %q.addr, align 8
+Use(  %q.addr = alloca i8**, align 8) 
+Labels at   %3 = load i8*, i8** %2, align 8
+Use(  %b = alloca i8*, align 8) 
+Labels at   %4 = load i8**, i8*** %p.addr, align 8
+Use(  %p.addr = alloca i8**, align 8) 
+Labels at   %5 = load i8*, i8** %tmp, align 8
+Use(  %tmp = alloca i8*, align 8) 
+Labels at   %6 = load i8**, i8*** %q.addr, align 8
+Use(  %q.addr = alloca i8**, align 8) 
+Labels at   store i32 0, i32* %retval, align 4
+Use(  %retval = alloca i32, align 4) Def(  %retval = alloca i32, align 4) 
+Labels at   store i8** %a, i8*** %t1, align 8
+Use(  %t1 = alloca i8**, align 8) Def(  %t1 = alloca i8**, align 8) 
+Labels at   store i8** %b, i8*** %t2, align 8
+Use(  %t2 = alloca i8**, align 8) Def(  %t2 = alloca i8**, align 8) 
+Labels at   store i8* %0, i8** %a, align 8
+Use(  %a = alloca i8*, align 8) Def(  %a = alloca i8*, align 8) 
+Labels at   store i8* %1, i8** %b, align 8
+Use(  %b = alloca i8*, align 8) Def(  %b = alloca i8*, align 8) 
+Labels at   %tobool = icmp ne i8 %2, 0
+
+Labels at   store i8 65, i8* %3, align 1
+Use(  %A = alloca [1 x i8], align 1) Def(  %A = alloca [1 x i8], align 1) 
+Labels at   store i8** %p, i8*** %p.addr, align 8
+Use(  %p.addr = alloca i8**, align 8) Def(  %p.addr = alloca i8**, align 8) 
+Labels at   store i8 66, i8* %6, align 1
+Use(  %3 = load i8*, i8** %2, align 8) Use(  %B = alloca [1 x i8], align 1) Def(  %3 = load i8*, i8** %2, align 8) Def(  %B = alloca [1 x i8], align 1) 
+Labels at   store i8 63, i8* %7, align 1
+Use(  %3 = load i8*, i8** %2, align 8) Use(  %A = alloca [1 x i8], align 1) Use(  %B = alloca [1 x i8], align 1) Def(  %3 = load i8*, i8** %2, align 8) Def(  %A = alloca [1 x i8], align 1) Def(  %B = alloca [1 x i8], align 1) 
+Labels at   store i8** %q, i8*** %q.addr, align 8
+Use(  %q.addr = alloca i8**, align 8) Def(  %q.addr = alloca i8**, align 8) 
+Labels at   store i8* %1, i8** %tmp, align 8
+Use(  %tmp = alloca i8*, align 8) Def(  %tmp = alloca i8*, align 8) 
+Labels at   store i8* %3, i8** %4, align 8
+Use(  %a = alloca i8*, align 8) Def(  %a = alloca i8*, align 8) 
+Labels at   store i8* %5, i8** %6, align 8
+Use(  %b = alloca i8*, align 8) Def(  %b = alloca i8*, align 8) 
+Labels at   %retval = alloca i32, align 4
+Def(  %retval = alloca i32, align 4) 
+Labels at   %A = alloca [1 x i8], align 1
+Def(  %A = alloca [1 x i8], align 1) 
+Labels at   %B = alloca [1 x i8], align 1
+Def(  %B = alloca [1 x i8], align 1) 
+Labels at   %a = alloca i8*, align 8
+Def(  %a = alloca i8*, align 8) 
+Labels at   %b = alloca i8*, align 8
+Def(  %b = alloca i8*, align 8) 
+Labels at   %t1 = alloca i8**, align 8
+Def(  %t1 = alloca i8**, align 8) 
+Labels at   %t2 = alloca i8**, align 8
+Def(  %t2 = alloca i8**, align 8) 
+Labels at   %p.addr = alloca i8**, align 8
+Def(  %p.addr = alloca i8**, align 8) 
+Labels at   %q.addr = alloca i8**, align 8
+Def(  %q.addr = alloca i8**, align 8) 
+Labels at   %tmp = alloca i8*, align 8
+Def(  %tmp = alloca i8*, align 8) 
+Labels at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+
+Labels at   call void @swap(i8** %4, i8** %5)
+
+Labels at   br i1 %tobool, label %if.then, label %if.else
+
+Print points-to set stats
+At   %3 = load i8*, i8** %a, align 8
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   %4 = load i8**, i8*** %t1, align 8
+  %t1 = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+At   %5 = load i8**, i8*** %t2, align 8
+  %t2 = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+At   %6 = load i8*, i8** %a, align 8
+  %a = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+At   %7 = load i8*, i8** %a, align 8
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+At   %8 = load i32, i32* %retval, align 4
+  %retval = alloca i32, align 4 c=>:
+	i32 0 
+At   %0 = load i8**, i8*** %p.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+At   %1 = load i8*, i8** %0, align 8
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   %2 = load i8**, i8*** %q.addr, align 8
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+At   %3 = load i8*, i8** %2, align 8
+  %b = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 
+At   %4 = load i8**, i8*** %p.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+At   %5 = load i8*, i8** %tmp, align 8
+  %tmp = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   %6 = load i8**, i8*** %q.addr, align 8
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+At   store i32 0, i32* %retval, align 4
+  %retval = alloca i32, align 4 c=>:
+	i32 0 
+At   store i8** %a, i8*** %t1, align 8
+  %t1 = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+At   store i8** %b, i8*** %t2, align 8
+  %t2 = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+At   store i8* %0, i8** %a, align 8
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   store i8* %1, i8** %b, align 8
+  %b = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 
+At   store i8 65, i8* %3, align 1
+  %3 = load i8*, i8** %a, align 8 c=>:
+	i8 65 
+  %A = alloca [1 x i8], align 1 c=>:
+	i8 65 
+At   store i8** %p, i8*** %p.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+At   store i8 66, i8* %6, align 1
+  %6 = load i8*, i8** %a, align 8 c=>:
+	i8 66 
+  %3 = load i8*, i8** %2, align 8 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+	i8 66 
+At   store i8 63, i8* %7, align 1
+  %7 = load i8*, i8** %a, align 8 c=>:
+	i8 63 
+  %3 = load i8*, i8** %2, align 8 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+	i8 63 
+  %B = alloca [1 x i8], align 1 c=>:
+	i8 63 
+At   store i8** %q, i8*** %q.addr, align 8
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+At   store i8* %1, i8** %tmp, align 8
+  %tmp = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   store i8* %3, i8** %4, align 8
+  %4 = load i8**, i8*** %p.addr, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %a = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+At   store i8* %5, i8** %6, align 8
+  %6 = load i8**, i8*** %q.addr, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %5 = load i8*, i8** %tmp, align 8 
+  %b = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %5 = load i8*, i8** %tmp, align 8 
+At   %retval = alloca i32, align 4
+  %retval = alloca i32, align 4 c=>:
+
+At   %A = alloca [1 x i8], align 1
+  %A = alloca [1 x i8], align 1 c=>:
+
+At   %B = alloca [1 x i8], align 1
+  %B = alloca [1 x i8], align 1 c=>:
+
+At   %a = alloca i8*, align 8
+  %a = alloca i8*, align 8 c=>:
+
+At   %b = alloca i8*, align 8
+  %b = alloca i8*, align 8 c=>:
+
+At   %t1 = alloca i8**, align 8
+  %t1 = alloca i8**, align 8 c=>:
+
+At   %t2 = alloca i8**, align 8
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %p.addr = alloca i8**, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+At   %q.addr = alloca i8**, align 8
+  %q.addr = alloca i8**, align 8 c=>:
+
+At   %tmp = alloca i8*, align 8
+  %tmp = alloca i8*, align 8 c=>:
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   %retval = alloca i32, align 4
+Pts for   %t2 = alloca i8**, align 8 not defined at   %retval = alloca i32, align 4
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %retval = alloca i32, align 4
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %retval = alloca i32, align 4
+Pts for   %a = alloca i8*, align 8 not defined at   %retval = alloca i32, align 4
+Pts for   %b = alloca i8*, align 8 not defined at   %retval = alloca i32, align 4
+Pts for   %t1 = alloca i8**, align 8 not defined at   %A = alloca [1 x i8], align 1
+Found pts for   %t1 = alloca i8**, align 8 at   %retval = alloca i32, align 4
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   %A = alloca [1 x i8], align 1
+Found pts for   %t2 = alloca i8**, align 8 at   %retval = alloca i32, align 4
+
+Pts for   %retval = alloca i32, align 4 not defined at   %A = alloca [1 x i8], align 1
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %A = alloca [1 x i8], align 1
+Found pts for   %B = alloca [1 x i8], align 1 at   %retval = alloca i32, align 4
+
+Pts for   %a = alloca i8*, align 8 not defined at   %A = alloca [1 x i8], align 1
+Found pts for   %a = alloca i8*, align 8 at   %retval = alloca i32, align 4
+
+Pts for   %b = alloca i8*, align 8 not defined at   %A = alloca [1 x i8], align 1
+Found pts for   %b = alloca i8*, align 8 at   %retval = alloca i32, align 4
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   %B = alloca [1 x i8], align 1
+Pts for   %t2 = alloca i8**, align 8 not defined at   %B = alloca [1 x i8], align 1
+Pts for   %retval = alloca i32, align 4 not defined at   %B = alloca [1 x i8], align 1
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %B = alloca [1 x i8], align 1
+Found pts for   %A = alloca [1 x i8], align 1 at   %retval = alloca i32, align 4
+
+Pts for   %a = alloca i8*, align 8 not defined at   %B = alloca [1 x i8], align 1
+Pts for   %b = alloca i8*, align 8 not defined at   %B = alloca [1 x i8], align 1
+Pts for   %t1 = alloca i8**, align 8 not defined at   %a = alloca i8*, align 8
+Pts for   %t2 = alloca i8**, align 8 not defined at   %a = alloca i8*, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   %a = alloca i8*, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %a = alloca i8*, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %a = alloca i8*, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   %a = alloca i8*, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   %b = alloca i8*, align 8
+Pts for   %t2 = alloca i8**, align 8 not defined at   %b = alloca i8*, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   %b = alloca i8*, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %b = alloca i8*, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %b = alloca i8*, align 8
+Pts for   %a = alloca i8*, align 8 not defined at   %b = alloca i8*, align 8
+Pts for   %t2 = alloca i8**, align 8 not defined at   %t1 = alloca i8**, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   %t1 = alloca i8**, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %t1 = alloca i8**, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %t1 = alloca i8**, align 8
+Pts for   %a = alloca i8*, align 8 not defined at   %t1 = alloca i8**, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   %t1 = alloca i8**, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   %t2 = alloca i8**, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   %t2 = alloca i8**, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %t2 = alloca i8**, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %t2 = alloca i8**, align 8
+Pts for   %a = alloca i8*, align 8 not defined at   %t2 = alloca i8**, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   %t2 = alloca i8**, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   store i32 0, i32* %retval, align 4
+Pts for   %t2 = alloca i8**, align 8 not defined at   store i32 0, i32* %retval, align 4
+Pts for   %A = alloca [1 x i8], align 1 not defined at   store i32 0, i32* %retval, align 4
+Pts for   %B = alloca [1 x i8], align 1 not defined at   store i32 0, i32* %retval, align 4
+Pts for   %a = alloca i8*, align 8 not defined at   store i32 0, i32* %retval, align 4
+Pts for   %b = alloca i8*, align 8 not defined at   store i32 0, i32* %retval, align 4
+Pts for   %t2 = alloca i8**, align 8 not defined at   store i8** %a, i8*** %t1, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   store i8** %a, i8*** %t1, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   store i8** %a, i8*** %t1, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   store i8** %a, i8*** %t1, align 8
+Pts for   %a = alloca i8*, align 8 not defined at   store i8** %a, i8*** %t1, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   store i8** %a, i8*** %t1, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   store i8** %b, i8*** %t2, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   store i8** %b, i8*** %t2, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   store i8** %b, i8*** %t2, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   store i8** %b, i8*** %t2, align 8
+Pts for   %a = alloca i8*, align 8 not defined at   store i8** %b, i8*** %t2, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   store i8** %b, i8*** %t2, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   %0 = bitcast [1 x i8]* %A to i8*
+Pts for   %t2 = alloca i8**, align 8 not defined at   %0 = bitcast [1 x i8]* %A to i8*
+Pts for   %retval = alloca i32, align 4 not defined at   %0 = bitcast [1 x i8]* %A to i8*
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %0 = bitcast [1 x i8]* %A to i8*
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %0 = bitcast [1 x i8]* %A to i8*
+Pts for   %a = alloca i8*, align 8 not defined at   %0 = bitcast [1 x i8]* %A to i8*
+Pts for   %b = alloca i8*, align 8 not defined at   %0 = bitcast [1 x i8]* %A to i8*
+Pts for   %t1 = alloca i8**, align 8 not defined at   store i8* %0, i8** %a, align 8
+Pts for   %t2 = alloca i8**, align 8 not defined at   store i8* %0, i8** %a, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   store i8* %0, i8** %a, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   store i8* %0, i8** %a, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   store i8* %0, i8** %a, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   store i8* %0, i8** %a, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   %1 = bitcast [1 x i8]* %B to i8*
+Pts for   %t2 = alloca i8**, align 8 not defined at   %1 = bitcast [1 x i8]* %B to i8*
+Pts for   %retval = alloca i32, align 4 not defined at   %1 = bitcast [1 x i8]* %B to i8*
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %1 = bitcast [1 x i8]* %B to i8*
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %1 = bitcast [1 x i8]* %B to i8*
+Pts for   %a = alloca i8*, align 8 not defined at   %1 = bitcast [1 x i8]* %B to i8*
+Pts for   %b = alloca i8*, align 8 not defined at   %1 = bitcast [1 x i8]* %B to i8*
+Pts for   %t1 = alloca i8**, align 8 not defined at   store i8* %1, i8** %b, align 8
+Pts for   %t2 = alloca i8**, align 8 not defined at   store i8* %1, i8** %b, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   store i8* %1, i8** %b, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   store i8* %1, i8** %b, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   store i8* %1, i8** %b, align 8
+Pts for   %a = alloca i8*, align 8 not defined at   store i8* %1, i8** %b, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+Pts for   %t2 = alloca i8**, align 8 not defined at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+Pts for   %retval = alloca i32, align 4 not defined at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+Pts for   %a = alloca i8*, align 8 not defined at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+Pts for   %b = alloca i8*, align 8 not defined at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+Pts for   %t1 = alloca i8**, align 8 not defined at   %2 = load i8, i8* %arrayidx, align 1
+Pts for   %t2 = alloca i8**, align 8 not defined at   %2 = load i8, i8* %arrayidx, align 1
+Pts for   %retval = alloca i32, align 4 not defined at   %2 = load i8, i8* %arrayidx, align 1
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %2 = load i8, i8* %arrayidx, align 1
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %2 = load i8, i8* %arrayidx, align 1
+Pts for   %a = alloca i8*, align 8 not defined at   %2 = load i8, i8* %arrayidx, align 1
+Pts for   %b = alloca i8*, align 8 not defined at   %2 = load i8, i8* %arrayidx, align 1
+Pts for   %t1 = alloca i8**, align 8 not defined at   %tobool = icmp ne i8 %2, 0
+Pts for   %t2 = alloca i8**, align 8 not defined at   %tobool = icmp ne i8 %2, 0
+Pts for   %retval = alloca i32, align 4 not defined at   %tobool = icmp ne i8 %2, 0
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %tobool = icmp ne i8 %2, 0
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %tobool = icmp ne i8 %2, 0
+Pts for   %a = alloca i8*, align 8 not defined at   %tobool = icmp ne i8 %2, 0
+Pts for   %b = alloca i8*, align 8 not defined at   %tobool = icmp ne i8 %2, 0
+Pts for   %t1 = alloca i8**, align 8 not defined at   br i1 %tobool, label %if.then, label %if.else
+Pts for   %t2 = alloca i8**, align 8 not defined at   br i1 %tobool, label %if.then, label %if.else
+Pts for   %retval = alloca i32, align 4 not defined at   br i1 %tobool, label %if.then, label %if.else
+Pts for   %A = alloca [1 x i8], align 1 not defined at   br i1 %tobool, label %if.then, label %if.else
+Pts for   %B = alloca [1 x i8], align 1 not defined at   br i1 %tobool, label %if.then, label %if.else
+Pts for   %a = alloca i8*, align 8 not defined at   br i1 %tobool, label %if.then, label %if.else
+Pts for   %b = alloca i8*, align 8 not defined at   br i1 %tobool, label %if.then, label %if.else
+Pts for   %t1 = alloca i8**, align 8 not defined at   %3 = load i8*, i8** %a, align 8
+Pts for   %t2 = alloca i8**, align 8 not defined at   %3 = load i8*, i8** %a, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   %3 = load i8*, i8** %a, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %3 = load i8*, i8** %a, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %3 = load i8*, i8** %a, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   %3 = load i8*, i8** %a, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   store i8 65, i8* %3, align 1
+Pts for   %t2 = alloca i8**, align 8 not defined at   store i8 65, i8* %3, align 1
+Pts for   %retval = alloca i32, align 4 not defined at   store i8 65, i8* %3, align 1
+Pts for   %B = alloca [1 x i8], align 1 not defined at   store i8 65, i8* %3, align 1
+Pts for   %a = alloca i8*, align 8 not defined at   store i8 65, i8* %3, align 1
+Pts for   %b = alloca i8*, align 8 not defined at   store i8 65, i8* %3, align 1
+Pts for   %t1 = alloca i8**, align 8 not defined at   br label %if.end
+Pts for   %t2 = alloca i8**, align 8 not defined at   br label %if.end
+Pts for   %retval = alloca i32, align 4 not defined at   br label %if.end
+Pts for   %A = alloca [1 x i8], align 1 not defined at   br label %if.end
+Pts for   %B = alloca [1 x i8], align 1 not defined at   br label %if.end
+Pts for   %a = alloca i8*, align 8 not defined at   br label %if.end
+Pts for   %b = alloca i8*, align 8 not defined at   br label %if.end
+Pts for   %t2 = alloca i8**, align 8 not defined at   %4 = load i8**, i8*** %t1, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   %4 = load i8**, i8*** %t1, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %4 = load i8**, i8*** %t1, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %4 = load i8**, i8*** %t1, align 8
+Pts for   %a = alloca i8*, align 8 not defined at   %4 = load i8**, i8*** %t1, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   %4 = load i8**, i8*** %t1, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   %5 = load i8**, i8*** %t2, align 8
+Pts for   %retval = alloca i32, align 4 not defined at   %5 = load i8**, i8*** %t2, align 8
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %5 = load i8**, i8*** %t2, align 8
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %5 = load i8**, i8*** %t2, align 8
+Pts for   %a = alloca i8*, align 8 not defined at   %5 = load i8**, i8*** %t2, align 8
+Pts for   %b = alloca i8*, align 8 not defined at   %5 = load i8**, i8*** %t2, align 8
+Pts for   %t1 = alloca i8**, align 8 not defined at   call void @swap(i8** %4, i8** %5)
+Found pts for   %t1 = alloca i8**, align 8 at   ret void
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   call void @swap(i8** %4, i8** %5)
+Found pts for   %t2 = alloca i8**, align 8 at   ret void
+
+Pts for   %retval = alloca i32, align 4 not defined at   call void @swap(i8** %4, i8** %5)
+Found pts for   %retval = alloca i32, align 4 at   ret void
+
+Pts for   %A = alloca [1 x i8], align 1 not defined at   call void @swap(i8** %4, i8** %5)
+Found pts for   %A = alloca [1 x i8], align 1 at   ret void
+
+Pts for   %B = alloca [1 x i8], align 1 not defined at   call void @swap(i8** %4, i8** %5)
+Found pts for   %B = alloca [1 x i8], align 1 at   ret void
+
+Pts for   %a = alloca i8*, align 8 not defined at   call void @swap(i8** %4, i8** %5)
+Found pts for   %a = alloca i8*, align 8 at   ret void
+
+Pts for   %b = alloca i8*, align 8 not defined at   call void @swap(i8** %4, i8** %5)
+Found pts for   %b = alloca i8*, align 8 at   ret void
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   %6 = load i8*, i8** %a, align 8
+Found pts for   %t1 = alloca i8**, align 8 at   store i8* %5, i8** %6, align 8
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   %6 = load i8*, i8** %a, align 8
+Found pts for   %t2 = alloca i8**, align 8 at   store i8* %5, i8** %6, align 8
+
+Pts for   %retval = alloca i32, align 4 not defined at   %6 = load i8*, i8** %a, align 8
+Found pts for   %retval = alloca i32, align 4 at   store i8* %5, i8** %6, align 8
+
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %6 = load i8*, i8** %a, align 8
+Found pts for   %A = alloca [1 x i8], align 1 at   store i8* %5, i8** %6, align 8
+
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %6 = load i8*, i8** %a, align 8
+Found pts for   %B = alloca [1 x i8], align 1 at   store i8* %5, i8** %6, align 8
+
+Pts for   %b = alloca i8*, align 8 not defined at   %6 = load i8*, i8** %a, align 8
+Found pts for   %b = alloca i8*, align 8 at   %6 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   store i8 66, i8* %6, align 1
+Found pts for   %t1 = alloca i8**, align 8 at   %6 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   store i8 66, i8* %6, align 1
+Found pts for   %t2 = alloca i8**, align 8 at   %6 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %retval = alloca i32, align 4 not defined at   store i8 66, i8* %6, align 1
+Found pts for   %retval = alloca i32, align 4 at   %6 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %A = alloca [1 x i8], align 1 not defined at   store i8 66, i8* %6, align 1
+Found pts for   %A = alloca [1 x i8], align 1 at   %6 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %a = alloca i8*, align 8 not defined at   store i8 66, i8* %6, align 1
+Found pts for   %a = alloca i8*, align 8 at   store i8* %5, i8** %6, align 8
+
+Pts for   %b = alloca i8*, align 8 not defined at   store i8 66, i8* %6, align 1
+Found pts for   %b = alloca i8*, align 8 at   %5 = load i8*, i8** %tmp, align 8
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   br label %if.end
+Found pts for   %t1 = alloca i8**, align 8 at   %5 = load i8*, i8** %tmp, align 8
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   br label %if.end
+Found pts for   %t2 = alloca i8**, align 8 at   %5 = load i8*, i8** %tmp, align 8
+
+Pts for   %retval = alloca i32, align 4 not defined at   br label %if.end
+Found pts for   %retval = alloca i32, align 4 at   %5 = load i8*, i8** %tmp, align 8
+
+Pts for   %A = alloca [1 x i8], align 1 not defined at   br label %if.end
+Found pts for   %A = alloca [1 x i8], align 1 at   %5 = load i8*, i8** %tmp, align 8
+
+Pts for   %B = alloca [1 x i8], align 1 not defined at   br label %if.end
+Found pts for   %B = alloca [1 x i8], align 1 at   %6 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %a = alloca i8*, align 8 not defined at   br label %if.end
+Found pts for   %a = alloca i8*, align 8 at   %6 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %b = alloca i8*, align 8 not defined at   br label %if.end
+Found pts for   %b = alloca i8*, align 8 at   store i8* %3, i8** %4, align 8
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   %7 = load i8*, i8** %a, align 8
+Found pts for   %t1 = alloca i8**, align 8 at   store i8* %3, i8** %4, align 8
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   %7 = load i8*, i8** %a, align 8
+Found pts for   %t2 = alloca i8**, align 8 at   store i8* %3, i8** %4, align 8
+
+Pts for   %retval = alloca i32, align 4 not defined at   %7 = load i8*, i8** %a, align 8
+Found pts for   %retval = alloca i32, align 4 at   store i8* %3, i8** %4, align 8
+
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %7 = load i8*, i8** %a, align 8
+Found pts for   %A = alloca [1 x i8], align 1 at   store i8* %3, i8** %4, align 8
+
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %7 = load i8*, i8** %a, align 8
+Found pts for   %B = alloca [1 x i8], align 1 at   %5 = load i8*, i8** %tmp, align 8
+
+Pts for   %b = alloca i8*, align 8 not defined at   %7 = load i8*, i8** %a, align 8
+Found pts for   %b = alloca i8*, align 8 at   %4 = load i8**, i8*** %p.addr, align 8
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   store i8 63, i8* %7, align 1
+Found pts for   %t1 = alloca i8**, align 8 at   %4 = load i8**, i8*** %p.addr, align 8
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   store i8 63, i8* %7, align 1
+Found pts for   %t2 = alloca i8**, align 8 at   %4 = load i8**, i8*** %p.addr, align 8
+
+Pts for   %retval = alloca i32, align 4 not defined at   store i8 63, i8* %7, align 1
+Found pts for   %retval = alloca i32, align 4 at   %4 = load i8**, i8*** %p.addr, align 8
+
+Pts for   %a = alloca i8*, align 8 not defined at   store i8 63, i8* %7, align 1
+Found pts for   %a = alloca i8*, align 8 at   %5 = load i8*, i8** %tmp, align 8
+
+Pts for   %b = alloca i8*, align 8 not defined at   store i8 63, i8* %7, align 1
+Found pts for   %b = alloca i8*, align 8 at   %2 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   %8 = load i32, i32* %retval, align 4
+Found pts for   %t1 = alloca i8**, align 8 at   %3 = load i8*, i8** %2, align 8
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   %8 = load i32, i32* %retval, align 4
+Found pts for   %t2 = alloca i8**, align 8 at   %3 = load i8*, i8** %2, align 8
+
+Pts for   %A = alloca [1 x i8], align 1 not defined at   %8 = load i32, i32* %retval, align 4
+Found pts for   %A = alloca [1 x i8], align 1 at   %4 = load i8**, i8*** %p.addr, align 8
+
+Pts for   %B = alloca [1 x i8], align 1 not defined at   %8 = load i32, i32* %retval, align 4
+Found pts for   %B = alloca [1 x i8], align 1 at   store i8* %3, i8** %4, align 8
+
+Pts for   %a = alloca i8*, align 8 not defined at   %8 = load i32, i32* %retval, align 4
+Found pts for   %a = alloca i8*, align 8 at   %4 = load i8**, i8*** %p.addr, align 8
+
+Pts for   %b = alloca i8*, align 8 not defined at   %8 = load i32, i32* %retval, align 4
+Found pts for   %b = alloca i8*, align 8 at   store i8* %1, i8** %tmp, align 8
+
+Pts for   %t1 = alloca i8**, align 8 not defined at   ret i32 %8
+Found pts for   %t1 = alloca i8**, align 8 at   %2 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %t2 = alloca i8**, align 8 not defined at   ret i32 %8
+Found pts for   %t2 = alloca i8**, align 8 at   %2 = load i8**, i8*** %q.addr, align 8
+
+Pts for   %retval = alloca i32, align 4 not defined at   ret i32 %8
+Found pts for   %retval = alloca i32, align 4 at   %3 = load i8*, i8** %2, align 8
+
+Pts for   %A = alloca [1 x i8], align 1 not defined at   ret i32 %8
+Found pts for   %A = alloca [1 x i8], align 1 at   %3 = load i8*, i8** %2, align 8
+
+Pts for   %B = alloca [1 x i8], align 1 not defined at   ret i32 %8
+Found pts for   %B = alloca [1 x i8], align 1 at   %4 = load i8**, i8*** %p.addr, align 8
+
+Pts for   %a = alloca i8*, align 8 not defined at   ret i32 %8
+Found pts for   %a = alloca i8*, align 8 at   %3 = load i8*, i8** %2, align 8
+
+Pts for   %b = alloca i8*, align 8 not defined at   ret i32 %8
+Found pts for   %b = alloca i8*, align 8 at   %1 = load i8*, i8** %0, align 8
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   %p.addr = alloca i8**, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   %5 = load i8**, i8*** %t2, align 8
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   %p.addr = alloca i8**, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   %5 = load i8**, i8*** %t2, align 8
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   %q.addr = alloca i8**, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   %5 = load i8**, i8*** %t2, align 8
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   %q.addr = alloca i8**, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   %4 = load i8**, i8*** %t1, align 8
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   %tmp = alloca i8*, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   %4 = load i8**, i8*** %t1, align 8
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   %tmp = alloca i8*, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   %4 = load i8**, i8*** %t1, align 8
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   store i8** %p, i8*** %p.addr, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   br i1 %tobool, label %if.then, label %if.else
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   store i8** %p, i8*** %p.addr, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   br i1 %tobool, label %if.then, label %if.else
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   store i8** %q, i8*** %q.addr, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   br i1 %tobool, label %if.then, label %if.else
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   store i8** %q, i8*** %q.addr, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   %tobool = icmp ne i8 %2, 0
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   %0 = load i8**, i8*** %p.addr, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   %tobool = icmp ne i8 %2, 0
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   %0 = load i8**, i8*** %p.addr, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   %2 = load i8, i8* %arrayidx, align 1
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   %1 = load i8*, i8** %0, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   %tobool = icmp ne i8 %2, 0
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   %1 = load i8*, i8** %0, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   %2 = load i8, i8* %arrayidx, align 1
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   %1 = load i8*, i8** %0, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   store i8* %1, i8** %tmp, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   %2 = load i8, i8* %arrayidx, align 1
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   store i8* %1, i8** %tmp, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   %2 = load i8**, i8*** %q.addr, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   %2 = load i8**, i8*** %q.addr, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   store i8* %1, i8** %b, align 8
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   %3 = load i8*, i8** %2, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   store i8* %1, i8** %b, align 8
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   %3 = load i8*, i8** %2, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   store i8* %1, i8** %b, align 8
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   %3 = load i8*, i8** %2, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   %1 = bitcast [1 x i8]* %B to i8*
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   %4 = load i8**, i8*** %p.addr, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   %1 = bitcast [1 x i8]* %B to i8*
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   %4 = load i8**, i8*** %p.addr, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   store i8* %0, i8** %a, align 8
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   store i8* %3, i8** %4, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   %1 = bitcast [1 x i8]* %B to i8*
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   store i8* %3, i8** %4, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   store i8* %0, i8** %a, align 8
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   store i8* %3, i8** %4, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   %0 = bitcast [1 x i8]* %A to i8*
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   %5 = load i8*, i8** %tmp, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   store i8* %0, i8** %a, align 8
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   %5 = load i8*, i8** %tmp, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   %0 = bitcast [1 x i8]* %A to i8*
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   %6 = load i8**, i8*** %q.addr, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   %0 = bitcast [1 x i8]* %A to i8*
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   %6 = load i8**, i8*** %q.addr, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   store i8** %b, i8*** %t2, align 8
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   store i8* %5, i8** %6, align 8
+Found pts for   %p.addr = alloca i8**, align 8 at   store i8** %b, i8*** %t2, align 8
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   store i8* %5, i8** %6, align 8
+Found pts for   %q.addr = alloca i8**, align 8 at   store i8** %b, i8*** %t2, align 8
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   store i8* %5, i8** %6, align 8
+Found pts for   %tmp = alloca i8*, align 8 at   store i8** %a, i8*** %t1, align 8
+
+Pts for   %p.addr = alloca i8**, align 8 not defined at   ret void
+Found pts for   %p.addr = alloca i8**, align 8 at   store i8** %a, i8*** %t1, align 8
+
+Pts for   %q.addr = alloca i8**, align 8 not defined at   ret void
+Found pts for   %q.addr = alloca i8**, align 8 at   store i8** %a, i8*** %t1, align 8
+
+Pts for   %tmp = alloca i8*, align 8 not defined at   ret void
+Found pts for   %tmp = alloca i8*, align 8 at   store i32 0, i32* %retval, align 4
+
+After Points-to set population
+At   ret void
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %0 = bitcast [1 x i8]* %A to i8*
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %1 = bitcast [1 x i8]* %B to i8*
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %2 = load i8, i8* %arrayidx, align 1
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %3 = load i8*, i8** %a, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   br label %if.end
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %4 = load i8**, i8*** %t1, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %5 = load i8**, i8*** %t2, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %6 = load i8*, i8** %a, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   br label %if.end
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %7 = load i8*, i8** %a, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %8 = load i32, i32* %retval, align 4
+  %retval = alloca i32, align 4 c=>:
+	i32 0 
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   ret i32 %8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %0 = load i8**, i8*** %p.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %1 = load i8*, i8** %0, align 8
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+  %b = alloca i8*, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %2 = load i8**, i8*** %q.addr, align 8
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %3 = load i8*, i8** %2, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %4 = load i8**, i8*** %p.addr, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %5 = load i8*, i8** %tmp, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   %6 = load i8**, i8*** %q.addr, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i32 0, i32* %retval, align 4
+  %retval = alloca i32, align 4 c=>:
+	i32 0 
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8** %a, i8*** %t1, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8** %b, i8*** %t2, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8* %0, i8** %a, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8* %1, i8** %b, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %tobool = icmp ne i8 %2, 0
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8 65, i8* %3, align 1
+  %3 = load i8*, i8** %a, align 8 c=>:
+	i8 65 
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+	i8 65 
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   store i8** %p, i8*** %p.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8 66, i8* %6, align 1
+  %6 = load i8*, i8** %a, align 8 c=>:
+	i8 66 
+  %3 = load i8*, i8** %2, align 8 c=>:
+
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+	i8 66 
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   store i8 63, i8* %7, align 1
+  %7 = load i8*, i8** %a, align 8 c=>:
+	i8 63 
+  %3 = load i8*, i8** %2, align 8 c=>:
+
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+	i8 63 
+  %B = alloca [1 x i8], align 1 c=>:
+	i8 63 
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   store i8** %q, i8*** %q.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8* %1, i8** %tmp, align 8
+  %b = alloca i8*, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   store i8* %3, i8** %4, align 8
+  %4 = load i8**, i8*** %p.addr, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8* %5, i8** %6, align 8
+  %6 = load i8**, i8*** %q.addr, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %5 = load i8*, i8** %tmp, align 8 
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %5 = load i8*, i8** %tmp, align 8 
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %retval = alloca i32, align 4
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %A = alloca [1 x i8], align 1
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %B = alloca [1 x i8], align 1
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %a = alloca i8*, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %b = alloca i8*, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %t1 = alloca i8**, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %t2 = alloca i8**, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %p.addr = alloca i8**, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %q.addr = alloca i8**, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %tmp = alloca i8*, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   call void @swap(i8** %4, i8** %5)
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   br i1 %tobool, label %if.then, label %if.else
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At program location:   %retval = alloca i32, align 4
+
+At program location:   %A = alloca [1 x i8], align 1
+
+At program location:   %B = alloca [1 x i8], align 1
+
+At program location:   %a = alloca i8*, align 8
+
+At program location:   %b = alloca i8*, align 8
+
+At program location:   %t1 = alloca i8**, align 8
+
+At program location:   %t2 = alloca i8**, align 8
+
+At program location:   store i32 0, i32* %retval, align 4
+
+At program location:   store i8** %a, i8*** %t1, align 8
+
+At program location:   store i8** %b, i8*** %t2, align 8
+
+At program location:   %0 = bitcast [1 x i8]* %A to i8*
+
+At program location:   store i8* %0, i8** %a, align 8
+
+At program location:   %1 = bitcast [1 x i8]* %B to i8*
+
+At program location:   store i8* %1, i8** %b, align 8
+
+At program location:   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+
+At program location:   %2 = load i8, i8* %arrayidx, align 1
+
+At program location:   %tobool = icmp ne i8 %2, 0
+
+At program location:   br i1 %tobool, label %if.then, label %if.else
+
+At program location:   %4 = load i8**, i8*** %t1, align 8
+
+At program location:   %5 = load i8**, i8*** %t2, align 8
+
+At program location:   call void @swap(i8** %4, i8** %5)
+
+At program location:   %6 = load i8*, i8** %a, align 8
+
+At program location:   store i8 66, i8* %6, align 1
+
+At program location:   br label %if.end
+
+At program location:   %7 = load i8*, i8** %a, align 8
+
+At program location:   store i8 63, i8* %7, align 1
+  %A = alloca [1 x i8], align 1 MUST ALIAS   %B = alloca [1 x i8], align 1
+
+At program location:   %8 = load i32, i32* %retval, align 4
+
+At program location:   ret i32 %8
+
+At program location:   %3 = load i8*, i8** %a, align 8
+
+At program location:   store i8 65, i8* %3, align 1
+
+At program location:   br label %if.end
+
+At program location:   %7 = load i8*, i8** %a, align 8
+
+At program location:   store i8 63, i8* %7, align 1
+  %A = alloca [1 x i8], align 1 MUST ALIAS   %B = alloca [1 x i8], align 1
+
+At program location:   %8 = load i32, i32* %retval, align 4
+
+At program location:   ret i32 %8
+
+At program location:   %p.addr = alloca i8**, align 8
+
+At program location:   %q.addr = alloca i8**, align 8
+
+At program location:   %tmp = alloca i8*, align 8
+
+At program location:   store i8** %p, i8*** %p.addr, align 8
+
+At program location:   store i8** %q, i8*** %q.addr, align 8
+
+At program location:   %0 = load i8**, i8*** %p.addr, align 8
+
+At program location:   %1 = load i8*, i8** %0, align 8
+
+At program location:   store i8* %1, i8** %tmp, align 8
+
+At program location:   %2 = load i8**, i8*** %q.addr, align 8
+
+At program location:   %3 = load i8*, i8** %2, align 8
+
+At program location:   %4 = load i8**, i8*** %p.addr, align 8
+
+At program location:   store i8* %3, i8** %4, align 8
+
+At program location:   %5 = load i8*, i8** %tmp, align 8
+
+At program location:   %6 = load i8**, i8*** %q.addr, align 8
+
+At program location:   store i8* %5, i8** %6, align 8
+
+At program location:   ret void
+
+Print points-to set stats
+At   ret void
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %0 = bitcast [1 x i8]* %A to i8*
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %1 = bitcast [1 x i8]* %B to i8*
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %2 = load i8, i8* %arrayidx, align 1
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %3 = load i8*, i8** %a, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   br label %if.end
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %4 = load i8**, i8*** %t1, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %5 = load i8**, i8*** %t2, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %6 = load i8*, i8** %a, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   br label %if.end
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %7 = load i8*, i8** %a, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %8 = load i32, i32* %retval, align 4
+  %retval = alloca i32, align 4 c=>:
+	i32 0 
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   ret i32 %8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %0 = load i8**, i8*** %p.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %1 = load i8*, i8** %0, align 8
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+  %b = alloca i8*, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %2 = load i8**, i8*** %q.addr, align 8
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %3 = load i8*, i8** %2, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %4 = load i8**, i8*** %p.addr, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %5 = load i8*, i8** %tmp, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   %6 = load i8**, i8*** %q.addr, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i32 0, i32* %retval, align 4
+  %retval = alloca i32, align 4 c=>:
+	i32 0 
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8** %a, i8*** %t1, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8** %b, i8*** %t2, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8* %0, i8** %a, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8* %1, i8** %b, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %tobool = icmp ne i8 %2, 0
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8 65, i8* %3, align 1
+  %3 = load i8*, i8** %a, align 8 c=>:
+	i8 65 
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+	i8 65 
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   store i8** %p, i8*** %p.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+	  %a = alloca i8*, align 8 
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8 66, i8* %6, align 1
+  %6 = load i8*, i8** %a, align 8 c=>:
+	i8 66 
+  %3 = load i8*, i8** %2, align 8 c=>:
+
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+	i8 66 
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   store i8 63, i8* %7, align 1
+  %7 = load i8*, i8** %a, align 8 c=>:
+	i8 63 
+  %3 = load i8*, i8** %2, align 8 c=>:
+
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+	i8 63 
+  %B = alloca [1 x i8], align 1 c=>:
+	i8 63 
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   store i8** %q, i8*** %q.addr, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+	  %b = alloca i8*, align 8 
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8* %1, i8** %tmp, align 8
+  %b = alloca i8*, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 
+At   store i8* %3, i8** %4, align 8
+  %4 = load i8**, i8*** %p.addr, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+	  %B = alloca [1 x i8], align 1 	  %3 = load i8*, i8** %2, align 8 
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   store i8* %5, i8** %6, align 8
+  %6 = load i8**, i8*** %q.addr, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %5 = load i8*, i8** %tmp, align 8 
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+	  %A = alloca [1 x i8], align 1 	  %5 = load i8*, i8** %tmp, align 8 
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %retval = alloca i32, align 4
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %A = alloca [1 x i8], align 1
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %B = alloca [1 x i8], align 1
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %a = alloca i8*, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %b = alloca i8*, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %t1 = alloca i8**, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %t2 = alloca i8**, align 8
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   %p.addr = alloca i8**, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %q.addr = alloca i8**, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %tmp = alloca i8*, align 8
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   %arrayidx = getelementptr inbounds [1 x i8], [1 x i8]* %A, i64 0, i64 0
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+
+At   call void @swap(i8** %4, i8** %5)
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+At   br i1 %tobool, label %if.then, label %if.else
+  %retval = alloca i32, align 4 c=>:
+
+  %A = alloca [1 x i8], align 1 c=>:
+
+  %B = alloca [1 x i8], align 1 c=>:
+
+  %a = alloca i8*, align 8 c=>:
+
+  %b = alloca i8*, align 8 c=>:
+
+  %t1 = alloca i8**, align 8 c=>:
+
+  %t2 = alloca i8**, align 8 c=>:
+
+  %p.addr = alloca i8**, align 8 c=>:
+
+  %q.addr = alloca i8**, align 8 c=>:
+
+  %tmp = alloca i8*, align 8 c=>:
+

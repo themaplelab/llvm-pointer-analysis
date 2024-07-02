@@ -57,6 +57,7 @@ add_llvm_component_library(LLVMTransformUtils
   NameAnonGlobals.cpp
   PointerStats.cpp
   PredicateInfo.cpp
+  PrintAliasToPairs.cpp
   PromoteMemoryToRegister.cpp
   RelLookupTableConverter.cpp
   ScalarEvolutionExpander.cpp

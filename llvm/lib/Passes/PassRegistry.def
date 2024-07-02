@@ -122,6 +122,8 @@ MODULE_PASS("poison-checking", PoisonCheckingPass())
 MODULE_PASS("ptr-stats", PointerStats())
 MODULE_PASS("pseudo-probe-update", PseudoProbeUpdatePass())
 MODULE_PASS("print-pointer-level", PrintPL())
+MODULE_PASS("print-alias-pairs", PrintAliasToPairs())
+
 #undef MODULE_PASS
 
 #ifndef MODULE_PASS_WITH_PARAMS

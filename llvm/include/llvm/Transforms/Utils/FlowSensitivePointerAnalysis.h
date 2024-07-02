@@ -1,27 +1,33 @@
 #ifndef LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_H
 #define LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_H
 
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/BreadthFirstIterator.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Analysis/MemoryLocation.h"
-#include "llvm/IR/Instruction.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/IR/InstIterator.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/WithColor.h"
-#include <utility>
-#include <vector>
-#include <new>
 #include <map>
+#include <new>
 #include <set>
 #include <stack>
-#include "llvm/IR/PassManager.h"
+#include <utility>
+#include <vector>
+
+
+
+
+
 
 
 #define LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_ANALYSIS
@@ -87,6 +93,14 @@ namespace llvm{
         std::stack<const Function*> left2Analysis;
         // Map each pointer to the program location that requires its alias information.
         std::map<const PointerTy*, std::set<const User*>> aliasUser;
+
+        
+
+        size_t TotalFunctionNumber = 0;
+        size_t ProcessedFunctionNumber = 0;
+
+
+
         FlowSensitivePointerAnalysisResult result;
 
         static AnalysisKey Key;
@@ -119,11 +133,6 @@ namespace llvm{
             // std::vector<const Function*> collectAllCallees(const Function*);
             void addDefUseEdge(const ProgramLocationTy *def, const ProgramLocationTy *use, const PointerTy *ptr);
             void updatePointsToSet(const ProgramLocationTy *loc, const Value *ptr, DenseSet<const Value *> pointsToSet, std::vector<DefUseEdgeTupleTy> &propagateList);
-            
-            void dumpWorkList();
-            void dumpLabelMap();
-            void dumpDefUseGraph() const;
-            void dumpPointsToMap();
 
             void markLabelsForPtr(const PointerTy*);
             void buildDefUseGraph(DenseSet<const ProgramLocationTy*>, const PointerTy*);
@@ -138,7 +147,16 @@ namespace llvm{
             size_t computePointerLevel(const Instruction *inst);
             DenseSet<const Instruction*> findDefFromFunc(const Function *func, const PointerTy *ptr, DenseSet<const BasicBlock*> &visited);
             DenseSet<const Function*> getCallees(const Function *func);
-            DenseSet<const Instruction*> FindDefFromUseLoc(const ProgramLocationTy *, const PointerTy *, DenseSet<const ProgramLocationTy*> &);
+            DenseSet<const Instruction*> FindDefFromPrevOfUseLoc(const ProgramLocationTy*, const PointerTy*);
+            DenseSet<const Instruction*> FindDefFromUseLoc(const ProgramLocationTy*, const PointerTy*, DenseSet<const ProgramLocationTy*> &);
+            
+            bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, DenseSet<const Value*>);
+            void PrintPointsToSetAtProgramLocation(const ProgramLocationTy *Loc, const PointerTy *Ptr);
+            DenseSet<const Instruction*> getPrevProgramLocations(const ProgramLocationTy *Loc, bool Skip = false);
+            void populatePointsToSet(Module &m);
+            DenseSet<const PointerTy*> populatePointsToSetFromProgramLocation(const ProgramLocationTy *Loc, const PointerTy *p);
+
+
 
 
             DenseMap<const Function*, DenseMap<const Value*, DenseSet<const Value*>>> funcParas2AliasSet;
