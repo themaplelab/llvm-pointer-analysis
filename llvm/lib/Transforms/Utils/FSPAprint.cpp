@@ -15,9 +15,9 @@ PreservedAnalyses PrintPL::run(Module &m, ModuleAnalysisManager &mam){
 }
 
 
-void PrintPL::processWorkListForFunction(DenseMap<size_t, llvm::DenseSet<const Value*>> worklist){
+void PrintPL::processWorkListForFunction(std::map<size_t, std::set<const Value*>> worklist){
     
-    DenseMap<const Value*, size_t> pointerLevel;
+    std::map<const Value*, size_t> pointerLevel;
     for(auto pair : worklist){
         for(auto pointer : pair.second){
             pointerLevel[pointer] = pair.first;

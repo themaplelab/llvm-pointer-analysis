@@ -11,12 +11,21 @@ using namespace llvm;
 
 AnalysisKey FlowSensitivePointerAnalysis::Key;
 
+/// @brief Print the points-to set for \p Ptr at program location \p Loc
+/// @param Loc 
+/// @param Ptr 
 void FlowSensitivePointerAnalysis::PrintPointsToSetAtProgramLocation(const ProgramLocationTy *Loc, const PointerTy *Ptr){
-    logger << "Printing points-to set for " << *Ptr << " at " << *Loc << "\n";
-    for(auto e : pointsToSet[Loc][Ptr].first){
-        logger << *e << " ";
+    // logger << "Printing points-to set for " << *Ptr << " at " << *Loc << "\n";
+    auto iter = pointsToSet.find(Loc);
+    if(iter != pointsToSet.end()){
+        auto it = pointsToSet.at(Loc).find(Ptr);
+        if(it != pointsToSet.at(Loc).end()){
+            for(auto e : pointsToSet.at(Loc).at(Ptr).first){
+                logger << *e << " ";
+            }
+            logger << "\n";
+        }
     }
-    logger << "\n";
 }
 
 
@@ -30,6 +39,8 @@ void FlowSensitivePointerAnalysis::PrintPointsToSetAtProgramLocation(const Progr
     FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, ModuleAnalysisManager &mam){
 
         // getCallGraphFromModule(m);
+
+        logger << "Analyzing\n\n\n\n\n";
 
         auto CurrentPointerLevel = globalInitialize(m);
         assert(CurrentPointerLevel >= 0 && "Cannot have negative pointer level.");
@@ -48,14 +59,14 @@ void FlowSensitivePointerAnalysis::PrintPointsToSetAtProgramLocation(const Progr
 
         }
 
-        logger << "Print label map\n";
-        for(auto p : labelMap){
-            logger << "Labels at " << *p.first << "\n";
-            for(auto e : p.second){
-                logger << e << " ";
-            }
-            logger << "\n";
-        }
+        // logger << "Print label map\n";
+        // for(auto p : labelMap){
+        //     logger << "Labels at " << *p.first << "\n";
+        //     for(auto e : p.second){
+        //         logger << e << " ";
+        //     }
+        //     logger << "\n";
+        // }
 
         outs() << "Print points-to set stats\n";
         for(auto pair : pointsToSet){
@@ -72,6 +83,7 @@ void FlowSensitivePointerAnalysis::PrintPointsToSetAtProgramLocation(const Progr
             }
         }
 
+        logger << "\n\n\n\n\n\n\n\nPopulating PTS\n\n\n\n\n\n\n";
 
         populatePointsToSet(m);
 
@@ -89,7 +101,7 @@ void FlowSensitivePointerAnalysis::PrintPointsToSetAtProgramLocation(const Progr
                 logger << "\n";
             }
         }
-
+        result.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
         result.setPointsToSet(pointsToSet);
 
         return result;
@@ -118,59 +130,146 @@ void FlowSensitivePointerAnalysis::PrintPointsToSetAtProgramLocation(const Progr
 #endif
 
 void FlowSensitivePointerAnalysis::populatePointsToSet(Module &m){
-    for(auto &Func : m.functions()){
-        DenseSet<const PointerTy*> AllocatedPointers{};
-        for(auto m : func2worklist[&Func]){
-            AllocatedPointers.insert(m.second.begin(), m.second.end());
-        }
+    // new implementation. consult defloc for each pointer at loc. if no defloc, then {}, else grab pts.
 
-        for(auto &Loc : instructions(Func)){
-            for(auto p : AllocatedPointers){
-                if(!pointsToSet[&Loc].count(p)){
-                    logger << "Pts for " << *p << " not defined at " << Loc << "\n";
-                    auto Prevs = getPrevProgramLocations(&Loc);
-                    for(auto Prev : Prevs){
-                        auto pts = populatePointsToSetFromProgramLocation(Prev, p);
-                        pointsToSet[&Loc][p].first.insert(pts.begin(), pts.end());
-                    }
-                    // logger << "Found pts for " << *p << "\n";
-                    // for(auto pp : pointsToSet[&Loc][p].first){
-                    //     logger << *pp << " ";
-                    // }
-                    // logger << "\n";
-                }
+
+    for(auto &Func : m.functions()){
+        SetVector<const PointerTy*> AllocatedPointersAndParameterAliases{};
+        auto AllocatedPointersInFunc = DenseSet<const PointerTy*>{};
+        auto WorkList = std::map<size_t, std::set<const PointerTy *>>{};
+        if(func2worklist.count(&Func)){
+            WorkList = func2worklist.at(&Func);
+        }
+        
+        for(auto m : WorkList){
+            AllocatedPointersAndParameterAliases.insert(m.second.begin(), m.second.end());
+            AllocatedPointersInFunc.insert(m.second.begin(), m.second.end());
+        }
+        
+        if(funcParas2AliasSet.count(&Func)){
+            auto Para2AliasSet = funcParas2AliasSet[&Func];
+            for(auto p : Para2AliasSet){
+                AllocatedPointersAndParameterAliases.insert(p.second.begin(), p.second.end());
             }
         }
+
+        Func2AllocatedPointersAndParameterAliases[&Func] = AllocatedPointersAndParameterAliases;
+        
+        // Assume we are starting with the first instruction of the function.
+        auto StartPTS = std::map<const PointerTy *, std::set<const PointerTy *>>{};
+        for(auto P : funcParas2AliasSet[&Func]){
+            for(auto CLoc : func2CallerLocation[&Func]){
+                for(auto alias : P.second){
+                    for(auto pe : pointsToSet[CLoc][alias].first){
+                        if(!dyn_cast<LoadInst>(pe)){
+                            StartPTS[alias].insert(pe);
+                        }
+                    }
+                    // StartPTS[alias].insert(pointsToSet[CLoc][alias].first.begin(), pointsToSet[CLoc][alias].first.end());
+                }
+                
+            }
+        }
+        auto cur = Func.getEntryBlock().getFirstNonPHIOrDbg();
+        DenseSet<const ProgramLocationTy*> Visited{};
+
+        populatePTSAtLocation(cur, StartPTS, Visited);
+
     }
 }
 
-DenseSet<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointerAnalysis::populatePointsToSetFromProgramLocation(const ProgramLocationTy *Loc, const PointerTy *p){
-    if(!pointsToSet[Loc].count(p)){
-        logger << "Found pts for " << *p << " at " << *Loc << "\n";
-        for(auto pp : pointsToSet[Loc][p].first){
-            logger << *pp << " ";
+void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy *Loc, std::map<const PointerTy *, std::set<const PointerTy *>> PassedPTS, DenseSet<const ProgramLocationTy*> &Visited){
+    bool changed = false;
+
+
+    if(Visited.contains(Loc)){
+        return;
+    }
+    Visited.insert(Loc);
+
+    auto oldPTS = pointsToSet[Loc];
+
+    for(auto P : Func2AllocatedPointersAndParameterAliases[Loc->getFunction()]){
+        if(hasDef(Loc, P)){
+            for(auto it = pointsToSet[Loc][P].first.begin(); it != pointsToSet[Loc][P].first.end();){
+                if(dyn_cast<LoadInst>(*it)){
+                    it = pointsToSet[Loc][P].first.erase(it);
+                }
+                else{
+                    ++it;
+                }
+            }
+            
+            PassedPTS[P] = pointsToSet[Loc][P].first;  
         }
-        logger << "\n";
-        return pointsToSet[Loc][p].first;
+        else if(PassedPTS.count(P)){
+            pointsToSet[Loc][P].first.insert(PassedPTS[P].begin(), PassedPTS[P].end());
+        }
+    }
+    if(oldPTS != pointsToSet[Loc]){
+        changed = true;
+    }
+
+    auto Next = Loc->getNextNonDebugInstruction();
+    if(!Next){
+        for(auto NextBB : successors(Loc->getParent())){
+            if(changed || !Visited.contains(NextBB->getFirstNonPHIOrDbg())){
+                populatePTSAtLocation(NextBB->getFirstNonPHIOrDbg(), PassedPTS, Visited);
+            }
+            
+            
+        }
     }
     else{
-        DenseSet<const PointerTy*> res;
-        auto Prevs = getPrevProgramLocations(Loc);
-        for(auto Prev : Prevs){
-            auto pts = populatePointsToSetFromProgramLocation(Prev, p);
-            res.insert(pts.begin(), pts.end());
+        if(changed || !Visited.contains(Next)){
+            populatePTSAtLocation(Next, PassedPTS, Visited);
         }
-        return res;
     }
 
+
 }
+
+// std::set<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointerAnalysis::populatePointsToSetFromProgramLocation(const ProgramLocationTy *Loc, const PointerTy *p, std::set<const ProgramLocationTy*> &Visited, const DenseSet<const PointerTy*> &AllocatedPointers){
+    
+//     if(Visited.count(Loc)){
+//         return std::set<const PointerTy*>{};
+//     }
+//     Visited.insert(Loc);
+
+
+//     // logger << "Checking pts for " << *p << " at " << Loc->getFunction()->getName() << "::" << Loc->getParent()->getName() << "\n";
+//     if(pointsToSet.count(Loc) && pointsToSet.at(Loc).count(p)){
+//         // logger << "Found pts for " << *p << " at " << *Loc << "\n";
+//         // for(auto pp : pointsToSet.at(Loc).at(p).first){
+//         //     logger << *pp << " ";
+//         // }
+//         // logger << "\n";
+//         return pointsToSet.at(Loc).at(p).first;
+//     }
+//     else{
+//         std::set<const PointerTy*> res{};
+//         auto Prevs = getPrevProgramLocations(Loc);
+//         for(auto Prev : Prevs){
+//             if((Prev->getFunction() != Loc->getFunction()) && (AllocatedPointers.contains(p))){
+//                 continue;
+//             }
+//             auto pts = populatePointsToSetFromProgramLocation(Prev, p, Visited, AllocatedPointers);
+//             res.insert(pts.begin(), pts.end());
+//         }
+//         return res;
+//     }
+
+// }
 
 
 /*
 
 */
 void FlowSensitivePointerAnalysis::processGlobalVariables(int ptrLvl){
-    for(auto globalPtr : globalWorkList[ptrLvl]){
+    if(!globalWorkList.count(ptrLvl)){
+        return;
+    }
+    for(auto globalPtr : globalWorkList.at(ptrLvl)){
         markLabelsForPtr(globalPtr);
         auto useLocs = getUseLocations(globalPtr);
         buildDefUseGraph(useLocs, globalPtr);
@@ -185,10 +284,10 @@ size_t FlowSensitivePointerAnalysis::globalInitialize(Module &m){
     size_t ptrLvl = 0;
     for(auto &func : m.functions()){
         ++TotalFunctionNumber;
-        visited[&func] = false;
+        visited.emplace(&func, false);
         initialize(&func);
-        if(ptrLvl < func2worklist[&func].size()){
-            ptrLvl = func2worklist[&func].size();
+        if(ptrLvl < func2worklist.at(&func).size()){
+            ptrLvl = func2worklist.at(&func).size();
         }
     }
 
@@ -203,8 +302,12 @@ void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Functi
     logger << "Analyzing function: " << func->getName() << " with pointer level: " << ptrLvl << "\t\t\t\t" << int(100*ProcessedFunctionNumber/TotalFunctionNumber) << "%\n";
 
 
-    visited[func] = true;
-    auto pointers = func2worklist[func][ptrLvl];
+    visited.at(func) = true;
+    auto pointers = std::set<const PointerTy *>{};
+    if(func2worklist.count(func) && func2worklist[func].count(ptrLvl)){
+        pointers = func2worklist.at(func).at(ptrLvl);
+    }
+    
     // logger << "1.1" << "\n";
     for(auto ptr : pointers){
         // logger << "Preprocessing " << *ptr << "\n";
@@ -228,7 +331,7 @@ void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Functi
     for(auto callee : getCallees(func)){
         assert(callee && "callee is nullptr");
         // todo: also check if alias set of para is changed.
-        if(!visited[callee]){
+        if(!visited.at(callee)){
             performPointerAnalysisOnFunction(callee, ptrLvl);
         }
         
@@ -239,12 +342,20 @@ void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Functi
 
 }
 
-DenseSet<const Function*> FlowSensitivePointerAnalysis::getCallees(const Function *func){
-    return caller2Callee[func];
+std::set<const Function*> FlowSensitivePointerAnalysis::getCallees(const Function *func){
+    
+    if(caller2Callee.count(func)){
+        return caller2Callee.at(func);
+    }
+    return std::set<const Function *>{};
+    
 }
 
-DenseSet<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::getUseLocations(const PointerTy *ptr){
-    return useList[ptr];
+std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::getUseLocations(const PointerTy *ptr){
+    if(useList.count(ptr)){
+        return useList.at(ptr);
+    }
+    return std::set<const ProgramLocationTy *>{};
 }
 
 void FlowSensitivePointerAnalysis::markLabelsForPtr(const PointerTy *ptr){
@@ -293,9 +404,9 @@ void FlowSensitivePointerAnalysis::markLabelsForPtr(const PointerTy *ptr){
     }
 }
 
-void FlowSensitivePointerAnalysis::buildDefUseGraph(DenseSet<const ProgramLocationTy*> useLocs, const PointerTy *ptr){
+void FlowSensitivePointerAnalysis::buildDefUseGraph(std::set<const ProgramLocationTy*> useLocs, const PointerTy *ptr){
     for(auto useLoc : useLocs){
-        logger << "Building def-use graph for " << *ptr << " at " << *useLoc << "\n";
+        // logger << "Building def-use graph for " << *ptr << " at " << *useLoc << "\n";
 
         // auto defLocs = FindDefInBasicBlock(useLoc, ptr, visited);
         auto defLocs = FindDefFromPrevOfUseLoc(useLoc, ptr);
@@ -307,7 +418,7 @@ void FlowSensitivePointerAnalysis::buildDefUseGraph(DenseSet<const ProgramLocati
     }
 }
 
-std::vector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerAnalysis::initializePropagateList(DenseSet<const PointerTy*> pointers, size_t ptrLvl){
+std::vector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerAnalysis::initializePropagateList(std::set<const PointerTy*> pointers, size_t ptrLvl){
     std::vector<DefUseEdgeTupleTy> propagateList;
     for(auto ptr: pointers){
         auto Loc = dyn_cast<Instruction>(ptr);
@@ -317,9 +428,12 @@ std::vector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointe
             propagateList.push_back(std::make_tuple(Loc, pu, ptr));
         }
     }
-    for(auto ptr : globalWorkList[ptrLvl]){
+    if(globalWorkList.count(ptrLvl)){
+        for(auto ptr : globalWorkList.at(ptrLvl)){
 
+        }
     }
+    
 
     // logger << "Initialized propagate list for " << pointers.size() << " pointers, it has " << propagateList.size() << " edges.\n";
     return propagateList;
@@ -341,7 +455,7 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> prop
         auto t = std::get<1>(tup);
         auto ptr = std::get<2>(tup);
 
-        logger << "Propagating edge " << *f << " === " << *ptr << " ===> " << *t << "\n";
+        // logger << "Propagating edge " << *f << " === " << *ptr << " ===> " << *t << "\n";
 
         propagatePointsToInformation(t, f, ptr);
 
@@ -353,7 +467,12 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> prop
 
         }
         else if(auto loadInst = dyn_cast<LoadInst>(t)){
-            auto tmp = aliasMap[t][t];
+            auto tmp = std::set<const Value*>{};
+            if(aliasMap.count(t)){
+                if(aliasMap[t].count(t)){
+                    tmp = aliasMap.at(t).at(t);
+                }
+            }
             // logger << "Before update (" << *t << ")\n";
             // for(auto e : tmp){
             //     logger << *e << " ";
@@ -366,14 +485,22 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> prop
             // }
             // logger << "\n";
             // Everytime we update the alias information for pointer pt at location t, we need to add the program locaton t to the users of pt.
-            if(tmp != aliasMap[t][t]){
+            
+            auto newAliasSet = std::set<const Value*>{};
+            if(aliasMap.count(t)){
+                if(aliasMap[t].count(t)){
+                    newAliasSet = aliasMap.at(t).at(t);
+                }
+            }
+
+            if(tmp != newAliasSet){
                 if(!aliasUser.count(t)){
                     aliasUser[t] = std::set<const User*>();
                     for(auto user : t->users()){
                         aliasUser[t].insert(user);
                     }
                 }
-                updateAliasUsers(aliasUser[t], t, propagateList);
+                updateAliasUsers(aliasUser.at(t), t, propagateList);
             }
         }
         propagateList.erase(propagateList.begin());
@@ -389,10 +516,16 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(std::set<const User *> users
     for(auto user : users){
         // Passing alias-set(Loc) at Loc to user.
 
-        logger << "Updating alias user " << *user << " for " << *Loc << "\n";
+        // logger << "Updating alias user " << *user << " for " << *Loc << "\n";
         
         auto userInst = dyn_cast<Instruction>(user);
-        aliasMap[userInst][Loc] = aliasMap[Loc][Loc];
+        if(aliasMap.count(Loc) && aliasMap[Loc].count(Loc)){
+            aliasMap[userInst][Loc] = aliasMap.at(Loc).at(Loc);
+        }
+        else{
+            aliasMap[userInst][Loc] = std::set<const PointerTy*>{};
+        }
+        
 
         if(auto storeInst = dyn_cast<StoreInst>(userInst)){
             
@@ -402,8 +535,13 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(std::set<const User *> users
 
 
 
-                for(auto tt : aliasMap[userInst][Loc]){
-                    updatePointsToSet(userInst, tt, pointsToSet[userInst][Loc].first, propagateList);
+                for(auto tt : aliasMap.at(userInst).at(Loc)){
+                    auto PTS = std::set<const PointerTy *>{};
+                    if(pointsToSet.count(userInst) && pointsToSet[userInst].count(Loc)){
+                        PTS = pointsToSet.at(userInst).at(Loc).first;
+                    }
+
+                    updatePointsToSet(userInst, tt, PTS, propagateList);
                     // logger << "(updateAliasUsers) Marking def labels for " << *tt << " at " << *userInst << "\n";
                     labelMap[userInst].insert(Label(tt, Label::LabelType::Def));
                     labelMap[userInst].insert(Label(tt, Label::LabelType::Use));
@@ -417,30 +555,37 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(std::set<const User *> users
                 
                 // get all pointers that point to loc
                 auto ptrChangeList = ptsPointsTo(userInst,Loc);
-                logger << "Found change list\n";
-                for(auto e : ptrChangeList){
-                    logger << *e << " ";
-                }
-                logger << "\n";
+                // logger << "Found change list\n";
+                // for(auto e : ptrChangeList){
+                //     logger << *e << " ";
+                // }
+                // logger << "\n";
 
-                auto aliasSet = aliasMap[userInst][Loc];
-                logger << "Going to insert alias pointer\n";
-                for(auto e : aliasSet){
-                    logger << *e << " ";
-                }
-                logger << "\n";
+                auto aliasSet = aliasMap.at(userInst).at(Loc);
+                // logger << "Going to insert alias pointer\n";
+                // for(auto e : aliasSet){
+                //     logger << *e << " ";
+                // }
+                // logger << "\n";
 
                 
                 for(auto p0 : ptrChangeList){
                     assert(p0 && "Cannot process nullptr");
                     // logger << "\t\tChanging the points-to set for pointer " << *p0 << "\n";
-                    auto tmp = pointsToSet[userInst][p0].first;
+
+                    auto tmp = std::set<const PointerTy *>{};
+                    if(pointsToSet.count(userInst)){
+                        if(pointsToSet[userInst].count(p0)){
+                            tmp = pointsToSet.at(userInst).at(p0).first;
+                        }
+                    }
+                    
                     
                     // todo: refactor all update to points-to set as a function.                    
                     pointsToSet[userInst][p0].first.insert(aliasSet.begin(), aliasSet.end());
 
                     // Here, if points2set is changed, we need to propagate.
-                    if(tmp != pointsToSet[userInst][p0].first){
+                    if(tmp != pointsToSet.at(userInst).at(p0).first){
                         // logger << "updateAliasUser Original points-to set of " << *p0 << " at " << *Loc << "\n";
                         // for(auto p : tmp){
                         //     logger << *p << "\n";
@@ -464,7 +609,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(std::set<const User *> users
         }
         else if(auto pt0 = dyn_cast<LoadInst>(userInst)){
 
-            for(auto tt : aliasMap[userInst][Loc]){
+            for(auto tt : aliasMap.at(userInst).at(Loc)){
                 labelMap[userInst].insert(Label(tt, Label::LabelType::Use));
                 useList[tt].insert(userInst);
             }
@@ -472,7 +617,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(std::set<const User *> users
         }
         else if(auto pt0 = dyn_cast<ReturnInst>(userInst)){
 
-            for(auto tt : aliasMap[userInst][Loc]){
+            for(auto tt : aliasMap.at(userInst).at(Loc)){
                 if(dyn_cast<AllocaInst>(tt) || dyn_cast<LoadInst>(tt)){
                     labelMap[userInst].insert(Label(tt, Label::LabelType::Use));
                     useList[tt].insert(userInst);
@@ -484,6 +629,11 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(std::set<const User *> users
             // Ignore indirect call now.
             if(!CallInstruction->getCalledFunction()){
                 continue;
+            }
+
+            for(auto tt : aliasMap.at(userInst).at(Loc)){
+                labelMap[userInst].insert(Label(tt, Label::LabelType::Use));
+                useList[tt].insert(userInst);
             }
 
             // Find corresponding para index.
@@ -500,7 +650,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(std::set<const User *> users
             assert((ArgumentIdx < CallInstruction->arg_size()) && "Cannot find argument index at function.");
             
 
-            auto changed = updateArgAliasOfFunc(CallInstruction->getCalledFunction(), aliasMap[userInst][Loc], ArgumentIdx);
+            auto changed = updateArgAliasOfFunc(CallInstruction->getCalledFunction(), aliasMap.at(userInst).at(Loc), ArgumentIdx);
         }
         else{
             #define DEBUG_TYPE "TESTCALLGRAPH"
@@ -511,14 +661,16 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(std::set<const User *> users
     }
 }
 
-bool FlowSensitivePointerAnalysis::updateArgPtsofFunc(const Function *func, const PointerTy *ptr, DenseSet<const Value*> pts){
-    auto oldSize = funcParas2PointsToSet[func][ptr].size();
-    funcParas2PointsToSet[func][ptr].insert(pts.begin(), pts.end());
+bool FlowSensitivePointerAnalysis::updateArgPtsofFunc(const Function *func, const PointerTy *ptr, std::set<const Value*> pts){
+    // Densemap has no at member function in llvm-14. Move back to use std::map.
 
-    return (oldSize != funcParas2PointsToSet[func][ptr].size());
+    auto oldSize = funcParas2PointsToSet.at(func).at(ptr).size();
+    funcParas2PointsToSet.at(func).at(ptr).insert(pts.begin(), pts.end());
+
+    return (oldSize != funcParas2PointsToSet.at(func).at(ptr).size());
 }
 
-bool FlowSensitivePointerAnalysis::updateArgAliasOfFunc(const Function* func, DenseSet<const Value *> aliasSet, size_t argIdx){
+bool FlowSensitivePointerAnalysis::updateArgAliasOfFunc(const Function* func, std::set<const Value *> aliasSet, size_t argIdx){
     
     const Value *para;
     for(auto &pa : func->args()){
@@ -528,7 +680,12 @@ bool FlowSensitivePointerAnalysis::updateArgAliasOfFunc(const Function* func, De
         }
         --argIdx;
     }
-    auto oldSize = funcParas2AliasSet[func][para].size();
+
+    size_t oldSize = 0;
+    if(funcParas2AliasSet.count(func) && funcParas2AliasSet[func].count(para)){
+        oldSize = funcParas2AliasSet.at(func).at(para).size();
+    }
+    
     funcParas2AliasSet[func][para].insert(aliasSet.begin(), aliasSet.end());
 
     // logger << "Updating alias map for paras " << *para << " of function " << func->getName() << "\n";
@@ -538,7 +695,7 @@ bool FlowSensitivePointerAnalysis::updateArgAliasOfFunc(const Function* func, De
     // }
     // logger << "\n";
 
-    return (oldSize != funcParas2AliasSet[func][para].size());
+    return (oldSize != funcParas2AliasSet.at(func).at(para).size());
 }
 
 /// @brief Perform either strong update or weak update for \p Pointer at \p Loc
@@ -548,20 +705,27 @@ bool FlowSensitivePointerAnalysis::updateArgAliasOfFunc(const Function* func, De
 /// @param Pointer 
 /// @param AdjustedPointsToSet 
 /// @param propagateList 
-void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Loc, const Value *Pointer, DenseSet<const Value *> AdjustedPointsToSet, std::vector<DefUseEdgeTupleTy> &propagateList){
+void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Loc, const Value *Pointer, std::set<const Value *> AdjustedPointsToSet, std::vector<DefUseEdgeTupleTy> &propagateList){
     // logger << "Updating point-to-set for " << *Pointer << " at " << *Loc << "\n";
-    auto tmp = aliasMap[Loc][Pointer];
+
+    auto tmp = std::set<const Value *>{};
+    if(aliasMap.count(Loc)){
+        if(aliasMap[Loc].count(Pointer)){
+            tmp = aliasMap.at(Loc).at(Pointer);
+        }
+    }
+    
+    
     assert(Pointer && "Cannot process nullptr");
     
     bool changed = false;
-    auto originalPts = pointsToSet[Loc][Pointer].first;
+    // auto originalPts = pointsToSet.at(Loc).at(Pointer).first;
     if(tmp.size() <= 1){
         changed = updatePointsToSetAtProgramLocation(Loc, Pointer, AdjustedPointsToSet);
     }
     else{
-        auto PTS = pointsToSet[Loc][Pointer].first;
-        PTS.insert(AdjustedPointsToSet.begin(), AdjustedPointsToSet.end());
-        changed = updatePointsToSetAtProgramLocation(Loc, Pointer, PTS);
+        pointsToSet[Loc][Pointer].first.insert(AdjustedPointsToSet.begin(), AdjustedPointsToSet.end());
+        changed = updatePointsToSetAtProgramLocation(Loc, Pointer, pointsToSet[Loc][Pointer].first);
     }
 
     if(changed){
@@ -592,7 +756,7 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
     
     auto aliases = getAlias(Loc, loadInst);
     for(auto &b : aliases){
-        logger << "Alias of operand at " << *loadInst << " : " << *b << "\n";
+        // logger << "Alias of operand at " << *loadInst << " : " << *b << "\n";
         // bug: b can be either instruction or argument.
 
         // auto pointer = dyn_cast<Instruction>(b);
@@ -607,33 +771,43 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
         assert(user && "Cannot process nullptr");
         aliasUser[b].insert(user);
 
-        logger << "Pts of " << *b << " at " << *Loc << " is\n";
-        for(auto e : pointsToSet[Loc][b].first){
-            logger << *e << " ";
-        }
-        logger << "\n";
+        // logger << "Pts of " << *b << " at " << *Loc << " is\n";
+        // for(auto e : pointsToSet.at(Loc).at(b).first){
+        //     logger << *e << " ";
+        // }
+        // logger << "\n";
 
 
-        aliasMap[Loc][loadInst].insert(pointsToSet[Loc][b].first.begin(), pointsToSet[Loc][b].first.end());
+        aliasMap[Loc][loadInst].insert(pointsToSet.at(Loc).at(b).first.begin(), pointsToSet.at(Loc).at(b).first.end());
     }
     
     return;
 }
 
-DenseSet<const Value*> FlowSensitivePointerAnalysis::getAlias(const ProgramLocationTy *t, const Instruction *p){
+std::set<const Value*> FlowSensitivePointerAnalysis::getAlias(const ProgramLocationTy *t, const Instruction *p){
     // for a store inst "store a b", we get the alias set of a at t.
     if(auto pt = dyn_cast<StoreInst>(p)){
-        auto pointees = aliasMap[t][pt->getValueOperand()];
+        auto pointees = std::set<const PointerTy *>{};
+        if(aliasMap.count(t)){
+            if(aliasMap[t].count(pt->getValueOperand())){
+                pointees = aliasMap.at(t).at(pt->getValueOperand());
+            }
+        }
         if(pointees.empty()){
-            return DenseSet<const Value*>{dyn_cast<Instruction>(pt->getValueOperand())};
+            return std::set<const Value*>{dyn_cast<Instruction>(pt->getValueOperand())};
         }
         return pointees;
     }
     // for a "a = load b", we get the alias set of b at t.
     else if(auto pt = dyn_cast<LoadInst>(p)){
-        auto pointees = aliasMap[t][pt->getPointerOperand()];
+        auto pointees = std::set<const PointerTy *>{};
+        if(aliasMap.count(t)){
+            if(aliasMap[t].count(pt->getPointerOperand())){
+                pointees = aliasMap.at(t).at(pt->getPointerOperand());
+            }
+        }
         if(pointees.empty()){
-            return DenseSet<const Value*>{dyn_cast<Instruction>(pt->getPointerOperand())};
+            return std::set<const Value*>{dyn_cast<Instruction>(pt->getPointerOperand())};
         }
         return pointees;
     }
@@ -654,23 +828,32 @@ DenseSet<const Value*> FlowSensitivePointerAnalysis::getAlias(const ProgramLocat
 /// @param ValueOperand Value operand of a store instruction. We will find all allocated pointers that
 ///     alias to it.
 /// @return  A set of allocated pointers or \p ValueOperand.
-DenseSet<const Value*> FlowSensitivePointerAnalysis::getRealPointsToSet(const ProgramLocationTy *Loc, const Value *ValueOperand){
+std::set<const Value*> FlowSensitivePointerAnalysis::getRealPointsToSet(const ProgramLocationTy *Loc, const Value *ValueOperand){
     
-    DenseSet<const Value*> pointees;
+    std::set<const Value*> pointees{};
     if(dyn_cast<Argument>(ValueOperand)){
-        pointees =  funcParas2AliasSet[Loc->getFunction()][ValueOperand];
+        if(funcParas2AliasSet.count(Loc->getFunction())){
+            if(funcParas2AliasSet[Loc->getFunction()].count(ValueOperand)){
+                pointees =  funcParas2AliasSet.at(Loc->getFunction()).at(ValueOperand);
+            }
+        }
+        
     }
     else{
-        pointees = aliasMap[Loc][ValueOperand];
+        if(aliasMap.count(Loc)){
+            if(aliasMap[Loc].count(ValueOperand)){
+                pointees = aliasMap.at(Loc).at(ValueOperand);
+            }
+        }
     }
 
     // logger << "real pts for " << *ValueOperand << " is\n";
-    for(auto e : pointees){
-        logger << *e << " ";
-    }
-    logger << "\n";
+    // for(auto e : pointees){
+    //     logger << *e << " ";
+    // }
+    // logger << "\n";
     
-    return (pointees.empty() ? DenseSet<const Value*>{ValueOperand->stripPointerCasts()} : pointees);
+    return (pointees.empty() ? std::set<const Value*>{ValueOperand->stripPointerCasts()} : pointees);
 
 }
 
@@ -679,11 +862,15 @@ DenseSet<const Value*> FlowSensitivePointerAnalysis::getRealPointsToSet(const Pr
 /// @param ptr 
 /// @return 
 std::vector<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::getAffectUseLocations(const ProgramLocationTy *loc, const Value *ptr){
-    std::vector<const Instruction*> res;
+    std::vector<const Instruction*> res{};
 
-    
+    std::map<const PointerTy*, std::set<const ProgramLocationTy*>> ToLocAndPtrs{};
 
-    for(auto iter = defUseGraph[loc].begin(); iter != defUseGraph[loc].end(); ++iter){
+    if(defUseGraph.count(loc)){
+        ToLocAndPtrs = defUseGraph.at(loc);
+    }
+
+    for(auto iter = ToLocAndPtrs.begin(); iter != ToLocAndPtrs.end(); ++iter){
         if(ptr == iter->first){
             res.insert(res.begin(), iter->second.begin(), iter->second.end());
         }
@@ -702,9 +889,9 @@ void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLoc
     //      do not really need to pass pts(y) to a store instruction since we are
     //      checking the alias set to perform which kind of points-to set
     //      update. Will remove the use label at store instruction in the future.
-    if(dyn_cast<LoadInst>(toLoc)){
+    if(dyn_cast<LoadInst>(toLoc) || dyn_cast<CallInst>(toLoc)){
         // logger << "Propagating pts set for " << *var << " from " << *fromLoc << " to " << *toLoc << "\n";
-        pointsToSet[toLoc][var].first.insert(pointsToSet[fromLoc][var].first.begin(), pointsToSet[fromLoc][var].first.end());
+        pointsToSet[toLoc][var].first.insert(pointsToSet.at(fromLoc).at(var).first.begin(), pointsToSet.at(fromLoc).at(var).first.end());
         // logger << "After propagating\n";
         // for(auto e : pointsToSet[toLoc][var].first){
         //     logger << *e << " ";
@@ -720,17 +907,29 @@ void FlowSensitivePointerAnalysis::addDefUseEdge(const ProgramLocationTy *def, c
     defUseGraph[def][ptr].insert(use);
 }
 
-DenseSet<const Instruction*> FlowSensitivePointerAnalysis::FindDefFromPrevOfUseLoc(const ProgramLocationTy *Loc, const PointerTy *Ptr){
+std::set<const Instruction*> FlowSensitivePointerAnalysis::FindDefFromPrevOfUseLoc(const ProgramLocationTy *Loc, const PointerTy *Ptr){
 
-    if(DefLoc[Loc].count(Ptr)){
-        return DefLoc[Loc][Ptr];
+    logger << "Finding defs of " << *Ptr << " at program location " << *Loc << "\n";
+
+    if(DefLoc.count(Loc)){
+        if(DefLoc.at(Loc).count(Ptr)){
+            logger << "Defined\n";
+            return DefLoc.at(Loc).at(Ptr);
+        }
     }
+    
 
-    DenseSet<const Instruction*> res;
-    auto Visited = DenseSet<const ProgramLocationTy*>();
-    auto SkippedFuncs = DenseSet<const Function*>();
+    std::set<const Instruction*> res;
+    auto Visited = std::set<const ProgramLocationTy*>();
 
-    auto Prevs = getPrevProgramLocations(Loc);
+    std::set<const Instruction *> Prevs{};
+
+    if(dyn_cast<CallInst>(Loc)){
+        Prevs = getPrevProgramLocations(Loc, true);
+    }
+    else{
+        Prevs = getPrevProgramLocations(Loc);
+    }
     for(auto Prev : Prevs){
         auto defs = FindDefFromUseLoc(Prev, Ptr, Visited);
         res.insert(defs.begin(), defs.end());
@@ -741,24 +940,28 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::FindDefFromPrevOfUseL
 
 }
 
-DenseSet<const Instruction*> FlowSensitivePointerAnalysis::FindDefFromUseLoc(const ProgramLocationTy *Loc, const PointerTy *Ptr, DenseSet<const ProgramLocationTy*> &Visited){
+std::set<const Instruction*> FlowSensitivePointerAnalysis::FindDefFromUseLoc(const ProgramLocationTy *Loc, const PointerTy *Ptr, std::set<const ProgramLocationTy*> &Visited){
 
-    if(Visited.contains(Loc)){
-        return DenseSet<const Instruction*>{};
+    if(Visited.count(Loc)){
+        return std::set<const Instruction*>{};
     }
     Visited.insert(Loc);
     // logger << "Finding defs of " << *Ptr << " at program location " << *Loc << "\n";
 
     if(hasDef(Loc, Ptr)){
-        return DenseSet<const ProgramLocationTy*>{Loc};
+        return std::set<const ProgramLocationTy*>{Loc};
     }
 
     // Be careful not to implicit create new entry when finding existence.
-    if(DefLoc[Loc].count(Ptr)){
-        return DefLoc[Loc][Ptr];
+    if(DefLoc.count(Loc)){
+        if(DefLoc.at(Loc).count(Ptr)){
+            return DefLoc.at(Loc).at(Ptr);
+        }
     }
 
-    DenseSet<const Instruction*> res;
+
+    std::set<const Instruction*> res;
+    
     auto Prevs = getPrevProgramLocations(Loc);
     for(auto Prev : Prevs){
         auto defs = FindDefFromUseLoc(Prev, Ptr, Visited);
@@ -769,15 +972,21 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::FindDefFromUseLoc(con
 }
 
 
-DenseSet<const Instruction*> FlowSensitivePointerAnalysis::getPrevProgramLocations(const ProgramLocationTy *Loc, bool Skip){
+std::set<const Instruction*> FlowSensitivePointerAnalysis::getPrevProgramLocations(const ProgramLocationTy *Loc, bool skip){
 
-    DenseSet<const Instruction*> res;
+    
+
+    std::set<const Instruction*> res{};
 
     if(auto callInst = dyn_cast<CallInst>(Loc)){
         auto Func = callInst->getCalledFunction();
-        if(Func && !Skip){
+        if(Func && !skip){
             // If not indirect call
-            auto terminatedBBs = func2TerminateBBs[Func];
+            auto terminatedBBs = std::set<const BasicBlock*>{};
+            if(func2TerminateBBs.count(Func)){
+                terminatedBBs = func2TerminateBBs.at(Func);
+            }
+            
             for(auto it = terminatedBBs.begin(), end = terminatedBBs.end(); it != end; ++it){
                 assert(*it && "Cannot handle nullptr");
                 res.insert(&((*it)->back()));
@@ -788,13 +997,18 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::getPrevProgramLocatio
 
     auto Prev = Loc->getPrevNonDebugInstruction();
     if(Prev){
-        return DenseSet<const Instruction*>{Prev};
+        return std::set<const Instruction*>{Prev};
     }
     else{
         auto PrevBasicBlocksRange = predecessors(Loc->getParent());
             
         if(PrevBasicBlocksRange.empty()){
-            for(auto callLoc : func2CallerLocation[Loc->getParent()->getParent()]){
+            auto CallerLocations = std::set<const Instruction *>{};
+            if(func2CallerLocation.count(Loc->getParent()->getParent())){
+                CallerLocations = func2CallerLocation.at(Loc->getParent()->getParent());
+            }
+
+            for(auto callLoc : CallerLocations){
                 auto P = getPrevProgramLocations(callLoc, true);
                 res.insert(P.begin(), P.end());
             }
@@ -813,47 +1027,56 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::getPrevProgramLocatio
 
 
 
+
+
+
+
+
+
+
+
+
 /// @brief Find all definition locations in current basicblock starting from a program location. 
 ///        LLVM has some intrinsic functions for mapping between LLVM program objects and the source-level objects. 
 ///        These debug instructions are not related to our analysis.
 /// @param loc Program location that use \p ptr
 /// @param ptr pointer that being used
 /// @return A set of definition locations
-DenseSet<const Instruction*> FlowSensitivePointerAnalysis::FindDefInBasicBlock(const ProgramLocationTy *loc, const PointerTy *ptr, DenseSet<const BasicBlock*> &visited){
+std::set<const Instruction*> FlowSensitivePointerAnalysis::FindDefInBasicBlock(const ProgramLocationTy *loc, const PointerTy *ptr, std::set<const BasicBlock*> &visited){
 
     if(visited.count(loc->getParent())){
-        return DenseSet<const Instruction*>();
+        return std::set<const Instruction*>();
     }
 
     // logger << "Finding defs of " << *ptr << " at program location " << *loc << "\n";
     visited.insert(loc->getParent());
 
     if(auto callInst = dyn_cast<CallInst>(loc)){
-        DenseSet<const llvm::Instruction *> defLocs;
+        std::set<const Instruction *> defLocs;
         if(callInst->getCalledFunction()){
             defLocs = findDefFromFunc(callInst->getCalledFunction(), ptr, visited);
         }
         return defLocs;
     }
 
-    DenseSet<const ProgramLocationTy*> res;
+    std::set<const ProgramLocationTy*> res;
     while(true){
         auto prevLoc = loc->getPrevNonDebugInstruction();
         if(prevLoc){
             if(auto callInst = dyn_cast<CallInst>(prevLoc)){
-                DenseSet<const llvm::Instruction *> defLocs;
+                std::set<const Instruction *> defLocs;
                 if(callInst->getCalledFunction()){
                     defLocs = findDefFromFunc(callInst->getCalledFunction(), ptr, visited);
                 }
                 return defLocs;
             }
             if(hasDef(prevLoc, ptr)){
-                return DenseSet<const Instruction*>{prevLoc};
+                return std::set<const Instruction*>{prevLoc};
             }
             loc = prevLoc;
         }
         else{
-            DenseSet<const ProgramLocationTy*> res;
+            std::set<const ProgramLocationTy*> res;
             for(auto it = pred_begin(loc->getParent()); it != pred_end(loc->getParent()); ++it){
                 auto defs = findDefFromBB(*it, ptr, visited);
                 res.insert(defs.begin(), defs.end());
@@ -868,12 +1091,12 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::FindDefInBasicBlock(c
 /// @param func 
 /// @param ptr 
 /// @return 
-DenseSet<const Instruction*> FlowSensitivePointerAnalysis::findDefFromFunc(const Function *func, const PointerTy *ptr, DenseSet<const BasicBlock*> &visited){
+std::set<const Instruction*> FlowSensitivePointerAnalysis::findDefFromFunc(const Function *func, const PointerTy *ptr, std::set<const BasicBlock*> &visited){
     // logger << "Finding defs of " << *ptr << " in function " << func->getName() << "\n";
-    DenseSet<const ProgramLocationTy*> res;
+    std::set<const ProgramLocationTy*> res;
 
     // bug: if func is not an entry if func2TerminateBBs, 
-    auto terminatedBBs = func2TerminateBBs[func];
+    auto terminatedBBs = func2TerminateBBs.at(func);
     for(auto it = terminatedBBs.begin(), end = terminatedBBs.end(); it != end; ++it){
         auto bb = *it;
         assert(bb && "Cannot handle nullptr");
@@ -888,11 +1111,11 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::findDefFromFunc(const
     return res;
 }
 
-DenseSet<const Instruction*> FlowSensitivePointerAnalysis::findDefFromBB(const BasicBlock *bb, const PointerTy *p, DenseSet<const BasicBlock*> &visited){
+std::set<const Instruction*> FlowSensitivePointerAnalysis::findDefFromBB(const BasicBlock *bb, const PointerTy *p, std::set<const BasicBlock*> &visited){
     
     // logger << "Finding defs of " << *p << " in basic block " << bb->getName() << "\n";
     if(visited.count(bb)){
-        return DenseSet<const Instruction*>();
+        return std::set<const Instruction*>();
     }
     visited.insert(bb);
     
@@ -900,7 +1123,7 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::findDefFromBB(const B
 
     while(lastInst){
         if(auto callInst = dyn_cast<CallInst>(lastInst)){
-            DenseSet<const llvm::Instruction *> defLocs;
+            std::set<const llvm::Instruction *> defLocs;
             if(callInst->getCalledFunction()){
                 defLocs = findDefFromFunc(callInst->getCalledFunction(), p, visited);
             }
@@ -908,22 +1131,22 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::findDefFromBB(const B
         }
 
         if(hasDef(lastInst, p)){
-            return DenseSet<const Instruction*>{lastInst};
+            return std::set<const Instruction*>{lastInst};
         }
         lastInst = lastInst->getPrevNonDebugInstruction();
     }
-    DenseSet<const Instruction*> res;
+    std::set<const Instruction*> res;
     
     for(auto it = pred_begin(bb); it != pred_end(bb); ++it){
         if(visited.find(*it) == visited.end()){
-            DenseSet<const Instruction*> defs = findDefFromBB(*it, p, visited);
+            std::set<const Instruction*> defs = findDefFromBB(*it, p, visited);
             res.insert(defs.begin(), defs.end());
         }
 
     }
 
     if(res.empty()){
-        for(auto callLoc : func2CallerLocation[bb->getParent()]){
+        for(auto callLoc : func2CallerLocation.at(bb->getParent())){
             auto defs = FindDefInBasicBlock(callLoc, p, visited);
             res.insert(defs.begin(), defs.end());
         }
@@ -935,11 +1158,14 @@ DenseSet<const Instruction*> FlowSensitivePointerAnalysis::findDefFromBB(const B
 
 bool FlowSensitivePointerAnalysis::hasDef(const ProgramLocationTy *loc, const PointerTy *ptr){
     // outs() << "HasDef At" << *loc << " with ptr" << *ptr << "\n";
-    auto iter = std::find_if(labelMap[loc].begin(), labelMap[loc].end(), [&](Label l) -> bool {
+    if(!labelMap.count(loc)){
+        return false;
+    }
+    auto iter = std::find_if(labelMap.at(loc).begin(), labelMap.at(loc).end(), [&](Label l) -> bool {
         return l.type == Label::LabelType::Def && l.ptr == ptr;
         });
     // outs() << "End\n";
-    return (iter == labelMap[loc].end() ? false : true);
+    return (iter == labelMap.at(loc).end() ? false : true);
 }
 
 size_t FlowSensitivePointerAnalysis::computePointerLevel(const Instruction *inst){
@@ -973,7 +1199,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
         return;
     }
 
-    llvm::DenseMap<size_t, llvm::DenseSet<const PointerTy *>> worklist;
+    std::map<size_t, std::set<const PointerTy *>> worklist;
 
 
     for(auto &inst : instructions(*func)){
@@ -983,7 +1209,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
             worklist[PointerLevel].insert(&inst);
             labelMap[alloca].insert(Label(&inst, Label::LabelType::Def));
             // Empty points-to set means the pointer is undefined.
-            pointsToSet[&inst][&inst] = {DenseSet<const Value*>(), false};
+            pointsToSet[&inst][&inst] = {std::set<const Value*>(), false};
         }
         else if(const CallInst *callInst = dyn_cast<CallInst>(&inst)){
             func2CallerLocation[callInst->getCalledFunction()].insert(&inst);
@@ -1014,7 +1240,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
     // }
 
 
-    func2worklist[func] = worklist;
+    func2worklist.emplace(func, worklist);
     
     return;
 }
@@ -1025,8 +1251,14 @@ void FlowSensitivePointerAnalysis::initialize(const Function * const func){
 /// @param Ptr 
 /// @param PTS 
 /// @return True if the points-to set is changed.
-bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const ProgramLocationTy *Loc, const PointerTy *Ptr, DenseSet<const Value*> PTS){
-    auto OldPTS = pointsToSet[Loc][Ptr].first;
+bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const ProgramLocationTy *Loc, const PointerTy *Ptr, std::set<const Value*> PTS){
+    auto OldPTS = std::set<const Value*>{};
+    if(pointsToSet.count(Loc)){
+        if(pointsToSet[Loc].count(Ptr)){
+            OldPTS = pointsToSet.at(Loc).at(Ptr).first;
+        }
+    }
+    
     if(OldPTS != PTS){
         pointsToSet[Loc][Ptr].first = PTS;
         return true;
@@ -1045,7 +1277,11 @@ bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const Prog
 std::vector<const Value*> FlowSensitivePointerAnalysis::ptsPointsTo(const Instruction *user, const Instruction *t){
     std::vector<const Value*> res;
 
-    auto candidatePointers = pointsToSet[user];
+    auto candidatePointers = std::map<const Value *, std::pair<std::set<const PointerTy*>, bool>>{};
+    if(pointsToSet.count(user)){
+        candidatePointers = pointsToSet.at(user);
+    }
+    
     for(auto iter = candidatePointers.begin(); iter != candidatePointers.end(); ++iter){
         auto pts = iter->second;
         auto it = std::find_if(pts.first.begin(), pts.first.end(), [&](const Value *pvar) -> bool {return pvar == t;});
@@ -1099,7 +1335,7 @@ namespace llvm{
         return os;
     }
 
-    raw_ostream& operator<<(raw_ostream &os, const DenseMap<size_t, DenseSet<const Instruction *>> &wl){
+    raw_ostream& operator<<(raw_ostream &os, const std::map<size_t, std::set<const Instruction *>> &wl){
         os << "WorkList:\n";
         for(auto pair : wl){
             for(auto e : pair.second){
