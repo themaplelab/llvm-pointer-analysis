@@ -1,31 +1,66 @@
 #include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
 
-#include "llvm/IR/CFG.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/Timer.h"
 
 #include <algorithm>
-#include <memory>
-#include <exception>
-#include <vector>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 using namespace llvm;
 
 AnalysisKey FlowSensitivePointerAnalysis::Key;
 
-/// @brief Print the points-to set for \p Ptr at program location \p Loc
-/// @param Loc 
-/// @param Ptr 
-void FlowSensitivePointerAnalysis::PrintPointsToSetAtProgramLocation(const ProgramLocationTy *Loc, const PointerTy *Ptr){
-    // logger << "Printing points-to set for " << *Ptr << " at " << *Loc << "\n";
-    auto iter = pointsToSet.find(Loc);
-    if(iter != pointsToSet.end()){
-        auto it = pointsToSet.at(Loc).find(Ptr);
-        if(it != pointsToSet.at(Loc).end()){
-            for(auto e : pointsToSet.at(Loc).at(Ptr).first){
-                logger << *e << " ";
+/// @brief Print the points-to set for \p Ptr at program location \p Loc when 
+///     running in debug mode. 
+void FlowSensitivePointerAnalysis::printPointsToSetAtProgramLocation(const ProgramLocationTy *Loc){
+
+    if(pointsToSet.count(Loc)){
+        DEBUG_WITH_TYPE("fspa", dbgs() << "At program location" << *Loc << ":\n");
+        for(auto const& [Ptr, PTS] : pointsToSet.at(Loc)){
+            DEBUG_WITH_TYPE("fspa", dbgs() << *Ptr << " ==>\n");
+            for(auto Pointee : PTS.first){
+                if(dyn_cast<Instruction>(Pointee)){
+                    DEBUG_WITH_TYPE("fspa", dbgs() << "\t" << *Pointee << "\n");
+                }
+                else{
+                    DEBUG_WITH_TYPE("fspa", dbgs() << "\t " << *Pointee << "\n");
+                }
             }
-            logger << "\n";
         }
     }
+
+}
+
+static std::string getCurrentTime(){
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t t_c = std::chrono::system_clock::to_time_t(now);
+    auto gmt_time = gmtime(&t_c);
+    std::stringstream sstream;
+    sstream << std::put_time(gmt_time, "%Y/%m/%d %T");
+
+    return "[" + sstream.str() + "]";
+}
+
+void FlowSensitivePointerAnalysis::dumpPointsToSet(){
+    dbgs() << "Print points-to set stats\n";
+    // C++26 will treat _ as a special value that does not cause unused warning.
+    for(auto const& [Loc, _] : pointsToSet){
+        printPointsToSetAtProgramLocation(Loc);
+    }
+}
+
+void FlowSensitivePointerAnalysis::dumpLabelMap(){
+
+    dbgs() << "Print label map\n";
+    for(auto p : labelMap){
+        dbgs() << "Labels at" << *p.first << "\n";
+        for(auto e : p.second){
+            dbgs() << "\t" << e << "\n";
+        }
+    }
+
 }
 
 
@@ -38,69 +73,29 @@ void FlowSensitivePointerAnalysis::PrintPointsToSetAtProgramLocation(const Progr
     ///         set for variables at each program location
     FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, ModuleAnalysisManager &mam){
 
-        // getCallGraphFromModule(m);
 
-        logger << "Analyzing\n\n\n\n\n";
+        DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Start analyzing module " 
+            << m.getName() << "\n");
 
         auto CurrentPointerLevel = globalInitialize(m);
-        assert(CurrentPointerLevel >= 0 && "Cannot have negative pointer level.");
-
+        
         while(CurrentPointerLevel){
-            // logger << "Current pointer level: " << CurrentPointerLevel << "\n";
             for(auto &Func : m.functions()){
-                // logger << "Current function: " << Func.getName() << "\n";
-
                 processGlobalVariables(CurrentPointerLevel);
-                // logger << 1 << "\n";
                 performPointerAnalysisOnFunction(&Func, CurrentPointerLevel);
-                // logger << 2 << "\n";
             }
             --CurrentPointerLevel;
 
         }
 
-        // logger << "Print label map\n";
-        // for(auto p : labelMap){
-        //     logger << "Labels at " << *p.first << "\n";
-        //     for(auto e : p.second){
-        //         logger << e << " ";
-        //     }
-        //     logger << "\n";
-        // }
-
-        outs() << "Print points-to set stats\n";
-        for(auto pair : pointsToSet){
-            auto loc = pair.first;
-            auto pts = pair.second;
-
-            outs() << "At " << *loc << "\n";
-            for(auto p : pts){
-                logger << *(p.first) << " c=>:\n";
-                for(auto e : p.second.first){
-                    logger << "\t" << *e << " ";
-                }
-                logger << "\n";
-            }
-        }
-
-        logger << "\n\n\n\n\n\n\n\nPopulating PTS\n\n\n\n\n\n\n";
+        DEBUG_WITH_TYPE("fspa", dumpLabelMap());
+        DEBUG_WITH_TYPE("fspa", dumpPointsToSet());
+        DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << "Populating PTS\n");
 
         populatePointsToSet(m);
 
-        outs() << "After Points-to set population\n";
-        for(auto pair : pointsToSet){
-            auto loc = pair.first;
-            auto pts = pair.second;
+        DEBUG_WITH_TYPE("fspa", dumpPointsToSet());
 
-            outs() << "At " << *loc << "\n";
-            for(auto p : pts){
-                logger << *(p.first) << " c=>:\n";
-                for(auto e : p.second.first){
-                    logger << "\t" << *e << " ";
-                }
-                logger << "\n";
-            }
-        }
         result.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
         result.setPointsToSet(pointsToSet);
 
@@ -229,42 +224,10 @@ void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy
 
 }
 
-// std::set<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointerAnalysis::populatePointsToSetFromProgramLocation(const ProgramLocationTy *Loc, const PointerTy *p, std::set<const ProgramLocationTy*> &Visited, const DenseSet<const PointerTy*> &AllocatedPointers){
-    
-//     if(Visited.count(Loc)){
-//         return std::set<const PointerTy*>{};
-//     }
-//     Visited.insert(Loc);
 
 
-//     // logger << "Checking pts for " << *p << " at " << Loc->getFunction()->getName() << "::" << Loc->getParent()->getName() << "\n";
-//     if(pointsToSet.count(Loc) && pointsToSet.at(Loc).count(p)){
-//         // logger << "Found pts for " << *p << " at " << *Loc << "\n";
-//         // for(auto pp : pointsToSet.at(Loc).at(p).first){
-//         //     logger << *pp << " ";
-//         // }
-//         // logger << "\n";
-//         return pointsToSet.at(Loc).at(p).first;
-//     }
-//     else{
-//         std::set<const PointerTy*> res{};
-//         auto Prevs = getPrevProgramLocations(Loc);
-//         for(auto Prev : Prevs){
-//             if((Prev->getFunction() != Loc->getFunction()) && (AllocatedPointers.contains(p))){
-//                 continue;
-//             }
-//             auto pts = populatePointsToSetFromProgramLocation(Prev, p, Visited, AllocatedPointers);
-//             res.insert(pts.begin(), pts.end());
-//         }
-//         return res;
-//     }
-
-// }
 
 
-/*
-
-*/
 void FlowSensitivePointerAnalysis::processGlobalVariables(int ptrLvl){
     if(!globalWorkList.count(ptrLvl)){
         return;
@@ -291,15 +254,16 @@ size_t FlowSensitivePointerAnalysis::globalInitialize(Module &m){
         }
     }
 
+    assert(ptrLvl >= 0 && "Pointer level cannot be negative.");
+
     result.setWorkList(func2worklist);
-
     TotalFunctionNumber *= ptrLvl;
-
     return ptrLvl;
 }
 
 void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Function *func, size_t ptrLvl){
-    logger << "Analyzing function: " << func->getName() << " with pointer level: " << ptrLvl << "\t\t\t\t" << int(100*ProcessedFunctionNumber/TotalFunctionNumber) << "%\n";
+    DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << "Analyzing function: " 
+        << func->getName() << " with pointer level: " << ptrLvl << "\n");
 
 
     visited.at(func) = true;
@@ -1025,17 +989,6 @@ std::set<const Instruction*> FlowSensitivePointerAnalysis::getPrevProgramLocatio
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
 /// @brief Find all definition locations in current basicblock starting from a program location. 
 ///        LLVM has some intrinsic functions for mapping between LLVM program objects and the source-level objects. 
 ///        These debug instructions are not related to our analysis.
@@ -1265,12 +1218,6 @@ bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const Prog
     }
     return false;
 }
-
-
-
-// std::vector<const Function*> FlowSensitivePointerAnalysis::collectAllCallees(const Function *f){
-//     auto node = (*cg)[f];
-// }
 
 
 

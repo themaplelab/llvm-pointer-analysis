@@ -7,6 +7,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -81,6 +82,7 @@ namespace llvm{
         using PointerTy = Value;
         using ProgramLocationTy = Instruction;
         using DefUseEdgeTupleTy = std::tuple<const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*>;
+        using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<const PointerTy*, std::pair<std::set<const PointerTy*>, bool>>>;
 
         std::map<const Function*, std::map<size_t, std::set<const PointerTy*>>> func2worklist;
         std::map<size_t, std::set<const Instruction*>> globalWorkList;
@@ -91,7 +93,7 @@ namespace llvm{
         std::unique_ptr<CallGraph> cg;
         std::map<const Function *, bool> visited; 
         // How to represent a points-to set?
-        std::map<const Instruction*, std::map<const Value*, std::pair<std::set<const Value*>, bool>>> pointsToSet;
+        PointsToSetTy pointsToSet;
         std::map<const Instruction*, MemoryLocation> memoryLocationMap;
         std::map<const Instruction*, std::set<Label>> labelMap; 
         // std::map<size_t, std::set<const Instruction*>> worklist;
@@ -157,9 +159,10 @@ namespace llvm{
             std::set<const Function*> getCallees(const Function *func);
             std::set<const Instruction*> FindDefFromPrevOfUseLoc(const ProgramLocationTy*, const PointerTy*);
             std::set<const Instruction*> FindDefFromUseLoc(const ProgramLocationTy*, const PointerTy*, std::set<const ProgramLocationTy*> &);
-            
+            void dumpPointsToSet();
+            void dumpLabelMap();
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const Value*>);
-            void PrintPointsToSetAtProgramLocation(const ProgramLocationTy *Loc, const PointerTy *Ptr);
+            void printPointsToSetAtProgramLocation(const ProgramLocationTy *Loc);
             std::set<const Instruction*> getPrevProgramLocations(const ProgramLocationTy *Loc, bool skip = false);
             void populatePointsToSet(Module &m);
             // std::set<const PointerTy*> populatePointsToSetFromProgramLocation(const ProgramLocationTy *Loc, const PointerTy *p, std::set<const ProgramLocationTy*> &Visited, const DenseSet<const PointerTy*> &AllocatedPointers);
