@@ -21,106 +21,66 @@ PreservedAnalyses PrintAliasToPairs::run(Module &m, ModuleAnalysisManager &mam){
         processAliasPairsForFunc(&func, Pointers, pts);
     }
 
-    // outs() << "Print points-to set stats\n";
-    // for(auto pair : pts){
-    //     auto loc = pair.first;
-    //     auto pts = pair.second;
-
-    //     outs() << "At " << *loc << "\n";
-    //     for(auto p : pts){
-    //         outs() << *(p.first) << " c=>:\n";
-    //         for(auto e : p.second.first){
-    //             outs() << "\t" << *e << " ";
-    //         }
-    //         outs() << "\n";
-    //     }
-    // }
-
     return PreservedAnalyses::all();
 
 }
 
 void PrintAliasToPairs::processAliasPairsForFunc(const Function *func, SetVector<const Value *> Pointers,
-                                                std::map<const Instruction *, std::map<const Value *, std::pair<std::set<const Value *>, bool>>> &pts){
+                                                std::map<const Instruction *, std::map<const Value *, std::set<const Value *>>> &pts){
 
     for(auto &Inst : instructions(*func)){
-        // outs() << "Inst is " << Inst << Pointers.size() << "\n";
+        // dbgs() << "Inst is " << Inst << Pointers.size() << "\n";
         getAliasResult(&Inst, pts, Pointers);
     }
 
                                             
-
-    // DenseSet<const Instruction*> Visited{};
-
-
-    // auto &firstBB = func->getEntryBlock();
-
-    // std::stack<const BasicBlock*> bbs;
-    // bbs.push(&firstBB);
-
-    // while(!bbs.empty()){
-    //     auto curBB = bbs.top();
-    //     bbs.pop();
-    //     auto cur = curBB->getFirstNonPHIOrDbg();
-    //     while(cur && !Visited.contains(cur)){
-    //         Visited.insert(cur);
-
-    //         getAliasResult(cur, pts, Pointers);
-    //         if(cur->isTerminator()){
-    //             break;
-    //         }
-    //         cur = cur->getNextNonDebugInstruction();
-    //     }
-
-    //     auto numSucc = cur->getNumSuccessors();
-    //     int i = 0;
-    //     while(i != numSucc){
-    //         bbs.push(cur->getSuccessor(i++));
-    //     }
-    // }
 }
 
 
 
-void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const Instruction*, std::map<const Value*, std::pair<std::set<const Value*>, bool>>> &pts, SetVector<const Value*> pointers){
+void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const Instruction*, std::map<const Value*, std::set<const Value*>>> &pts, SetVector<const Value*> pointers){
 
-    // outs() << "getaliasresults\n";
+    // dbgs() << "getaliasresults\n";
     // for(auto ptr : pointers){
     //     if(!pts[cur].count(ptr)){
     //         pts[cur][ptr].first = trackPointsToSet(cur, ptr, pts);
     //     }
     // }
 
-    outs() << "At program location: " << *cur << "\n";
+    dbgs() << "At program location: " << *cur << "\n";
 
     // bug : underflow when pointers.size() == 0
     if(pointers.size() == 0){
         return;
     }
-    for(int i = 0; i < pointers.size() - 1; ++i){
-        for(int j = i+1; j <= pointers.size() - 1; ++j){
-            // outs() << i << " " << j << " " << pointers.size() - 1 << "\n";
+    for(size_t i = 0; i < pointers.size() - 1; ++i){
+        for(size_t j = i+1; j <= pointers.size() - 1; ++j){
+            // dbgs() << i << " " << j << " " << pointers.size() - 1 << "\n";
 
-            auto pts_i = pts[cur][pointers[i]].first;
-            auto pts_j = pts[cur][pointers[j]].first;
+            auto pts_i = pts[cur][pointers[i]];
+            auto pts_j = pts[cur][pointers[j]];
 
             if((pts_i == pts_j) && (pts_i.size() == 1)){
-                outs() << *pointers[i] << " MUST ALIAS " << *pointers[j] <<"\n";
-                
+                if(*(pts_i.begin()) == nullptr){
+                    dbgs() << *pointers[i] << " NO ALIAS " << *pointers[j] <<"\n";
+                }
+                else{
+                    dbgs() << *pointers[i] << " MUST ALIAS " << *pointers[j] <<"\n";
+                }
             }
             else{
                 std::set<const Value *> intersec;
                 std::set_intersection(pts_i.begin(), pts_i.end(), pts_j.begin(), pts_j.end(), std::inserter(intersec, intersec.begin()));
                 if(!intersec.empty()){
-                    outs() << *pointers[i] << " MAY ALIAS " << *pointers[j] <<"\n";
+                    dbgs() << *pointers[i] << " MAY ALIAS " << *pointers[j] <<"\n";
                 }
                 else{
-                    outs() << *pointers[i] << " NO ALIAS " << *pointers[j] <<"\n";
+                    dbgs() << *pointers[i] << " NO ALIAS " << *pointers[j] <<"\n";
                 }
             }
         }
     }
-    outs() << "\n";
+    dbgs() << "\n";
 
 }
 
@@ -129,9 +89,9 @@ void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const In
 /// @param ptr 
 /// @param pts 
 /// @return 
-std::set<const Value *> PrintAliasToPairs::trackPointsToSet(const Instruction *cur, const Value *ptr, std::map<const Instruction *, std::map<const Value*, std::pair<std::set<const Value *>, bool>>> &pts){
+std::set<const Value *> PrintAliasToPairs::trackPointsToSet(const Instruction *cur, const Value *ptr, std::map<const Instruction *, std::map<const Value*, std::set<const Value *>>> &pts){
     
-    // outs() << "Finding pts for " << *ptr << " at " << *cur << "\n";
+    // dbgs() << "Finding pts for " << *ptr << " at " << *cur << "\n";
 
     std::set<const Value *> res;
 
@@ -147,8 +107,8 @@ std::set<const Value *> PrintAliasToPairs::trackPointsToSet(const Instruction *c
         }
     }
     else{
-        if(!pts[prev][ptr].first.empty()){
-            auto temp = pts[prev][ptr].first;
+        if(!pts[prev][ptr].empty()){
+            auto temp = pts[prev][ptr];
             for(auto e : temp){
                 if(dyn_cast<LoadInst>(e)){
                     continue;
