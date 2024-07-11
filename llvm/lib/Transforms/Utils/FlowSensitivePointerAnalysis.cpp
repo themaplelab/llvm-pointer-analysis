@@ -225,7 +225,7 @@ void FlowSensitivePointerAnalysis::populatePointsToSet(Module &M){
 
     for(auto &Func : M.functions()){
 
-        if(Func.isDeclaration() || Func.getName().str() != "main"){
+        if(Func.isDeclaration()){
             continue;
         }
 
@@ -264,11 +264,17 @@ void FlowSensitivePointerAnalysis::populatePointsToSet(Module &M){
                 }
             }
         }
-        const ProgramLocationTy *Cur = &(Func.getEntryBlock().front());
-        DenseSet<const ProgramLocationTy*> Visited{};
-        populatePTSAtLocation(Cur, StartPTS, Visited);
+
+        populatePTSForFunc(&Func);
 
     }
+}
+
+
+void FlowSensitivePointerAnalysis::populatePTSForFunc(const Function *Func){
+    const ProgramLocationTy *Cur = &(Func->getEntryBlock().front());
+    DenseSet<const ProgramLocationTy*> Visited{};
+    populatePTSAtLocation(Cur, Visited);
 }
 
 /// @brief Check if a program location defines a pointer \p Ptr.
@@ -350,14 +356,12 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
 
 /// @brief Populate all points-to set in \p PassedPTS to program location \p Loc
 void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy *Loc, 
-        PointsToSetTy::mapped_type PassedPTS, DenseSet<const ProgramLocationTy*> &Visited){
+        DenseSet<const ProgramLocationTy*> &Visited){
 
     if(Visited.contains(Loc)){
         return;
     }
     Visited.insert(Loc);
-
-    auto OldPTS = PointsToSet[Loc];
 
     for(auto Pointer : Func2AllocatedPointersAndParameterAliases[Loc->getFunction()]){
         // If program location Loc defines points-to set of Pointer, we make sure
@@ -371,24 +375,30 @@ void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy
                     ++it;
                 }
             }
-            PassedPTS[Pointer] = PointsToSet[Loc][Pointer];  
         }
-        else if(PassedPTS.count(Pointer)){
-            PointsToSet[Loc][Pointer] = PassedPTS[Pointer];
+        else{
+            if(Loc == &Loc->getFunction()->getEntryBlock().front()){
+                break;
+            }
+            auto Defs = findDefFromPrevOfUseLoc(Loc, Pointer);
+            for(auto Def : Defs){
+                PointsToSet[Loc][Pointer].insert(PointsToSet[Def][Pointer].begin(), PointsToSet[Def][Pointer].end());
+            }
+            
+            
         }
     }
     
-    bool Changed = false;
-    if(OldPTS != PointsToSet[Loc]){
-        Changed = true;
+
+    auto Next = Loc->getNextNonDebugInstruction();
+
+    if(Next){
+        populatePTSAtLocation(Next, Visited);
     }
-    
-    auto Nexts = getNextProgramLocations(Loc, Loc->getFunction());
-
-
-    for(auto Next : Nexts){
-        if(Changed || !Visited.contains(Next)){
-            populatePTSAtLocation(Next, PassedPTS, Visited);
+    else{
+        auto SuccBBRange = successors(Next->getParent());
+        for(auto BB : SuccBBRange){
+            populatePTSAtLocation(BB->getFirstNonPHIOrDbg(), Visited);
         }
     }
 }
@@ -478,37 +488,29 @@ void FlowSensitivePointerAnalysis::buildDefUseGraph(std::set<const ProgramLocati
 ///     first instruction of the function, we will return all program locations
 ///     one instruction before the calling instruction that calls this function.
 /// @return A set of program locations that possible be the previous location of \p Loc.
-std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::
-    getPrevProgramLocations(const ProgramLocationTy *Loc, const Function *MadeFrom){
+std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*>  
+    FlowSensitivePointerAnalysis::getPrevProgramLocations(const ProgramLocationTy *Loc){
 
     std::set<const ProgramLocationTy*> res{};
 
     auto Prev = Loc->getPrevNonDebugInstruction();
     if(Prev){
-        if(auto Call = dyn_cast<CallInst>(Prev)){
-            if(Call->getCalledFunction() != MadeFrom && Call->getCalledFunction()){
-                auto TerminatedBBs = std::set<const BasicBlock*>{};
-                if(Func2TerminateBBs.count(Call->getCalledFunction())){
-                    TerminatedBBs = Func2TerminateBBs.at(Call->getCalledFunction());
-                    for(auto TBB : TerminatedBBs){
-                        assert(TBB && "Cannot get the last instruction of nullptr.");
-                        res.insert(&(TBB->back()));
-                    }
-                }
-                return res;
-            }
-        }
-        
         return std::set<const ProgramLocationTy*>{Prev};
- 
     }
     else{
         auto PrevBasicBlocksRange = predecessors(Loc->getParent());
             
         if(PrevBasicBlocksRange.empty()){
+            // bug: we need to perform two different operations in two cases:
+            // 1. we finished a function and need to go back to the call location
+            // 2. we finished a function but does not need to return to a specific location.
+            // The first case can be recognized by a callstack. Everytime we get into a function,
+            // we push the stack, and when we need to return, we check the callstack. If it is not
+            // empty, it means we need to get back to the last element of the callstack. Otherwise,
+            // we will go to all call locs.
             if(Func2CallerLocation.count(Loc->getParent()->getParent())){
                 for(auto callLoc : Func2CallerLocation.at(Loc->getParent()->getParent())){
-                    auto P = getPrevProgramLocations(callLoc, Loc->getFunction());
+                    auto P = getPrevProgramLocations(callLoc);
                     res.insert(P.begin(), P.end());
                 }
             }
@@ -528,6 +530,8 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
 ///     checking if a program location is already visited.
 std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::findDefFromUseLoc(
     const ProgramLocationTy *Loc, const PointerTy *Ptr, std::set<const ProgramLocationTy*> &Visited){
+
+        // this func should also have a callstack.
 
     if(Visited.count(Loc)){
         return std::set<const ProgramLocationTy*>{};
@@ -549,8 +553,17 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
 
     // bug. If we trace function f and reach g (f calls g), we want to get back to f after searching g
     // instead of go to all callloc that calls g.
-    auto Prevs = getPrevProgramLocations(Loc, Loc->getFunction());
+    auto Prevs = getPrevProgramLocations(Loc);
     for(auto Prev : Prevs){
+
+        if(auto Call = dyn_cast<CallInst>(Prev)){
+            if(Call->getCalledFunction() != Call->getFunction() && Call->getCalledFunction()){
+                auto Defs = findDefFromFunc(Call->getCalledFunction(), Call, Visited, std::vector<const ProgramLocationTy*>{});
+                Res.insert(Defs.begin(), Defs.end());
+                continue;
+            }
+        }
+
         auto Defs = findDefFromUseLoc(Prev, Ptr, Visited);
         Res.insert(Defs.begin(), Defs.end());
     }
@@ -574,6 +587,7 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
 
     std::set<const ProgramLocationTy*> Res{};
     std::set<const ProgramLocationTy*> Visited{};
+    std::vector<const ProgramLocationTy*> CallStack{};
 
     // If we trace the def locations from a use location in bottom-up order,
     // we might end up in loop searching, if we search function F but have no luck.
@@ -587,19 +601,107 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
     // the result. However, if the recursive call is not made from G, we want to look
     // into G's function body.
 
-    auto Prevs = getPrevProgramLocations(Loc, Loc->getFunction());
-    
-    // If Prev and Loc are not in the same function, either we get into a 
-    // call or we are returning to the callloc.
-
-    for(auto Prev : Prevs){
-        auto Defs = findDefFromUseLoc(Prev, Ptr, Visited);
-        Res.insert(Defs.begin(), Defs.end());
-    }
+    Res = findDefFromInst(Loc, Ptr, Visited, CallStack, true);
 
     DefLoc[Loc][Ptr] = Res;
     return Res;
 }
+
+std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::
+    findDefFromFunc(const Function *Func, const PointerTy *Ptr, 
+    std::set<const ProgramLocationTy *> &Visited, std::vector<const ProgramLocationTy*> CallStack){
+
+
+    // Skip indirect call or external call or recursive call.
+    if(!Func || (!CallStack.empty() && CallStack.back()->getFunction() == Func)){
+        return std::set<const ProgramLocationTy*>{};
+    }
+
+    std::set<const ProgramLocationTy*> Res{};
+
+    auto TerminatedBBs = std::set<const BasicBlock*>{};
+    if(Func2TerminateBBs.count(Func)){
+        TerminatedBBs = Func2TerminateBBs.at(Func);
+        for(auto TBB : TerminatedBBs){
+            assert(TBB && "Cannot get the last instruction of nullptr.");
+            auto Defs = findDefFromInst(&(TBB->back()), Ptr, Visited, CallStack);
+            Res.insert(Defs.begin(), Defs.end());
+        }
+
+        return Res;
+    }
+}
+
+
+
+std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::
+    findDefFromInst(const ProgramLocationTy *Loc, const PointerTy *Ptr, std::set<const ProgramLocationTy *> &Visited,
+    std::vector<const ProgramLocationTy*> CallStack, bool SkipSelf){
+
+    if(Visited.count(Loc)){
+        return std::set<const ProgramLocationTy*>{};
+    }
+
+    Visited.insert(Loc);
+    
+    DEBUG_WITH_TYPE("dfg", dbgs() << getCurrentTime() << " Finding defs of " 
+        << *Ptr << " at program location " << Loc->getFunction()->getName() 
+        << "::" << Loc->getParent()->getName() << "::" << *Loc << "\n");
+
+    if(hasDef(Loc, Ptr) && !SkipSelf){
+        return std::set<const ProgramLocationTy*>{Loc};
+    }
+    if(DefLoc.count(Loc) && DefLoc.at(Loc).count(Ptr)){
+        return DefLoc.at(Loc).at(Ptr);
+    }
+
+    auto Prev = Loc->getPrevNonDebugInstruction();
+    if(Prev){
+        if(auto Call = dyn_cast<CallInst>(Prev)){
+            // If prev is a call, we will search defs in that function.
+            // The last argument marks where we should go after searching the function but some path 
+            // still not has dominating def.
+            if(Call->getFunction() == Call->getCalledFunction() || !Call->getCalledFunction()){
+                return findDefFromInst(Prev, Ptr, Visited, CallStack);
+            }
+            CallStack.push_back(Call);
+            return findDefFromFunc(Call->getCalledFunction(), Ptr, Visited, CallStack);
+        }
+        else{
+            // otherwise, it is a normal insturction, and we recursively search.
+            return findDefFromInst(Prev, Ptr, Visited, CallStack);
+        }
+    }
+    else{
+        // we are reaching top of bb. Either we go pred bbs or go to calling context.
+        std::set<const ProgramLocationTy*> Res{};
+        auto PredBBRange = predecessors(Loc->getParent());
+        if(PredBBRange.empty()){
+            if(!CallStack.empty()){
+                auto ReturnCallLoc = CallStack.back();
+                CallStack.pop_back();
+                findDefFromInst(ReturnCallLoc, Ptr, Visited, CallStack);
+            }
+
+            if(Func2CallerLocation.count(Loc->getParent()->getParent())){
+                for(auto CallLoc : Func2CallerLocation.at(Loc->getParent()->getParent())){
+                    auto Defs = findDefFromInst(CallLoc, Ptr, Visited, CallStack);
+                    Res.insert(Defs.begin(), Defs.end());
+                }
+            }
+            return Res;
+        }
+        else{
+            for(auto *PrevBasicBlock : PredBBRange){
+                auto Defs = findDefFromInst(&(PrevBasicBlock->back()), Ptr, Visited, CallStack);
+                Res.insert(Defs.begin(), Defs.end());
+            }
+            return Res;
+        }
+    }
+}
+
+
 
 /// @brief Build def use graph for all global variables of pointer level \p PtrLvl
 void FlowSensitivePointerAnalysis::processGlobalVariables(size_t PtrLvl){

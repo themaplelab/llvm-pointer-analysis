@@ -110,6 +110,8 @@ namespace llvm{
         std::vector<const Function*> ReAnalysisFunctions;
         std::map<const Value*, std::set<const ProgramLocationTy*>> UseList;
 
+        std::map<const Function*, PointsToSetTy::mapped_type> Func2PopulatedPTS;
+
         size_t TotalFunctionNumber = 0;
         size_t ProcessedFunctionNumber = 0;
         FlowSensitivePointerAnalysisResult AnalysisResult;
@@ -124,8 +126,7 @@ namespace llvm{
             void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
-            std::set<const ProgramLocationTy*> findDefFromPrevOfUseLoc(const ProgramLocationTy*, const PointerTy*,
-                 std::vector<const ProgramLocationTy*> &);
+            std::set<const ProgramLocationTy*> findDefFromPrevOfUseLoc(const ProgramLocationTy*, const PointerTy*);
             std::set<const ProgramLocationTy*> findDefFromUseLoc(const ProgramLocationTy*, 
                 const PointerTy*, std::set<const ProgramLocationTy*>&);
             std::set<const ProgramLocationTy*> findDefFromUseByDom(const ProgramLocationTy *, const PointerTy*);
@@ -133,7 +134,8 @@ namespace llvm{
             std::set<const PointerTy*> getAlias(const ProgramLocationTy*, const LoadInst*);
             std::set<const Function*> getCallees(const Function*);
             std::set<const ProgramLocationTy*> getNextProgramLocations(const ProgramLocationTy*, const Function*);
-            std::set<const ProgramLocationTy*> getPrevProgramLocations(const ProgramLocationTy*, const Function*);
+            std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*>
+                    getPrevProgramLocations(const ProgramLocationTy*);
             std::set<const PointerTy*> getRealPointsToSet(const ProgramLocationTy*, const PointerTy*);
             std::set<const ProgramLocationTy*> getUseLocations(const PointerTy*);
             size_t globalInitialize(Module&);
@@ -142,8 +144,7 @@ namespace llvm{
             std::vector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t);
             void markLabelsForPtr(const PointerTy*);
             void performPointerAnalysisOnFunction(const Function*, size_t);
-            void populatePTSAtLocation(const ProgramLocationTy *, PointsToSetTy::mapped_type, 
-                DenseSet<const ProgramLocationTy*>&);
+            void populatePTSAtLocation(const ProgramLocationTy *, DenseSet<const ProgramLocationTy*>&);
             void populatePointsToSet(Module&);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
@@ -158,6 +159,14 @@ namespace llvm{
                 std::set<const PointerTy*>, std::vector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const PointerTy*>);
 
+
+            std::set<const ProgramLocationTy*> findDefFromInst(const ProgramLocationTy *Loc, const PointerTy *Ptr, 
+                std::set<const ProgramLocationTy *> &Visited, std::vector<const ProgramLocationTy*> CallStack, bool SkipSelf = false);
+            std::set<const ProgramLocationTy*> findDefFromFunc(const Function *Func, const PointerTy *Ptr, 
+                std::set<const ProgramLocationTy *> &Visited, std::vector<const ProgramLocationTy*> CallStack);
+            void populatePTSForFunc(const Function *Func);
+
+            
         public:
             using Result = FlowSensitivePointerAnalysisResult;
             #ifdef LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_ANALYSIS
