@@ -236,6 +236,7 @@
 #include "llvm/Transforms/Utils/Mem2Reg.h"
 #include "llvm/Transforms/Utils/MetaRenamer.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
+#include "llvm/Transforms/Utils/NullPointerDereferenceChecker.h"
 #include "llvm/Transforms/Utils/PointerStats.h"
 #include "llvm/Transforms/Utils/PrintAliasToPairs.h"
 #include "llvm/Transforms/Utils/RelLookupTableConverter.h"

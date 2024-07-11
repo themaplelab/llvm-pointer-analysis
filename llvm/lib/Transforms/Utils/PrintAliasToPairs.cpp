@@ -29,7 +29,6 @@ void PrintAliasToPairs::processAliasPairsForFunc(const Function *func, SetVector
                                                 std::map<const Instruction *, std::map<const Value *, std::set<const Value *>>> &pts){
 
     for(auto &Inst : instructions(*func)){
-        // dbgs() << "Inst is " << Inst << Pointers.size() << "\n";
         getAliasResult(&Inst, pts, Pointers);
     }
 
@@ -40,14 +39,8 @@ void PrintAliasToPairs::processAliasPairsForFunc(const Function *func, SetVector
 
 void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const Instruction*, std::map<const Value*, std::set<const Value*>>> &pts, SetVector<const Value*> pointers){
 
-    // dbgs() << "getaliasresults\n";
-    // for(auto ptr : pointers){
-    //     if(!pts[cur].count(ptr)){
-    //         pts[cur][ptr].first = trackPointsToSet(cur, ptr, pts);
-    //     }
-    // }
 
-    dbgs() << "At program location: " << *cur << "\n";
+    DEBUG_WITH_TYPE("alias-result", dbgs() << "At program location: " << *cur << "\n");
 
     // bug : underflow when pointers.size() == 0
     if(pointers.size() == 0){
@@ -55,32 +48,31 @@ void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const In
     }
     for(size_t i = 0; i < pointers.size() - 1; ++i){
         for(size_t j = i+1; j <= pointers.size() - 1; ++j){
-            // dbgs() << i << " " << j << " " << pointers.size() - 1 << "\n";
 
             auto pts_i = pts[cur][pointers[i]];
             auto pts_j = pts[cur][pointers[j]];
 
             if((pts_i == pts_j) && (pts_i.size() == 1)){
                 if(*(pts_i.begin()) == nullptr){
-                    dbgs() << *pointers[i] << " NO ALIAS " << *pointers[j] <<"\n";
+                    DEBUG_WITH_TYPE("alias-result", dbgs() << *pointers[i] << " NO ALIAS " << *pointers[j] <<"\n");
                 }
                 else{
-                    dbgs() << *pointers[i] << " MUST ALIAS " << *pointers[j] <<"\n";
+                    DEBUG_WITH_TYPE("alias-result", dbgs() << *pointers[i] << " MUST ALIAS " << *pointers[j] <<"\n");
                 }
             }
             else{
                 std::set<const Value *> intersec;
                 std::set_intersection(pts_i.begin(), pts_i.end(), pts_j.begin(), pts_j.end(), std::inserter(intersec, intersec.begin()));
                 if(!intersec.empty()){
-                    dbgs() << *pointers[i] << " MAY ALIAS " << *pointers[j] <<"\n";
+                    DEBUG_WITH_TYPE("alias-result", dbgs() << *pointers[i] << " MAY ALIAS " << *pointers[j] <<"\n");
                 }
                 else{
-                    dbgs() << *pointers[i] << " NO ALIAS " << *pointers[j] <<"\n";
+                    DEBUG_WITH_TYPE("alias-result", dbgs() << *pointers[i] << " NO ALIAS " << *pointers[j] <<"\n");
                 }
             }
         }
     }
-    dbgs() << "\n";
+    DEBUG_WITH_TYPE("alias-result", dbgs() << "\n");
 
 }
 
@@ -91,7 +83,6 @@ void PrintAliasToPairs::getAliasResult(const Instruction *cur, std::map<const In
 /// @return 
 std::set<const Value *> PrintAliasToPairs::trackPointsToSet(const Instruction *cur, const Value *ptr, std::map<const Instruction *, std::map<const Value*, std::set<const Value *>>> &pts){
     
-    // dbgs() << "Finding pts for " << *ptr << " at " << *cur << "\n";
 
     std::set<const Value *> res;
 

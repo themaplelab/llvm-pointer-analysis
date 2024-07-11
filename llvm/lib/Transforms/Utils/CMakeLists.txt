@@ -55,6 +55,7 @@ add_llvm_component_library(LLVMTransformUtils
   MetaRenamer.cpp
   ModuleUtils.cpp
   NameAnonGlobals.cpp
+  NullPointerDereferenceChecker.cpp
   PointerStats.cpp
   PredicateInfo.cpp
   PrintAliasToPairs.cpp

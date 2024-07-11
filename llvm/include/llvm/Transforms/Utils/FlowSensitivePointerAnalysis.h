@@ -6,8 +6,10 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/IR/CFG.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -89,10 +91,14 @@ namespace llvm{
         PointsToSetTy AliasMap;
         std::map<const PointerTy*, std::set<const User*>> AliasUser;
         std::map<const Function*, std::set<const Function*>> Caller2Callee;
+        std::map<const PointerTy*, std::set<const Function*>> Def2Functions;
         DefUseGraphTy DefUseGraph;
+        std::map<const Value*, std::set<const ProgramLocationTy*>> DefList;
         DefUseGraphTy DefLoc;
         std::map<const Function*, SetVector<const PointerTy*>> Func2AllocatedPointersAndParameterAliases;
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2CallerLocation;
+        std::map<const Function*, std::unique_ptr<DominatorTreeAnalysis::Result>> Func2DT;
+        std::map<const Function*, std::unique_ptr<DominanceFrontierAnalysis::Result>> Func2DF;
         std::map<const Function*, WorkListTy> Func2WorkList; 
         std::map<const Function*, std::set<const BasicBlock*>> Func2TerminateBBs;
         std::map<const Function*, PointsToSetTy::mapped_type> FuncParas2AliasSet;
@@ -115,11 +121,14 @@ namespace llvm{
             void addDefUseEdge(const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*);
             size_t computePointerLevel(const PointerTy*);
             void buildDefUseGraph(std::set<const ProgramLocationTy*>, const PointerTy*);
+            void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
-            std::set<const ProgramLocationTy*> findDefFromPrevOfUseLoc(const ProgramLocationTy*, const PointerTy*);
+            std::set<const ProgramLocationTy*> findDefFromPrevOfUseLoc(const ProgramLocationTy*, const PointerTy*,
+                 std::vector<const ProgramLocationTy*> &);
             std::set<const ProgramLocationTy*> findDefFromUseLoc(const ProgramLocationTy*, 
                 const PointerTy*, std::set<const ProgramLocationTy*>&);
+            std::set<const ProgramLocationTy*> findDefFromUseByDom(const ProgramLocationTy *, const PointerTy*);
             std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, const PointerTy*);
             std::set<const PointerTy*> getAlias(const ProgramLocationTy*, const LoadInst*);
             std::set<const Function*> getCallees(const Function*);
