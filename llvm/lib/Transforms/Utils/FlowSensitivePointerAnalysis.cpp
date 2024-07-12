@@ -247,23 +247,6 @@ void FlowSensitivePointerAnalysis::populatePointsToSet(Module &M){
             }
         }
         Func2AllocatedPointersAndParameterAliases[&Func] = AllocatedPointersAndParameterAliases;
-        
-        // Assume we are starting with the first instruction of the function.
-        auto StartPTS = PointsToSetTy::mapped_type{};
-        for(auto Paras2AliasSet : FuncParas2AliasSet[&Func]){
-            for(auto CallLoc : Func2CallerLocation[&Func]){
-                for(auto Alias : Paras2AliasSet.second){
-                    for(auto Pointee : PointsToSet[CallLoc][Alias]){
-                        // We do not want temprary pointer introduced by a load instruction exist
-                        // in processed points-to set because they will interfere the query of 
-                        // alias analysis.
-                        if(!dyn_cast<LoadInst>(Pointee)){
-                            StartPTS[Alias].insert(Pointee);
-                        }
-                    }
-                }
-            }
-        }
 
         populatePTSForFunc(&Func);
 
@@ -272,9 +255,11 @@ void FlowSensitivePointerAnalysis::populatePointsToSet(Module &M){
 
 
 void FlowSensitivePointerAnalysis::populatePTSForFunc(const Function *Func){
-    const ProgramLocationTy *Cur = &(Func->getEntryBlock().front());
     DenseSet<const ProgramLocationTy*> Visited{};
-    populatePTSAtLocation(Cur, Visited);
+    for(auto &Inst : instructions(Func)){
+        populatePTSAtLocation(&Inst);
+    }
+    
 }
 
 /// @brief Check if a program location defines a pointer \p Ptr.
@@ -355,13 +340,8 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
 }
 
 /// @brief Populate all points-to set in \p PassedPTS to program location \p Loc
-void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy *Loc, 
-        DenseSet<const ProgramLocationTy*> &Visited){
+void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy *Loc){
 
-    if(Visited.contains(Loc)){
-        return;
-    }
-    Visited.insert(Loc);
 
     for(auto Pointer : Func2AllocatedPointersAndParameterAliases[Loc->getFunction()]){
         // If program location Loc defines points-to set of Pointer, we make sure
@@ -382,23 +362,9 @@ void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy
             }
             auto Defs = findDefFromPrevOfUseLoc(Loc, Pointer);
             for(auto Def : Defs){
+                dbgs() << "Found def " << *Def << "\n";
                 PointsToSet[Loc][Pointer].insert(PointsToSet[Def][Pointer].begin(), PointsToSet[Def][Pointer].end());
-            }
-            
-            
-        }
-    }
-    
-
-    auto Next = Loc->getNextNonDebugInstruction();
-
-    if(Next){
-        populatePTSAtLocation(Next, Visited);
-    }
-    else{
-        auto SuccBBRange = successors(Next->getParent());
-        for(auto BB : SuccBBRange){
-            populatePTSAtLocation(BB->getFirstNonPHIOrDbg(), Visited);
+            }  
         }
     }
 }
@@ -652,6 +618,7 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
         return std::set<const ProgramLocationTy*>{Loc};
     }
     if(DefLoc.count(Loc) && DefLoc.at(Loc).count(Ptr)){
+        dbgs() << "Found entry\n";
         return DefLoc.at(Loc).at(Ptr);
     }
 
@@ -664,7 +631,7 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
             if(Call->getFunction() == Call->getCalledFunction() || !Call->getCalledFunction()){
                 return findDefFromInst(Prev, Ptr, Visited, CallStack);
             }
-            CallStack.push_back(Call);
+            CallStack.push_back(Call);      
             return findDefFromFunc(Call->getCalledFunction(), Ptr, Visited, CallStack);
         }
         else{
@@ -680,7 +647,7 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
             if(!CallStack.empty()){
                 auto ReturnCallLoc = CallStack.back();
                 CallStack.pop_back();
-                findDefFromInst(ReturnCallLoc, Ptr, Visited, CallStack);
+                return findDefFromInst(ReturnCallLoc, Ptr, Visited, CallStack);
             }
 
             if(Func2CallerLocation.count(Loc->getParent()->getParent())){

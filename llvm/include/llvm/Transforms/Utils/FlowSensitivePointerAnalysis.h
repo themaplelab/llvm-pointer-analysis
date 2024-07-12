@@ -144,7 +144,7 @@ namespace llvm{
             std::vector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t);
             void markLabelsForPtr(const PointerTy*);
             void performPointerAnalysisOnFunction(const Function*, size_t);
-            void populatePTSAtLocation(const ProgramLocationTy *, DenseSet<const ProgramLocationTy*>&);
+            void populatePTSAtLocation(const ProgramLocationTy *);
             void populatePointsToSet(Module&);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
