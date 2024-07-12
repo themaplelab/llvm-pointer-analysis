@@ -792,22 +792,38 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
 
     assert(Pointer && "Cannot update PTS for nullptr");
 
-    auto OldAliasSet = std::set<const PointerTy *>{};
+    auto AliasSet = std::set<const PointerTy *>{};
     if(AliasMap.count(Loc) && AliasMap[Loc].count(Pointer)){
-        OldAliasSet = AliasMap.at(Loc).at(Pointer);
+        AliasSet = AliasMap.at(Loc).at(Pointer);
     }
     
     
     
     bool Changed = false;
-    if(OldAliasSet.size() <= 1){
+    if(AliasSet.size() <= 1){
         // Strong update
         Changed = updatePointsToSetAtProgramLocation(Loc, Pointer, AdjustedPointsToSet);
     }
     else{
         // Weak update
-        PointsToSet[Loc][Pointer].insert(AdjustedPointsToSet.begin(), AdjustedPointsToSet.end());
-        Changed = updatePointsToSetAtProgramLocation(Loc, Pointer, PointsToSet[Loc][Pointer]);
+
+        for(auto Alias : AliasSet){
+            if(dyn_cast<LoadInst>(Alias)){
+                continue;
+            }
+            auto PTS = PointsToSet[Loc][Alias];
+            PTS.insert(AdjustedPointsToSet.begin(), AdjustedPointsToSet.end());
+            auto Defs = findDefFromPrevOfUseLoc(Loc, Alias);
+            for(auto Def : Defs){
+                PTS.insert(PointsToSet[Def][Alias].begin(), PointsToSet[Def][Alias].end());
+            }
+
+            if(updatePointsToSetAtProgramLocation(Loc, Alias, PTS)){
+                for(auto UseLoc : getAffectUseLocations(Loc, Alias)){    
+                    PropagateList.push_back(std::make_tuple(Loc, UseLoc, Alias));
+                }
+            }
+        }
     }
 
     if(Changed){
