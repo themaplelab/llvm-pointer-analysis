@@ -363,7 +363,12 @@ void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy
             auto Defs = findDefFromPrevOfUseLoc(Loc, Pointer);
             for(auto Def : Defs){
                 dbgs() << "Found def " << *Def << "\n";
-                PointsToSet[Loc][Pointer].insert(PointsToSet[Def][Pointer].begin(), PointsToSet[Def][Pointer].end());
+                for(auto Ptr : PointsToSet[Def][Pointer]){
+                    if(!dyn_cast_or_null<LoadInst>(Ptr)){
+                        PointsToSet[Loc][Pointer].insert(Ptr);
+                    }
+                }
+                // PointsToSet[Loc][Pointer].insert(PointsToSet[Def][Pointer].begin(), PointsToSet[Def][Pointer].end());
             }  
         }
     }
