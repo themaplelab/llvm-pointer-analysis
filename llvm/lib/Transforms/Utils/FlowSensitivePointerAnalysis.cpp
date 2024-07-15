@@ -584,7 +584,7 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
 
 
     // Skip indirect call or external call or recursive call.
-    if(!Func || (!CallStack.empty() && CallStack.back()->getFunction() == Func)){
+    if(!Func || Func->isDeclaration() || (!CallStack.empty() && CallStack.back()->getFunction() == Func)){
         return std::set<const ProgramLocationTy*>{};
     }
 
