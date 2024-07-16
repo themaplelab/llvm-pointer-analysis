@@ -141,7 +141,7 @@ namespace llvm{
             size_t globalInitialize(Module&);
             bool hasDef(const ProgramLocationTy*, const PointerTy*);
             void initialize(const Function*);
-            std::vector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t);
+            std::vector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
             void markLabelsForPtr(const PointerTy*);
             void performPointerAnalysisOnFunction(const Function*, size_t);
             void populatePTSAtLocation(const ProgramLocationTy *);
@@ -153,8 +153,8 @@ namespace llvm{
             std::vector<const PointerTy*> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
             void updateAliasInformation(const ProgramLocationTy *, const LoadInst *);
             void updateAliasUsers(const ProgramLocationTy*, std::vector<DefUseEdgeTupleTy>&);
-            void updateArgAliasOfFunc(const Function*, std::set<const PointerTy*>, size_t);
-            void updateArgPointsToSetOfFunc(const Function*, std::set<const PointerTy*>, size_t);
+            void updateArgAliasOfFunc(const CallInst*, std::set<const PointerTy*>, size_t, std::vector<DefUseEdgeTupleTy> &);
+            void updateArgPointsToSetOfFunc(const Function*, std::set<const PointerTy*>, size_t, std::vector<DefUseEdgeTupleTy> &);
             void updatePointsToSet(const ProgramLocationTy*, const PointerTy*, 
                 std::set<const PointerTy*>, std::vector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const PointerTy*>);
