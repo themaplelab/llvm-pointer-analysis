@@ -6,6 +6,8 @@ PreservedAnalyses PrintPL::run(Module &m, ModuleAnalysisManager &mam){
     auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
     auto worklist = result.getWorkList();
 
+    return PreservedAnalyses::all();
+
     for(auto &func : m.functions()){
         outs() << "Function " << func.getName() << "\n";
         processWorkListForFunction(worklist[&func]);
