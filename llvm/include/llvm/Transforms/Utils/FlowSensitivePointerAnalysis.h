@@ -3,6 +3,7 @@
 
 #include "llvm/ADT/BreadthFirstIterator.h"
 #include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/DirectedGraph.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
@@ -19,6 +20,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/WithColor.h"
+#include <functional>
 #include <map>
 #include <new>
 #include <set>
@@ -41,6 +43,41 @@
 
 namespace llvm{
 
+    class DomGraph{
+        public:
+            DomGraph() = default;
+            ~DomGraph(){};
+
+            void addNode(const Instruction *Node){
+                Nodes.insert(Node);
+            }
+
+            std::set<const Instruction *> getNodes(){
+                return Nodes;
+            }
+
+            void addEdge(const Instruction *From,  const Instruction *To){
+                if(Nodes.find(From) == Nodes.end()){
+                    dbgs() << "Node " << *From << "not in node list\n";
+                    return;
+                }
+                if(Nodes.find(To) == Nodes.end()){
+                    dbgs() << "Node " << *To << "not in node list\n";
+                    return;
+                }
+                Edges[From].insert(To);
+            }
+
+            std::map<const Instruction *, std::set<const Instruction *>> getEdges(){
+                return Edges;
+            }
+
+
+        private:
+            const Instruction *Root;
+            std::set<const Instruction *> Nodes;
+            std::map<const Instruction *, std::set<const Instruction *>> Edges;
+    };
 
     /// @brief Class that keeps result of flow sensitive pointer analysis
     class FlowSensitivePointerAnalysisResult{
@@ -94,7 +131,7 @@ namespace llvm{
         std::map<const PointerTy*, std::set<const Function*>> Def2Functions;
         DefUseGraphTy DefUseGraph;
         std::map<const Value*, std::set<const ProgramLocationTy*>> DefList;
-        DefUseGraphTy DefLoc;
+        // DefUseGraphTy DefLoc;
         std::map<const Function*, SetVector<const PointerTy*>> Func2AllocatedPointersAndParameterAliases;
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2CallerLocation;
         std::map<const Function*, std::unique_ptr<DominatorTreeAnalysis::Result>> Func2DT;
@@ -112,6 +149,12 @@ namespace llvm{
 
         std::map<const Function*, PointsToSetTy::mapped_type> Func2PopulatedPTS;
 
+        std::map<const Function*, std::reference_wrapper<DominatorTreeAnalysis::Result>> Func2DomTree;
+        std::map<const Function*, std::reference_wrapper<DominanceFrontierAnalysis::Result>> Func2DomFrontier;
+        std::map<const Function*, std::map<const PointerTy*, DomGraph>> FuncPtr2DomGraph;
+        std::map<const PointerTy*, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
+
+
         size_t TotalFunctionNumber = 0;
         size_t ProcessedFunctionNumber = 0;
         FlowSensitivePointerAnalysisResult AnalysisResult;
@@ -122,7 +165,8 @@ namespace llvm{
         private:
             void addDefUseEdge(const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*);
             size_t computePointerLevel(const PointerTy*);
-            void buildDefUseGraph(std::set<const ProgramLocationTy*>, const PointerTy*);
+            void buildDefUseGraph(std::set<const ProgramLocationTy*>, const PointerTy*, 
+                std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
             void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
@@ -165,6 +209,10 @@ namespace llvm{
             std::set<const ProgramLocationTy*> findDefFromFunc(const Function *Func, const PointerTy *Ptr, 
                 std::set<const ProgramLocationTy *> &Visited, std::vector<const ProgramLocationTy*> CallStack);
             void populatePTSForFunc(const Function *Func);
+
+            std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
+                buildDominatorGraph(const Function *Func, const PointerTy *Ptr);
+
 
             
         public:
