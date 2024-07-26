@@ -143,7 +143,8 @@ namespace llvm{
         WorkListTy GlobalWorkList;
         std::map<const ProgramLocationTy*, std::set<Label>> LabelMap; 
         // WithColor Logger = WithColor(outs(), HighlightColor::String);
-        PointsToSetTy PointsToSet;
+        PointsToSetTy PointsToSetOut;
+        PointsToSetTy PointsToSetIn;
         std::vector<const Function*> ReAnalysisFunctions;
         std::map<const Value*, std::set<const ProgramLocationTy*>> UseList;
 

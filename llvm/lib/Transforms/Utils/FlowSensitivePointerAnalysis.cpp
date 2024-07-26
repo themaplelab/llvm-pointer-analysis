@@ -81,9 +81,9 @@ static std::string getCurrentTime(){
 ///     running in debug mode. 
 void FlowSensitivePointerAnalysis::printPointsToSetAtProgramLocation(const ProgramLocationTy *Loc){
 
-    if(PointsToSet.count(Loc)){
+    if(PointsToSetOut.count(Loc)){
         DEBUG_WITH_TYPE("pts", dbgs() << "At program location" << *Loc << ":\n");
-        for(auto PtsForPtr : PointsToSet.at(Loc)){
+        for(auto PtsForPtr : PointsToSetOut.at(Loc)){
             if(dyn_cast<Argument>(PtsForPtr.first)){
                 DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *(PtsForPtr.first) << " ==>\n");
             }
@@ -110,7 +110,7 @@ void FlowSensitivePointerAnalysis::printPointsToSetAtProgramLocation(const Progr
 void FlowSensitivePointerAnalysis::dumpPointsToSet(){
     dbgs() << "Print points-to set stats\n";
     // C++26 will treat _ as a special value that does not cause unused warning.
-    for(auto PtsForPtr : PointsToSet){
+    for(auto PtsForPtr : PointsToSetOut){
         printPointsToSetAtProgramLocation(PtsForPtr.first);
     }
 }
@@ -119,7 +119,7 @@ void FlowSensitivePointerAnalysis::dumpAliasMap(){
     DEBUG_WITH_TYPE("alias", dbgs() << "Print alias map stats\n");
     // C++26 will treat _ as a special value that does not cause unused warning.
     for(auto LocAndPtr : AliasMap){
-           if(PointsToSet.count(LocAndPtr.first)){
+           if(PointsToSetOut.count(LocAndPtr.first)){
             DEBUG_WITH_TYPE("alias", dbgs() << "At program location" << *LocAndPtr.first << ":\n");
             for(auto AliasForPtr : AliasMap.at(LocAndPtr.first)){
                 DEBUG_WITH_TYPE("alias", dbgs() << *(AliasForPtr.first) << " alias to \n");
@@ -204,7 +204,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
             }
             LabelMap[FirstInst].insert(Label(&Arg, Label::LabelType::Def));
             DefLocations[&Arg][Func].insert(FirstInst);
-            PointsToSet[FirstInst][&Arg] = std::set<const Value*>{};
+            PointsToSetOut[FirstInst][&Arg] = std::set<const Value*>{};
             auto PointerLevel = computePointerLevel(&Arg);
             WorkList[PointerLevel].insert(&Arg);
         }
@@ -217,7 +217,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
             LabelMap[Alloca].insert(Label(Alloca, Label::LabelType::Def));
             DefLocations[Alloca][Func].insert(Alloca);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
-            PointsToSet[&Inst][Alloca] = std::set<const Value*>{nullptr};
+            PointsToSetOut[&Inst][Alloca] = std::set<const Value*>{nullptr};
         }
         else if(const CallInst *Call = dyn_cast<CallInst>(&Inst)){
             Func2CallerLocation[Call->getCalledFunction()].insert(Call);
@@ -234,7 +234,6 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
             for(auto &Arg : Func->args()){
                 LabelMap[Return].insert(Label(&Arg, Label::LabelType::Use));
                 UseList[&Arg].insert(Return);
-
             }
             
         }
@@ -372,10 +371,10 @@ void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy
     for(auto Pointer : Func2AllocatedPointersAndParameterAliases[Loc->getFunction()]){
         // If program location Loc defines points-to set of Pointer, we make sure
         // no intermediate pointer is removed.
-        if(PointsToSet.count(Loc) && PointsToSet[Loc].count(Pointer)){
-            for(auto it = PointsToSet[Loc][Pointer].begin(); it != PointsToSet[Loc][Pointer].end();){
+        if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(Pointer)){
+            for(auto it = PointsToSetOut[Loc][Pointer].begin(); it != PointsToSetOut[Loc][Pointer].end();){
                 if(*it && dyn_cast<LoadInst>(*it)){
-                    it = PointsToSet[Loc][Pointer].erase(it);
+                    it = PointsToSetOut[Loc][Pointer].erase(it);
                 }
                 else{
                     ++it;
@@ -389,9 +388,9 @@ void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy
             auto Defs = findDefFromPrevOfUseLoc(Loc, Pointer);
             for(auto Def : Defs){
                 // dbgs() << "Found def " << *Def << "\n";
-                for(auto Ptr : PointsToSet[Def][Pointer]){
+                for(auto Ptr : PointsToSetOut[Def][Pointer]){
                     if(!dyn_cast_or_null<LoadInst>(Ptr)){
-                        PointsToSet[Loc][Pointer].insert(Ptr);
+                        PointsToSetOut[Loc][Pointer].insert(Ptr);
                     }
                 }
                 // PointsToSet[Loc][Pointer].insert(PointsToSet[Def][Pointer].begin(), PointsToSet[Def][Pointer].end());
@@ -486,7 +485,9 @@ void FlowSensitivePointerAnalysis::buildDefUseGraph(std::set<const ProgramLocati
         }
 
         // find immediate dominator
-
+        if(Dom.empty()){
+            return;
+        }
         auto IDom = *(Dom.begin());
         for(auto D : Dom){
             if(D == IDom){
@@ -750,7 +751,7 @@ void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLoc
     // if(!dyn_cast<StoreInst>(UseLoc)){
     //     PointsToSet[UseLoc][Ptr].insert(PointsToSet.at(DefLoc).at(Ptr).begin(), PointsToSet.at(DefLoc).at(Ptr).end());
     // }
-    PointsToSet[UseLoc][Ptr].insert(PointsToSet.at(DefLoc).at(Ptr).begin(), PointsToSet.at(DefLoc).at(Ptr).end());
+    PointsToSetIn[UseLoc][Ptr].insert(PointsToSetOut.at(DefLoc).at(Ptr).begin(), PointsToSetOut.at(DefLoc).at(Ptr).end());
 
 
     return;
@@ -782,37 +783,37 @@ std::set<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointerAna
 bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const ProgramLocationTy *Loc, 
     const PointerTy *Ptr, std::set<const PointerTy*> PTS){
 
-        dbgs() << "Set pts of " << *Ptr << " at " << *Loc << " to\n";
-        for(auto P : PTS){
-            if(!P){
-                dbgs() << "\tnullptr\n";
-            }
-            else{
-                dbgs() << "\t" << *P << "\n";
-            }
+        // dbgs() << "Set pts of " << *Ptr << " at " << *Loc << " to\n";
+        // for(auto P : PTS){
+        //     if(!P){
+        //         dbgs() << "\tnullptr\n";
+        //     }
+        //     else{
+        //         dbgs() << "\t" << *P << "\n";
+        //     }
             
-        }
+        // }
 
 
 
     auto OldPTS = std::set<const Value*>{};
-    if(PointsToSet.count(Loc) && PointsToSet[Loc].count(Ptr)){
-        OldPTS = PointsToSet.at(Loc).at(Ptr);
+    if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(Ptr)){
+        OldPTS = PointsToSetOut.at(Loc).at(Ptr);
     }
 
-    dbgs() << "Old pts of " << *Ptr << " at " << *Loc << " to\n";
-    for(auto P : OldPTS){
-        if(!P){
-            dbgs() << "\tnullptr\n";
-        }
-        else{
-            dbgs() << "\t" << *P << "\n";
-        }
+    // dbgs() << "Old pts of " << *Ptr << " at " << *Loc << " to\n";
+    // for(auto P : OldPTS){
+    //     if(!P){
+    //         dbgs() << "\tnullptr\n";
+    //     }
+    //     else{
+    //         dbgs() << "\t" << *P << "\n";
+    //     }
         
-    }
+    // }
     
     if(OldPTS != PTS){
-        PointsToSet[Loc][Ptr] = PTS;
+        PointsToSetOut[Loc][Ptr] = PTS;
         return true;
     }
     return false;
@@ -831,6 +832,11 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
     auto AliasSet = std::set<const PointerTy *>{};
     if(AliasMap.count(Loc) && AliasMap[Loc].count(Store->getPointerOperand())){
         for(auto Ptr : AliasMap.at(Loc).at(Store->getPointerOperand())){
+            if(!Ptr){
+                DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " WARNING: pointer " 
+                    << *Store->getPointerOperand() << " may alias to nullptr at " << *Loc << "\n");
+                continue;
+            }
             if(!isa<LoadInst>(Ptr)){
                 AliasSet.insert(Ptr);
             }
@@ -838,32 +844,29 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
     }
     
 
-    // bug: the problem is when we are at a store x %1, and we want to know whether to perform
-    // strong update or weak update, we are onky checking the alias set of %1. For example, alias(%1) =
-    // {a,b}, so we know we need to perform weak update. However, variable pointer does not %1 here, instead it 
-    // might be either a or b, and we check alias(a) (or alias(b)). Of course it is an empty set.
+
     bool Changed = false;
     if(AliasSet.size() <= 1){
         // Strong update
-        dbgs() << "Strong update " << *Pointer << "\n";
+        // dbgs() << "Strong update " << *Pointer << "\n";
         Changed = updatePointsToSetAtProgramLocation(Loc, Pointer, AdjustedPointsToSet);
     }
     else{
         // Weak update
-        dbgs() << "Weak update " << *Pointer << "\n";
+        // dbgs() << "Weak update " << *Pointer << "\n";
 
-        // bug: weak update does not properly work.
 
         for(auto Alias : AliasSet){
+            // if(!Alias){
+            //     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " WARNING: pointer " 
+            //         << *Store->getPointerOperand() << " may alias to nullptr at " << *Loc << "\n");
+            //         continue;
+            // }
             if(dyn_cast<LoadInst>(Alias)){
                 continue;
             }
-            auto PTS = PointsToSet[Loc][Alias];
+            auto PTS = PointsToSetIn[Loc][Alias];
             PTS.insert(AdjustedPointsToSet.begin(), AdjustedPointsToSet.end());
-            // auto Defs = findDefFromPrevOfUseLoc(Loc, Alias);
-            // for(auto Def : Defs){
-            //     PTS.insert(PointsToSet[Def][Alias].begin(), PointsToSet[Def][Alias].end());
-            // }
 
             if(updatePointsToSetAtProgramLocation(Loc, Alias, PTS)){
                 for(auto UseLoc : getAffectUseLocations(Loc, Alias)){    
@@ -910,8 +913,8 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
             }
         }
         AliasUser[Alias].insert(Loc);
-        if(PointsToSet.count(Loc) && PointsToSet[Loc].count(Alias)){
-            AliasMap[Loc][Load].insert(PointsToSet.at(Loc).at(Alias).begin(), PointsToSet.at(Loc).at(Alias).end());
+        if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(Alias)){
+            AliasMap[Loc][Load].insert(PointsToSetOut.at(Loc).at(Alias).begin(), PointsToSetOut.at(Loc).at(Alias).end());
         }
     }
     return;
@@ -938,8 +941,8 @@ std::vector<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointer
     //     }
     // }
 
-    if(PointsToSet.count(Loc)){
-        for(auto PtsAtPtr : PointsToSet.at(Loc)){
+    if(PointsToSetOut.count(Loc)){
+        for(auto PtsAtPtr : PointsToSetOut.at(Loc)){
             if(AliasMap[Loc][dyn_cast<StoreInst>(Loc)->getPointerOperand()].count(PtsAtPtr.first) || 
                 PtsAtPtr.first == dyn_cast<StoreInst>(Loc)->getPointerOperand()){
                     Res.push_back(PtsAtPtr.first);
@@ -1022,10 +1025,10 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 // if user is 'store x y', and we are passing alias-set(y), we need to make
                 // pts(z) = pts(y) for each z in alias-set(y)
                 for(auto Alias : AliasMap.at(UseLoc).at(Ptr)){
-                    auto PTS = std::set<const PointerTy *>{};
-                    if(PointsToSet.count(UseLoc) && PointsToSet[UseLoc].count(Ptr)){
-                        PTS = PointsToSet.at(UseLoc).at(Ptr);
-                    }
+                    // auto PTS = std::set<const PointerTy *>{};
+                    // if(PointsToSet.count(UseLoc) && PointsToSet[UseLoc].count(Ptr)){
+                    //     PTS = PointsToSet.at(UseLoc).at(Ptr);
+                    // }
                     if(!Alias){
                         DEBUG_WITH_TYPE("warning", dbgs() << getCurrentTime() << " WARNING: try to update pts for nullptr at"
                             << *UseLoc << " because nullptr is alias to " << *Ptr << "\n");
@@ -1050,16 +1053,16 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 for(auto Pointer : Pointers){
 
                     auto OldPTS = std::set<const PointerTy*>{};
-                    if(PointsToSet.count(UseLoc) && PointsToSet[UseLoc].count(Pointer)){
-                        OldPTS = PointsToSet.at(UseLoc).at(Pointer);
+                    if(PointsToSetOut.count(UseLoc) && PointsToSetOut[UseLoc].count(Pointer)){
+                        OldPTS = PointsToSetOut.at(UseLoc).at(Pointer);
                     }
                                         
-                    PointsToSet[UseLoc][Pointer].insert(
+                    PointsToSetOut[UseLoc][Pointer].insert(
                         AliasMap.at(UseLoc).at(Ptr).begin(), 
                         AliasMap.at(UseLoc).at(Ptr).end());
 
 
-                    if(OldPTS != PointsToSet.at(UseLoc).at(Pointer)){
+                    if(OldPTS != PointsToSetOut.at(UseLoc).at(Pointer)){
 
                         for(auto AffectedLoc : getAffectUseLocations(UseLoc, Pointer)){    
                                 PropagateList.push_back(std::make_tuple(UseLoc, AffectedLoc, Pointer));
@@ -1141,10 +1144,10 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
     
     auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
 
-    auto OldSize = PointsToSet[FirstInst][Parameter].size();
-    PointsToSet[FirstInst][Parameter].insert(PTS.begin(), PTS.end());
+    auto OldSize = PointsToSetIn[FirstInst][Parameter].size();
+    PointsToSetIn[FirstInst][Parameter].insert(PTS.begin(), PTS.end());
 
-    if(OldSize != PointsToSet.at(FirstInst).at(Parameter).size()){
+    if(OldSize != PointsToSetIn.at(FirstInst).at(Parameter).size()){
         for(auto UseLoc : getAffectUseLocations(FirstInst, Parameter)){    
             PropagateList.push_back(std::make_tuple(FirstInst, UseLoc, Parameter));
         }
@@ -1166,7 +1169,7 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
         assert(UseLoc && "Cannot have nullptr as use loc");
         assert(Ptr && "Cannot have nullptr as pointer");
 
-
+        // dbgs() << " Propagating edge " << *DefLoc << " === " << *Ptr << " ===> " << *UseLoc << "\n";
 
         DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Propagating edge " 
             << *DefLoc << " === " << *Ptr << " ===> " << *UseLoc << "\n");
@@ -1181,6 +1184,7 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
 
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
+            PointsToSetOut[UseLoc][Ptr] = PointsToSetIn.at(UseLoc).at(Ptr);
             auto OldAliasSet = std::set<const PointerTy*>{};
             if(AliasMap.count(UseLoc) && AliasMap[UseLoc].count(UseLoc)){
                 OldAliasSet = AliasMap.at(UseLoc).at(UseLoc);
@@ -1236,10 +1240,11 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
             }
 
             if(ArgumentIdx < Call->arg_size()){
-                updateArgPointsToSetOfFunc(Call->getCalledFunction(), PointsToSet.at(UseLoc).at(Ptr), ArgumentIdx, PropagateList);
+                updateArgPointsToSetOfFunc(Call->getCalledFunction(), PointsToSetIn.at(UseLoc).at(Ptr), ArgumentIdx, PropagateList);
             }
         }
         else if(auto Return = dyn_cast<ReturnInst>(UseLoc)){
+            PointsToSetOut[UseLoc][Ptr] = PointsToSetIn.at(UseLoc).at(Ptr);
             if(dyn_cast<Argument>(Ptr)){
                 size_t ParaIdx = 0;
                 for(auto &Arg : Return->getFunction()->args()){
@@ -1248,8 +1253,6 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
                     }
                     ++ParaIdx;
                 }
-
-                
 
                 for(auto CallSite : Func2CallerLocation[Return->getFunction()]){
                     auto ArgIdx = ParaIdx;
@@ -1263,14 +1266,14 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
                     }
 
                     // dbgs() << "cccccccc " << *Arg << " " << *CallSite << "\n";
-                    auto Changed = updatePointsToSetAtProgramLocation(CallSite, Arg, PointsToSet[Return][Ptr]);
+                    auto Changed = updatePointsToSetAtProgramLocation(CallSite, Arg, PointsToSetOut[Return][Ptr]);
                     if(Changed){
                         for(auto UseLoc : getAffectUseLocations(CallSite, Arg)){    
                             PropagateList.push_back(std::make_tuple(CallSite, UseLoc, Arg));
                         }
                     }
                     for(auto Alias : AliasMap[CallSite][Arg]){
-                        if(updatePointsToSetAtProgramLocation(CallSite, Alias, PointsToSet[Return][Ptr])){
+                        if(updatePointsToSetAtProgramLocation(CallSite, Alias, PointsToSetOut[Return][Ptr])){
                         for(auto UseLoc : getAffectUseLocations(CallSite, Alias)){    
                             PropagateList.push_back(std::make_tuple(CallSite, UseLoc, Alias));
                         }
@@ -1322,6 +1325,7 @@ void FlowSensitivePointerAnalysis::performPointerAnalysisOnFunction(const Functi
 std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
     FlowSensitivePointerAnalysis::buildDominatorGraph(const Function *Func, const PointerTy *Ptr){
 
+
     DomGraph DG;
 
     // add all instruction labeled with def(ptr) in function func to dg
@@ -1330,23 +1334,41 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
     }
 
     // get idf
+    // dbgs() << "111111\n";
+    
+    std::set<const Instruction *> CurNodes = DG.getNodes();
+    while(!CurNodes.empty()){
 
-    std::set<const Instruction *> NewNodes = DG.getNodes();
-    while(!NewNodes.empty()){
         std::set<const Instruction *> NextNodes{};
-        for(auto Node : NewNodes){
+        for(auto Node : CurNodes){
+
             auto it = Func2DomFrontier.at(Func).get().find(const_cast<BasicBlock*>(Node->getParent()));
+            // If a basicblock is not reachable from the entry basicblock,
+            // DominanceFromtierAnalysis will not having entry for this basicblock.
+            // i.e., running find will return end ietrator.
+            if(it == Func2DomFrontier.at(Func).get().end()){
+                // dbgs() << "!!!!!!!!! " << *Node << "\n";
+                CurNodes = std::set<const Instruction *>{};
+                break;
+            }
+
             for(auto DF : it->second){
-                if(NewNodes.find(DF->getFirstNonPHIOrDbg()) != NewNodes.end()){
+
+                auto Ns = DG.getNodes();
+                if(Ns.find(DF->getFirstNonPHIOrDbg()) == Ns.end()){
                     NextNodes.insert(DF->getFirstNonPHIOrDbg());
                 }
                 DG.addNode(DF->getFirstNonPHIOrDbg());
                 DG.addEdge(Node, DF->getFirstNonPHIOrDbg());
+
             }
+
         }
-        NewNodes = NextNodes;
+        CurNodes = NextNodes;
+
     }
     
+    // dbgs() << "222222\n";
 
     // for any two nodes a b in dg, add a -> b if a dominates b or b in a's df.
     std::map<const Instruction*, std::set<const Instruction*>> Doms;
@@ -1394,6 +1416,8 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
     std::map<const Instruction*, std::set<const Instruction*>> IN;
     std::map<const Instruction*, std::set<const Instruction*>> OUT;
 
+    // dbgs() << "333333\n";
+
 
     while(true){
         bool Changed = false;
@@ -1419,6 +1443,14 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
             }
 
             if(OldOut != OUT[Node]){
+                // dbgs() << "Old out\n";
+                // for(auto O : OldOut){
+                //     dbgs() << *O << "\n";
+                // }
+                // dbgs() << "New out\n";
+                // for(auto O : OUT[Node]){
+                //     dbgs() << *O << "\n";
+                // }
                 Changed = true;
             }
 
@@ -1427,15 +1459,26 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
                 auto OldIN = IN[ToNode];
                 IN[ToNode].insert(OUT[Node].begin(), OUT[Node].end());
                 if(OldIN != IN[ToNode]){
+                // dbgs() << "Old in\n";
+                // for(auto O : OldIN){
+                //     dbgs() << *O << "\n";
+                // }
+                // dbgs() << "New in\n";
+                // for(auto O : IN[ToNode]){
+                //     dbgs() << *O << "\n";
+                // }
                     Changed = true;
                 }
             }
         }
 
         if(!Changed){
+
             break;
         }
     }
+
+    // dbgs() << "444444\n";
 
 
     return {OUT, DG};
@@ -1483,13 +1526,16 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
             }
 
             for(auto &Func : m.functions()){
+                dbgs() << getCurrentTime() << " Analyzing function: " 
+                    << Func.getName() << " with pointer level: " << CurrentPointerLevel << "\n";
+
                 auto Pointers = std::set<const PointerTy*>{};
                 if(Func2WorkList.count(&Func) && Func2WorkList[&Func].count(CurrentPointerLevel)){
                     Pointers = Func2WorkList.at(&Func).at(CurrentPointerLevel);
                 }
                 for(auto Ptr : Pointers){
+                    // dbgs() << "Processing pointer " << *Ptr << "\n";
                     auto Pair = buildDominatorGraph(&Func, Ptr);
-                    // bug: OUT is empty set.
                     auto OUT = Pair.first;
 
                     // for(auto P : OUT){
@@ -1502,7 +1548,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
 
                     auto DG = Pair.second;
                     auto UseLocs = getUseLocations(Ptr);
-                    // bug: cannot find any def from a use.
                     buildDefUseGraph(UseLocs, Ptr, OUT, DG);
                 }
 
@@ -1525,7 +1570,9 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
         dumpAliasMap();
 
         AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
-        AnalysisResult.setPointsToSet(PointsToSet);
+        AnalysisResult.setPointsToSet(PointsToSetOut);
+
+        dbgs() << "End of analysis\n";
 
         return AnalysisResult;
     }
