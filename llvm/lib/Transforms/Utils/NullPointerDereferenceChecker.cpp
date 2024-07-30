@@ -34,7 +34,7 @@ void NullPointerChecker::CheckNullPtrAtFunc(const Function *Func, const SetVecto
             auto Ptr = Store->getPointerOperand();
             if(PTS.count(Store) && PTS.at(Store).count(Ptr)){
                 if(PTS.at(Store).at(Ptr).count(nullptr)){
-                    dbgs() << "Found nullptr dereference at" << *Store << ", trying to dereferencing pointer "
+                    dbgs() << "ERROR: Found nullptr dereference at" << *Store << ", trying to dereferencing pointer "
                         << *Ptr << ".\n";
                 }
             }
@@ -43,7 +43,7 @@ void NullPointerChecker::CheckNullPtrAtFunc(const Function *Func, const SetVecto
             auto Ptr = Load->getPointerOperand();
             if(PTS.count(Load) && PTS.at(Load).count(Ptr)){
                 if(PTS.at(Load).at(Ptr).count(nullptr)){
-                    dbgs() << "Found nullptr dereference at" << *Load << ", trying to dereferencing pointer "
+                    dbgs() << "ERROR: Found nullptr dereference at" << *Load << ", trying to dereferencing pointer "
                         << *Ptr << ".\n";
                 }
             }

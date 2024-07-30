@@ -185,7 +185,7 @@ namespace llvm{
             std::set<const ProgramLocationTy*> getUseLocations(const PointerTy*);
             size_t globalInitialize(Module&);
             bool hasDef(const ProgramLocationTy*, const PointerTy*);
-            void initialize(const Function*);
+            size_t initialize(const Function*);
             std::vector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
             void markLabelsForPtr(const PointerTy*);
             void performPointerAnalysisOnFunction(const Function*, size_t);

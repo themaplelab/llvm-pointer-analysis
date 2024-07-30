@@ -158,9 +158,9 @@ size_t FlowSensitivePointerAnalysis::globalInitialize(Module &M){
     size_t PtrLvl = 0;
     for(auto &Func : M.functions()){
         ++TotalFunctionNumber;
-        initialize(&Func);
-        if(PtrLvl < Func2WorkList.at(&Func).size()){
-            PtrLvl = Func2WorkList.at(&Func).size();
+        auto PL = initialize(&Func);
+        if(PtrLvl < PL){
+            PtrLvl = PL;
         }
     }
 
@@ -189,12 +189,13 @@ size_t FlowSensitivePointerAnalysis::computePointerLevel(const PointerTy *Ptr){
 
 /// @brief Calculate pointer level for function \p Func. Mark labels for each pointer
 ///     related instructions. Store pointers into worklist according to their pointer level.
-void FlowSensitivePointerAnalysis::initialize(const Function *Func){
+size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
 
     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Initializing function "
          << Func->getName() << "\n");
 
     WorkListTy WorkList;
+    size_t res = 0;
 
     if(!Func->isDeclaration()){
         auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
@@ -214,6 +215,9 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
         if(const AllocaInst *Alloca = dyn_cast<AllocaInst>(&Inst)){
             auto PointerLevel = computePointerLevel(Alloca);
             WorkList[PointerLevel].insert(Alloca);
+            if(PointerLevel > res){
+                res = PointerLevel;
+            }
             LabelMap[Alloca].insert(Label(Alloca, Label::LabelType::Def));
             DefLocations[Alloca][Func].insert(Alloca);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
@@ -240,7 +244,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
     }
 
     Func2WorkList.emplace(Func, WorkList);
-    return;
+    return res;
 }
 
 /// @brief Propagate points-to set for a pointer if it is not defined at a
@@ -1509,6 +1513,7 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
                 if(Func.isDeclaration()){
                     continue;
                 }
+
                 Func2DomTree.emplace(&Func, FAM.getResult<DominatorTreeAnalysis>(Func));
                 Func2DomFrontier.emplace(&Func, FAM.getResult<DominanceFrontierAnalysis>(Func));
 
@@ -1520,9 +1525,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
                     markLabelsForPtr(Ptr);
                 }
 
-
-                // processGlobalVariables(CurrentPointerLevel);
-                // performPointerAnalysisOnFunction(&Func, CurrentPointerLevel);
             }
 
             for(auto &Func : m.functions()){
