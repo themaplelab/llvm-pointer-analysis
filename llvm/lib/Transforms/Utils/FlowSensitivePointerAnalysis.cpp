@@ -1144,10 +1144,10 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
     
     auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
 
-    auto OldSize = PointsToSetIn[FirstInst][Parameter].size();
-    PointsToSetIn[FirstInst][Parameter].insert(PTS.begin(), PTS.end());
+    auto OldSize = PointsToSetOut[FirstInst][Parameter].size();
+    PointsToSetOut[FirstInst][Parameter].insert(PTS.begin(), PTS.end());
 
-    if(OldSize != PointsToSetIn.at(FirstInst).at(Parameter).size()){
+    if(OldSize != PointsToSetOut.at(FirstInst).at(Parameter).size()){
         for(auto UseLoc : getAffectUseLocations(FirstInst, Parameter)){    
             PropagateList.push_back(std::make_tuple(FirstInst, UseLoc, Parameter));
         }

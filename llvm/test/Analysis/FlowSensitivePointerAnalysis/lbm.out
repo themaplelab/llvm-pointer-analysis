@@ -1,0 +1,135 @@
+[2024/07/26 05:23:23.66] Analyzing function: LBM_allocateGrid with pointer level: 3
+[2024/07/26 05:23:23.66] Analyzing function: malloc with pointer level: 3
+[2024/07/26 05:23:23.66] Analyzing function: printf with pointer level: 3
+[2024/07/26 05:23:23.66] Analyzing function: exit with pointer level: 3
+[2024/07/26 05:23:23.66] Analyzing function: LBM_freeGrid with pointer level: 3
+[2024/07/26 05:23:23.66] Analyzing function: free with pointer level: 3
+[2024/07/26 05:23:23.66] Analyzing function: LBM_initializeGrid with pointer level: 3
+[2024/07/26 05:23:23.66] Analyzing function: LBM_swapGrids with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_loadObstacleFile with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: _fopen with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: fgetc with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: fclose with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_initializeSpecialCellsForLDC with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_initializeSpecialCellsForChannel with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_performStreamCollideBGK with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: llvm.fmuladd.f64 with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_performStreamCollideTRT with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_handleInOutFlow with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_showGridStatistics with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: llvm.sqrt.f64 with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_storeVelocityField with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: storeValue with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: fprintf with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: _fwrite with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: LBM_compareVelocityField with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: loadValue with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: fscanf with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: llvm.fmuladd.f32 with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: fread with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: main with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: MAIN_parseCommandLine with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: MAIN_printInfo with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: MAIN_initialize with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: MAIN_finalize with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: llvm.memcpy.p0i8.p0i8.i64 with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: atoi with pointer level: 3
+[2024/07/26 05:23:23.67] Analyzing function: _stat with pointer level: 3
+[2024/07/26 05:23:23.68] Analyzing function: LBM_allocateGrid with pointer level: 2
+[2024/07/26 05:23:23.68] Analyzing function: malloc with pointer level: 2
+[2024/07/26 05:23:23.68] Analyzing function: printf with pointer level: 2
+[2024/07/26 05:23:23.68] Analyzing function: exit with pointer level: 2
+[2024/07/26 05:23:23.68] Analyzing function: LBM_freeGrid with pointer level: 2
+[2024/07/26 05:23:23.68] Analyzing function: free with pointer level: 2
+[2024/07/26 05:23:23.68] Analyzing function: LBM_initializeGrid with pointer level: 2
+[2024/07/26 05:23:23.68] Analyzing function: LBM_swapGrids with pointer level: 2
+[2024/07/26 05:23:23.68] Analyzing function: LBM_loadObstacleFile with pointer level: 2
+[2024/07/26 05:23:23.69] Analyzing function: _fopen with pointer level: 2
+[2024/07/26 05:23:23.69] Analyzing function: fgetc with pointer level: 2
+[2024/07/26 05:23:23.69] Analyzing function: fclose with pointer level: 2
+[2024/07/26 05:23:23.69] Analyzing function: LBM_initializeSpecialCellsForLDC with pointer level: 2
+[2024/07/26 05:23:23.69] Analyzing function: LBM_initializeSpecialCellsForChannel with pointer level: 2
+[2024/07/26 05:23:23.70] Analyzing function: LBM_performStreamCollideBGK with pointer level: 2
+[2024/07/26 05:23:23.72] Analyzing function: llvm.fmuladd.f64 with pointer level: 2
+[2024/07/26 05:23:23.72] Analyzing function: LBM_performStreamCollideTRT with pointer level: 2
+[2024/07/26 05:23:23.74] Analyzing function: LBM_handleInOutFlow with pointer level: 2
+[2024/07/26 05:23:23.76] Analyzing function: LBM_showGridStatistics with pointer level: 2
+[2024/07/26 05:23:23.77] Analyzing function: llvm.sqrt.f64 with pointer level: 2
+[2024/07/26 05:23:23.77] Analyzing function: LBM_storeVelocityField with pointer level: 2
+[2024/07/26 05:23:23.78] Analyzing function: storeValue with pointer level: 2
+[2024/07/26 05:23:23.78] Analyzing function: fprintf with pointer level: 2
+[2024/07/26 05:23:23.78] Analyzing function: _fwrite with pointer level: 2
+[2024/07/26 05:23:23.78] Analyzing function: LBM_compareVelocityField with pointer level: 2
+[2024/07/26 05:23:23.79] Analyzing function: loadValue with pointer level: 2
+[2024/07/26 05:23:23.79] Analyzing function: fscanf with pointer level: 2
+[2024/07/26 05:23:23.79] Analyzing function: llvm.fmuladd.f32 with pointer level: 2
+[2024/07/26 05:23:23.79] Analyzing function: fread with pointer level: 2
+[2024/07/26 05:23:23.79] Analyzing function: main with pointer level: 2
+[2024/07/26 05:23:23.79] Analyzing function: MAIN_parseCommandLine with pointer level: 2
+[2024/07/26 05:23:23.79] Analyzing function: MAIN_printInfo with pointer level: 2
+[2024/07/26 05:23:23.80] Analyzing function: MAIN_initialize with pointer level: 2
+[2024/07/26 05:23:23.80] Analyzing function: MAIN_finalize with pointer level: 2
+[2024/07/26 05:23:23.80] Analyzing function: llvm.memcpy.p0i8.p0i8.i64 with pointer level: 2
+[2024/07/26 05:23:23.80] Analyzing function: atoi with pointer level: 2
+[2024/07/26 05:23:23.80] Analyzing function: _stat with pointer level: 2
+[2024/07/26 05:23:23.82] Analyzing function: LBM_allocateGrid with pointer level: 1
+[2024/07/26 05:23:23.82] Analyzing function: malloc with pointer level: 1
+[2024/07/26 05:23:23.82] Analyzing function: printf with pointer level: 1
+[2024/07/26 05:23:23.82] Analyzing function: exit with pointer level: 1
+[2024/07/26 05:23:23.82] Analyzing function: LBM_freeGrid with pointer level: 1
+[2024/07/26 05:23:23.82] Analyzing function: free with pointer level: 1
+[2024/07/26 05:23:23.82] Analyzing function: LBM_initializeGrid with pointer level: 1
+[2024/07/26 05:23:23.82] Analyzing function: LBM_swapGrids with pointer level: 1
+[2024/07/26 05:23:23.82] Analyzing function: LBM_loadObstacleFile with pointer level: 1
+[2024/07/26 05:23:23.83] Analyzing function: _fopen with pointer level: 1
+[2024/07/26 05:23:23.83] Analyzing function: fgetc with pointer level: 1
+[2024/07/26 05:23:23.83] Analyzing function: fclose with pointer level: 1
+[2024/07/26 05:23:23.83] Analyzing function: LBM_initializeSpecialCellsForLDC with pointer level: 1
+[2024/07/26 05:23:23.84] Analyzing function: LBM_initializeSpecialCellsForChannel with pointer level: 1
+[2024/07/26 05:23:23.85] Analyzing function: LBM_performStreamCollideBGK with pointer level: 1
+[2024/07/26 05:23:23.92] Analyzing function: llvm.fmuladd.f64 with pointer level: 1
+[2024/07/26 05:23:23.92] Analyzing function: LBM_performStreamCollideTRT with pointer level: 1
+[2024/07/26 05:23:23.100] Analyzing function: LBM_handleInOutFlow with pointer level: 1
+[2024/07/26 05:23:23.112] Analyzing function: LBM_showGridStatistics with pointer level: 1
+[2024/07/26 05:23:23.116] Analyzing function: llvm.sqrt.f64 with pointer level: 1
+[2024/07/26 05:23:23.116] Analyzing function: LBM_storeVelocityField with pointer level: 1
+[2024/07/26 05:23:23.122] Analyzing function: storeValue with pointer level: 1
+[2024/07/26 05:23:23.123] Analyzing function: fprintf with pointer level: 1
+[2024/07/26 05:23:23.123] Analyzing function: _fwrite with pointer level: 1
+[2024/07/26 05:23:23.123] Analyzing function: LBM_compareVelocityField with pointer level: 1
+[2024/07/26 05:23:23.131] Analyzing function: loadValue with pointer level: 1
+[2024/07/26 05:23:23.131] Analyzing function: fscanf with pointer level: 1
+[2024/07/26 05:23:23.131] Analyzing function: llvm.fmuladd.f32 with pointer level: 1
+[2024/07/26 05:23:23.131] Analyzing function: fread with pointer level: 1
+[2024/07/26 05:23:23.131] Analyzing function: main with pointer level: 1
+[2024/07/26 05:23:23.132] Analyzing function: MAIN_parseCommandLine with pointer level: 1
+[2024/07/26 05:23:23.132] Analyzing function: MAIN_printInfo with pointer level: 1
+[2024/07/26 05:23:23.132] Analyzing function: MAIN_initialize with pointer level: 1
+[2024/07/26 05:23:23.132] Analyzing function: MAIN_finalize with pointer level: 1
+[2024/07/26 05:23:23.132] Analyzing function: llvm.memcpy.p0i8.p0i8.i64 with pointer level: 1
+[2024/07/26 05:23:23.132] Analyzing function: atoi with pointer level: 1
+[2024/07/26 05:23:23.132] Analyzing function: _stat with pointer level: 1
+End of analysis
+===-------------------------------------------------------------------------===
+                      ... Pass execution timing report ...
+===-------------------------------------------------------------------------===
+  Total Execution Time: 0.1905 seconds (0.1917 wall clock)
+
+   ---User Time---   --System Time--   --User+System--   ---Wall Time---  ---Mem---  ---Instr---  --- Name ---
+   0.0864 ( 45.9%)   0.0012 ( 53.0%)   0.0876 ( 46.0%)   0.0882 ( 46.0%)    3968512  826176646  PrintAliasToPairs
+   0.0801 ( 42.6%)   0.0011 ( 45.7%)   0.0812 ( 42.6%)   0.0818 ( 42.7%)    3968160  773929759  FlowSensitivePointerAnalysis
+   0.0105 (  5.6%)   0.0000 (  0.4%)   0.0105 (  5.5%)   0.0105 (  5.5%)        288  103015036  VerifierPass
+   0.0104 (  5.5%)   0.0000 (  0.2%)   0.0104 (  5.5%)   0.0105 (  5.5%)         48  102761824  VerifierAnalysis
+   0.0004 (  0.2%)   0.0000 (  0.6%)   0.0004 (  0.2%)   0.0004 (  0.2%)      19280    4003753  DominatorTreeAnalysis
+   0.0004 (  0.2%)   0.0000 (  0.1%)   0.0004 (  0.2%)   0.0004 (  0.2%)      24080    3039964  DominanceFrontierAnalysis
+   0.1882 (100.0%)   0.0023 (100.0%)   0.1905 (100.0%)   0.1917 (100.0%)    7980368  1812926982  Total
+
+===-------------------------------------------------------------------------===
+                                LLVM IR Parsing
+===-------------------------------------------------------------------------===
+  Total Execution Time: 0.1285 seconds (0.1289 wall clock)
+
+   ---User Time---   --System Time--   --User+System--   ---Wall Time---  ---Mem---  ---Instr---  --- Name ---
+   0.1280 (100.0%)   0.0005 (100.0%)   0.1285 (100.0%)   0.1289 (100.0%)    1072592  1050940431  Parse IR
+   0.1280 (100.0%)   0.0005 (100.0%)   0.1285 (100.0%)   0.1289 (100.0%)    1072592  1050940431  Total
+
