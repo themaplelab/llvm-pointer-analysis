@@ -1,6 +1,7 @@
 add_llvm_component_library(LLVMTransformUtils
   AddDiscriminators.cpp
   AMDGPUEmitPrintf.cpp
+  AndersenPointerAnalysis.cpp
   ASanStackFrameLayout.cpp
   AssumeBundleBuilder.cpp
   BasicBlockUtils.cpp
@@ -74,6 +75,7 @@ add_llvm_component_library(LLVMTransformUtils
   SimplifyLibCalls.cpp
   SizeOpts.cpp
   SplitModule.cpp
+  StagedFlowSensitivePointerAnalysis.cpp
   StripNonLineTableDebugInfo.cpp
   SymbolRewriter.cpp
   UnifyFunctionExitNodes.cpp

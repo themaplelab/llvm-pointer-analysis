@@ -1044,9 +1044,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                     DefLocations[Alias][UseLoc->getFunction()].insert(UseLoc);
 
                     LabelMap[UseLoc].insert(Label(Alias, Label::LabelType::Use));
-                    Def2Functions[Alias].insert(UseLoc->getFunction());
                     UseList[Alias].insert(UseLoc);
-                    DefList[Alias].insert(UseLoc);
 
                 }
                 
@@ -1539,15 +1537,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
                     // dbgs() << "Processing pointer " << *Ptr << "\n";
                     auto Pair = buildDominatorGraph(&Func, Ptr);
                     auto OUT = Pair.first;
-
-                    // for(auto P : OUT){
-                    //     dbgs() << *(P.first) << " DEFS \n";
-                    //     for(auto PP : P.second){
-                    //         dbgs() << *PP << "\n";
-                    //     }
-                    // }
-
-
                     auto DG = Pair.second;
                     auto UseLocs = getUseLocations(Ptr);
                     buildDefUseGraph(UseLocs, Ptr, OUT, DG);
