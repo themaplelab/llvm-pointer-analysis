@@ -472,10 +472,8 @@ void StagedFlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocation
                 PropagateList.push_back(std::make_tuple(Loc, UseLoc, Pointer));
             }
         }
-        
     }
     else{
-
         if(dyn_cast<LoadInst>(Pointer)){
             return;
         }
