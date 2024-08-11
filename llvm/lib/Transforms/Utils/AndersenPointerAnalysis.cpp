@@ -197,13 +197,13 @@ AndersenPointerAnalysisResult AndersenPointerAnalysis::run(Module &M, ModuleAnal
 
     AnalysisResult.setPointsToSet(PointsToSet);
 
-    dbgs() << "Points-to set for andersen analysis.\n";
-    for(auto Pair : PointsToSet){
-        dbgs() << *Pair.first << " =>\n";
-        for(auto Ptr : Pair.second){
-            dbgs() << "\t" << *Ptr << "\n";
-        }
-    }
+    // dbgs() << "Points-to set for andersen analysis.\n";
+    // for(auto Pair : PointsToSet){
+    //     dbgs() << *Pair.first << " =>\n";
+    //     for(auto Ptr : Pair.second){
+    //         dbgs() << "\t" << *Ptr << "\n";
+    //     }
+    // }
 
     return AnalysisResult;
 

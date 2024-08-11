@@ -6,19 +6,19 @@
 using namespace llvm;
 
 PreservedAnalyses PrintPL::run(Module &m, ModuleAnalysisManager &mam){
-    auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
+    // auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
     // auto AndersenResult = mam.getResult<AndersenPointerAnalysis>(m);
     auto SFSResult = mam.getResult<StagedFlowSensitivePointerAnalysis>(m);
-    auto worklist = result.getWorkList();
+    // auto worklist = result.getWorkList();
 
     return PreservedAnalyses::all();
 
-    for(auto &func : m.functions()){
-        outs() << "Function " << func.getName() << "\n";
-        processWorkListForFunction(worklist[&func]);
-    }
+    // for(auto &func : m.functions()){
+    //     outs() << "Function " << func.getName() << "\n";
+    //     processWorkListForFunction(worklist[&func]);
+    // }
 
-    return PreservedAnalyses::all();
+    // return PreservedAnalyses::all();
 }
 
 

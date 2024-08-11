@@ -81,7 +81,7 @@ namespace llvm{
         void propagatePointsToInformation(const ProgramLocationTy *UseLoc,
             const ProgramLocationTy *DefLoc, const PointerTy *Ptr);
         void updatePointsToSet(const ProgramLocationTy *Loc, const PointerTy *Pointer, 
-            std::set<const PointerTy *> AdjustedPointsToSet, std::vector<DefUseEdgeTupleTy> &PropagateList);
+            std::set<const PointerTy *> AdjustedPointsToSet, std::vector<DefUseEdgeTupleTy> &PropagateList, bool IsStrongUpdate = true);
         void updateArgPointsToSetOfFunc(const Function *Func, std::set<const Value*> PTS, 
             size_t ArgIdx, std::vector<DefUseEdgeTupleTy> &PropagateList);
         std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy *Loc, const PointerTy *Ptr);
@@ -97,6 +97,9 @@ namespace llvm{
         std::vector<const PointerTy*> ptsPointsTo(const ProgramLocationTy *Loc, const PointerTy *Ptr);
         void printPointsToSetAtProgramLocation(const ProgramLocationTy *Loc);
         void dumpPointsToSet();
+        void dumpAliasMap();
+        void updateArgAliasOfFunc(const CallInst *CallSite, std::set<const PointerTy*> AliasSet, size_t ArgIdx,
+        std::vector<DefUseEdgeTupleTy> &PropagateList);
 
 
 
