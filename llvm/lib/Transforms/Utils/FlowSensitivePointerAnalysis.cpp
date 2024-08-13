@@ -918,6 +918,7 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
         }
         AliasUser[Alias].insert(Loc);
         if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(Alias)){
+            // bug: should be assign not insert
             AliasMap[Loc][Load].insert(PointsToSetOut.at(Loc).at(Alias).begin(), PointsToSetOut.at(Loc).at(Alias).end());
         }
     }
@@ -1182,8 +1183,6 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
             auto PTS = getRealPointsToSet(UseLoc, Store->getValueOperand());
             updatePointsToSet(UseLoc, Ptr, PTS, PropagateList);
             updatePointsToSet(UseLoc, Store->getPointerOperand(), PTS, PropagateList);
-
-
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
             PointsToSetOut[UseLoc][Ptr] = PointsToSetIn.at(UseLoc).at(Ptr);
@@ -1563,7 +1562,15 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
         AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
         AnalysisResult.setPointsToSet(PointsToSetOut);
 
-        dbgs() << "End of analysis\n";
+        size_t TotalPtsSize = 0, NumPts = 0;
+        for(auto Pair : PointsToSetOut){
+            for(auto P : Pair.second){
+                TotalPtsSize += P.second.size();
+                NumPts += 1;
+            }
+        }
+
+        dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << "\n";
 
         return AnalysisResult;
     }
