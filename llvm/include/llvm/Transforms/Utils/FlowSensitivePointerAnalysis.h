@@ -214,6 +214,10 @@ namespace llvm{
             std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
                 buildDominatorGraph(const Function *Func, const PointerTy *Ptr);
 
+            void addDefLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc, const Function *Func);
+            void addUseLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc);
+
+
 
             
         public:

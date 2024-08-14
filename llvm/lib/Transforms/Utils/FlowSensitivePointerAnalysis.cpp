@@ -187,6 +187,20 @@ size_t FlowSensitivePointerAnalysis::computePointerLevel(const PointerTy *Ptr){
     return PointerLevel;
 }
 
+void FlowSensitivePointerAnalysis::addDefLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc, const Function *Func){
+    LabelMap[Loc].insert(Label(Ptr, Label::LabelType::Def));
+    DefLocations[Ptr][Func].insert(Loc);
+
+    return;
+}
+
+void FlowSensitivePointerAnalysis::addUseLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc){
+    LabelMap[Loc].insert(Label(Ptr, Label::LabelType::Use));
+    UseList[Ptr].insert(Loc);
+
+    return;
+}
+
 /// @brief Calculate pointer level for function \p Func. Mark labels for each pointer
 ///     related instructions. Store pointers into worklist according to their pointer level.
 size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
@@ -203,8 +217,7 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
             if(!Arg.getType()->isPointerTy()){
                 continue;
             }
-            LabelMap[FirstInst].insert(Label(&Arg, Label::LabelType::Def));
-            DefLocations[&Arg][Func].insert(FirstInst);
+            addDefLabel(&Arg, FirstInst, Func);
             PointsToSetOut[FirstInst][&Arg] = std::set<const Value*>{};
             auto PointerLevel = computePointerLevel(&Arg);
             WorkList[PointerLevel].insert(&Arg);
@@ -218,8 +231,7 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
             if(PointerLevel > res){
                 res = PointerLevel;
             }
-            LabelMap[Alloca].insert(Label(Alloca, Label::LabelType::Def));
-            DefLocations[Alloca][Func].insert(Alloca);
+            addDefLabel(Alloca, Alloca, Func);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
             PointsToSetOut[&Inst][Alloca] = std::set<const Value*>{nullptr};
         }
@@ -236,8 +248,7 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
         else if(const ReturnInst *Return = dyn_cast<ReturnInst>(&Inst)){
             Func2TerminateBBs[Func].insert(Return->getParent());
             for(auto &Arg : Func->args()){
-                LabelMap[Return].insert(Label(&Arg, Label::LabelType::Use));
-                UseList[&Arg].insert(Return);
+                addUseLabel(&Arg, Return);
             }
             
         }
@@ -419,24 +430,18 @@ void FlowSensitivePointerAnalysis::markLabelsForPtr(const PointerTy *Ptr){
             if(Store->getValueOperand() == Ptr){
                 continue;
             }
-            LabelMap[Store].insert(Label(Ptr, Label::LabelType::Def));
-            DefLocations[Ptr][Store->getFunction()].insert(Store);
-            LabelMap[Store].insert(Label(Ptr, Label::LabelType::Use));
-            UseList[Ptr].insert(Store);
+            addDefLabel(Ptr, Store, Store->getFunction());
+            addUseLabel(Ptr, Store);
         }
         else if(auto *Load = dyn_cast<LoadInst>(User)){
-            LabelMap[Load].insert(Label(Ptr, Label::LabelType::Use));
-            UseList[Ptr].insert(Load);
+            addUseLabel(Ptr, Load);
         }
         else if(auto *Call = dyn_cast<CallInst>(User)){
-            LabelMap[Call].insert(Label(Ptr, Label::LabelType::Use));
-            LabelMap[Call].insert(Label(Ptr, Label::LabelType::Def));
-            DefLocations[Ptr][Call->getFunction()].insert(Call);
-            UseList[Ptr].insert(Call);
+            addDefLabel(Ptr, Call, Call->getFunction());
+            addUseLabel(Ptr, Call);
         }
-        else if(auto *Ret = dyn_cast<ReturnInst>(User)){
-            LabelMap[Ret].insert(Label(Ptr, Label::LabelType::Use));
-            UseList[Ptr].insert(Ret);
+        else if(auto *Return = dyn_cast<ReturnInst>(User)){
+            addUseLabel(Ptr, Return);
         }
         else if(dyn_cast<GetElementPtrInst>(User) || dyn_cast<BitCastInst>(User) || 
                 dyn_cast<CmpInst>(User) || dyn_cast<InvokeInst>(User) || dyn_cast<VAArgInst>(User) || 
@@ -1040,13 +1045,8 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                             continue;
                     }
                     // updatePointsToSet(UseLoc, Alias, PTS, PropagateList);
-
-                    LabelMap[UseLoc].insert(Label(Alias, Label::LabelType::Def));
-                    DefLocations[Alias][UseLoc->getFunction()].insert(UseLoc);
-
-                    LabelMap[UseLoc].insert(Label(Alias, Label::LabelType::Use));
-                    UseList[Alias].insert(UseLoc);
-
+                    addDefLabel(Alias, UseLoc, UseLoc->getFunction());
+                    addUseLabel(Alias, UseLoc);
                 }
                 
             }
@@ -1081,15 +1081,13 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
             for(auto Alias : AliasMap.at(Load).at(Ptr)){
-                LabelMap[Load].insert(Label(Alias, Label::LabelType::Use));
-                UseList[Alias].insert(Load);
+                addUseLabel(Alias, Load);
             }
         }
         else if(auto Ret = dyn_cast<ReturnInst>(UseLoc)){
             for(auto Alias : AliasMap.at(UseLoc).at(Ptr)){
                 if(Alias && (dyn_cast<AllocaInst>(Alias) || dyn_cast<LoadInst>(Alias))){
-                    LabelMap[UseLoc].insert(Label(Alias, Label::LabelType::Use));
-                    UseList[Alias].insert(UseLoc);
+                    addUseLabel(Alias, UseLoc);
                 }
             }
         }
@@ -1100,11 +1098,8 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
             }
 
             for(auto Alias : AliasMap.at(UseLoc).at(Ptr)){
-                LabelMap[UseLoc].insert(Label(Alias, Label::LabelType::Use));
-                LabelMap[UseLoc].insert(Label(Alias, Label::LabelType::Def));
-                DefLocations[Alias][UseLoc->getFunction()].insert(UseLoc);
-                
-                UseList[Alias].insert(UseLoc);
+                addDefLabel(Alias, UseLoc, UseLoc->getFunction());
+                addUseLabel(Alias, UseLoc);
             }
 
             // Find corresponding parameter index from the actual argument.
