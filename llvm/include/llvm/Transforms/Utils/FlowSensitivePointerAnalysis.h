@@ -154,6 +154,7 @@ namespace llvm{
         std::map<const Function*, std::reference_wrapper<DominanceFrontierAnalysis::Result>> Func2DomFrontier;
         std::map<const Function*, std::map<const PointerTy*, DomGraph>> FuncPtr2DomGraph;
         std::map<const PointerTy*, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
+        std::map<const CallInst*, std::map<const PointerTy*, std::set<size_t>>> CallSite2ArgIdx;
 
 
         size_t TotalFunctionNumber = 0;
