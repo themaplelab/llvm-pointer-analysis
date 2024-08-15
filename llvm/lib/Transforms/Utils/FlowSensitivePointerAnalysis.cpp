@@ -393,17 +393,17 @@ std::vector<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitiv
 
 /// @brief Find all def use edges starting from the allocation location of pointers.
 ///     When we start propagating points-to information, we want to start with these edges.
-std::vector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerAnalysis::
+SetVector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerAnalysis::
     initializePropagateList(std::set<const PointerTy*> Pointers, size_t PtrLvl, const Function *Func){
 
-    std::vector<DefUseEdgeTupleTy> PropagateList{};
+    SetVector<DefUseEdgeTupleTy> PropagateList{};
     for(auto Ptr: Pointers){
         if(!Func->isDeclaration()){
             if(auto Arg = dyn_cast<Argument>(Ptr)){
                 auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
                 auto InitialDUEdges = getAffectUseLocations(FirstInst, Arg);
                 for(auto UseLoc : InitialDUEdges){
-                    PropagateList.push_back(std::make_tuple(FirstInst, UseLoc, Arg));
+                    PropagateList.insert(std::make_tuple(FirstInst, UseLoc, Arg));
                 }
                 continue;
             }
@@ -414,7 +414,7 @@ std::vector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointe
         assert(Loc && "Cannot use nullptr as program location");
         auto InitialDUEdges = getAffectUseLocations(Loc, Ptr);
         for(auto UseLoc : InitialDUEdges){
-            PropagateList.push_back(std::make_tuple(Loc, UseLoc, Ptr));
+            PropagateList.insert(std::make_tuple(Loc, UseLoc, Ptr));
         }
     }
     if(GlobalWorkList.count(PtrLvl)){
@@ -462,7 +462,7 @@ std::set<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointerAna
 /// @brief Update points-to-set for \p Ptr at program location \p Loc.
 /// @return True if the points-to set is changed.
 bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const ProgramLocationTy *Loc, 
-    const PointerTy *Ptr, std::set<const PointerTy*> PTS){
+    const PointerTy *Ptr, std::set<const PointerTy*> &PTS){
 
     auto OldPTS = std::set<const Value*>{};
     if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(Ptr)){
@@ -476,61 +476,60 @@ bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const Prog
     return false;
 }
 
+bool FlowSensitivePointerAnalysis::insertPointsToSetAtProgramLocation(const ProgramLocationTy *Loc, 
+    const PointerTy *Ptr, std::set<const PointerTy*> &PTS){
+        bool Changed = false;
+        for(auto Pointer : PTS){
+            if(PointsToSetOut[Loc][Ptr].insert(Pointer).second){
+                Changed = true;
+            }
+        }
+
+        return Changed;
+}
+
 /// @brief Perform either strong update or weak update for \p Pointer at \p Loc
 ///     according to the size of aliases of \p Pointer. Add def-use edges to
 ///     \p PropagateList if needed.
 void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Loc,
      const PointerTy *Pointer, std::set<const PointerTy *> AdjustedPointsToSet, 
-     std::vector<DefUseEdgeTupleTy> &PropagateList){
+     SetVector<DefUseEdgeTupleTy> &PropagateList){
 
     assert(Pointer && "Cannot update PTS for nullptr");
     auto Store = dyn_cast<StoreInst>(Loc);
 
     auto AliasSet = std::set<const PointerTy *>{};
-    if(AliasMap.count(Loc) && AliasMap[Loc].count(Store->getPointerOperand())){
-        for(auto Ptr : AliasMap.at(Loc).at(Store->getPointerOperand())){
-            if(!Ptr){
-                DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " WARNING: pointer " 
-                    << *Store->getPointerOperand() << " may alias to nullptr at " << *Loc << "\n");
-                continue;
-            }
-            if(!isa<LoadInst>(Ptr)){
-                AliasSet.insert(Ptr);
-            }
-        }
-    }
-    
 
-
-    bool Changed = false;
-    if(AliasSet.size() <= 1){
-        // Strong update
-        // dbgs() << "Strong update " << *Pointer << "\n";
-        Changed = updatePointsToSetAtProgramLocation(Loc, Pointer, AdjustedPointsToSet);
-    }
-    else{
-        // Weak update
-        // dbgs() << "Weak update " << *Pointer << "\n";
-
-
-        for(auto Alias : AliasSet){
-            if(dyn_cast<LoadInst>(Alias)){
-                continue;
-            }
-            auto PTS = PointsToSetIn[Loc][Alias];
-            PTS.insert(AdjustedPointsToSet.begin(), AdjustedPointsToSet.end());
-
-            if(updatePointsToSetAtProgramLocation(Loc, Alias, PTS)){
-                for(auto UseLoc : getAffectUseLocations(Loc, Alias)){    
-                    PropagateList.push_back(std::make_tuple(Loc, UseLoc, Alias));
+    if(auto Load = dyn_cast<LoadInst>(Store->getPointerOperand())){
+        if(PointsToSetOut.count(Load) && PointsToSetOut[Load].count(Load->getPointerOperand())){
+            for(auto Ptr : PointsToSetOut[Load][Load->getPointerOperand()]){
+                if(Ptr && !isa<LoadInst>(Ptr)){
+                    AliasSet.insert(Ptr);
                 }
             }
         }
     }
-
-    if(Changed){
-        for(auto UseLoc : getAffectUseLocations(Loc, Pointer)){    
-            PropagateList.push_back(std::make_tuple(Loc, UseLoc, Pointer));
+    
+    if(AliasSet.size() <= 1){
+        // Strong update
+        if(updatePointsToSetAtProgramLocation(Loc, Pointer, AdjustedPointsToSet)){
+            for(auto UseLoc : getAffectUseLocations(Loc, Pointer)){    
+                PropagateList.insert(std::make_tuple(Loc, UseLoc, Pointer));
+            }
+        }
+    }
+    else{
+        // Weak update
+        for(auto Alias : AliasSet){
+            if(dyn_cast<LoadInst>(Alias)){
+                continue;
+            }
+            PointsToSetOut[Loc][Alias] = PointsToSetIn[Loc][Alias];
+            if(insertPointsToSetAtProgramLocation(Loc, Alias, AdjustedPointsToSet)){
+                for(auto UseLoc : getAffectUseLocations(Loc, Alias)){    
+                    PropagateList.insert(std::make_tuple(Loc, UseLoc, Alias));
+                }
+            }
         }
     }
 }
@@ -595,7 +594,7 @@ std::vector<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointer
 /// @brief Propagate the alias set of \p Loc at \p Loc to its use locations.
 ///     Update its user accordingly.
 void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc, 
-    std::vector<DefUseEdgeTupleTy> &PropagateList){
+    SetVector<DefUseEdgeTupleTy> &PropagateList){
 
     
     // dbgs() << AliasUser.count(Loc) << "\n";
@@ -618,16 +617,11 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 // if user is 'store x y', and we are passing alias-set(y), we need to make
                 // pts(z) = pts(y) for each z in alias-set(y)
                 for(auto Alias : AliasMap.at(UseLoc).at(Ptr)){
-                    // auto PTS = std::set<const PointerTy *>{};
-                    // if(PointsToSet.count(UseLoc) && PointsToSet[UseLoc].count(Ptr)){
-                    //     PTS = PointsToSet.at(UseLoc).at(Ptr);
-                    // }
                     if(!Alias){
                         DEBUG_WITH_TYPE("warning", dbgs() << getCurrentTime() << " WARNING: try to update pts for nullptr at"
                             << *UseLoc << " because nullptr is alias to " << *Ptr << "\n");
                             continue;
                     }
-                    // updatePointsToSet(UseLoc, Alias, PTS, PropagateList);
                     addDefLabel(Alias, UseLoc, UseLoc->getFunction());
                     addUseLabel(Alias, UseLoc);
                 }
@@ -651,7 +645,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                     if(OldPTS != PointsToSetOut.at(UseLoc).at(Pointer)){
 
                         for(auto AffectedLoc : getAffectUseLocations(UseLoc, Pointer)){    
-                                PropagateList.push_back(std::make_tuple(UseLoc, AffectedLoc, Pointer));
+                                PropagateList.insert(std::make_tuple(UseLoc, AffectedLoc, Pointer));
                         }
                     }
                 }
@@ -711,7 +705,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
 
 /// @brief Update the PTS of \p ArgIdx-th parameter of Func.
 void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Func, std::set<const Value*> PTS, 
-    size_t ArgIdx, std::vector<DefUseEdgeTupleTy> &PropagateList){
+    size_t ArgIdx, SetVector<DefUseEdgeTupleTy> &PropagateList){
     // Densemap has no at member function in llvm-14. Move back to use std::map.
 
     const Value *Parameter;
@@ -731,13 +725,13 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
 
     if(OldSize != PointsToSetOut.at(FirstInst).at(Parameter).size()){
         for(auto UseLoc : getAffectUseLocations(FirstInst, Parameter)){    
-            PropagateList.push_back(std::make_tuple(FirstInst, UseLoc, Parameter));
+            PropagateList.insert(std::make_tuple(FirstInst, UseLoc, Parameter));
         }
     }
 }
 
 /// @brief Propagate pointer information along def use graph until fix-point.
-void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> PropagateList, 
+void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> PropagateList, 
     const Function *Func){
    
     while(!PropagateList.empty()){
@@ -761,7 +755,6 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
             auto PTS = getRealPointsToSet(UseLoc, Store->getValueOperand());
             updatePointsToSet(UseLoc, Ptr, PTS, PropagateList);
-            updatePointsToSet(UseLoc, Store->getPointerOperand(), PTS, PropagateList);
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
             PointsToSetOut[UseLoc][Ptr] = PointsToSetIn.at(UseLoc).at(Ptr);
@@ -826,13 +819,13 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
                     auto Changed = updatePointsToSetAtProgramLocation(CallSite, Arg, PointsToSetOut[Return][Ptr]);
                     if(Changed){
                         for(auto UseLoc : getAffectUseLocations(CallSite, Arg)){    
-                            PropagateList.push_back(std::make_tuple(CallSite, UseLoc, Arg));
+                            PropagateList.insert(std::make_tuple(CallSite, UseLoc, Arg));
                         }
                     }
                     for(auto Alias : AliasMap[CallSite][Arg]){
                         if(updatePointsToSetAtProgramLocation(CallSite, Alias, PointsToSetOut[Return][Ptr])){
                         for(auto UseLoc : getAffectUseLocations(CallSite, Alias)){    
-                            PropagateList.push_back(std::make_tuple(CallSite, UseLoc, Alias));
+                            PropagateList.insert(std::make_tuple(CallSite, UseLoc, Alias));
                         }
                     }
                     }
@@ -1030,6 +1023,8 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
             auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
 
+            // dbgs() << getCurrentTime() << " Propagating function: " 
+            //     << Func.getName() << " with pointer level: " << CurrentPointerLevel << "\n";
             // Also save caller when passing the arguments.
             propagate(PropagateList, &Func);
 

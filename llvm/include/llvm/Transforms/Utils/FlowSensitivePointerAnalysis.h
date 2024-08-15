@@ -182,20 +182,20 @@ namespace llvm{
             size_t globalInitialize(Module&);
             bool hasDef(const ProgramLocationTy*, const PointerTy*);
             size_t initialize(const Function*);
-            std::vector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
+            SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
             void markLabelsForPtr(const PointerTy*);
             void performPointerAnalysisOnFunction(const Function*, size_t);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
-            void propagate(std::vector<DefUseEdgeTupleTy>, const Function*);
+            void propagate(SetVector<DefUseEdgeTupleTy>, const Function*);
             void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*);
             std::vector<const PointerTy*> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
             void updateAliasInformation(const ProgramLocationTy *, const LoadInst *);
-            void updateAliasUsers(const ProgramLocationTy*, std::vector<DefUseEdgeTupleTy>&);
-            void updateArgPointsToSetOfFunc(const Function*, std::set<const PointerTy*>, size_t, std::vector<DefUseEdgeTupleTy> &);
+            void updateAliasUsers(const ProgramLocationTy*, SetVector<DefUseEdgeTupleTy>&);
+            void updateArgPointsToSetOfFunc(const Function*, std::set<const PointerTy*>, size_t, SetVector<DefUseEdgeTupleTy> &);
             void updatePointsToSet(const ProgramLocationTy*, const PointerTy*, 
-                std::set<const PointerTy*>, std::vector<DefUseEdgeTupleTy>&);
-            bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const PointerTy*>);
+                std::set<const PointerTy*>, SetVector<DefUseEdgeTupleTy>&);
+            bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const PointerTy*>&);
 
 
             std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
@@ -203,6 +203,7 @@ namespace llvm{
 
             void addDefLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc, const Function *Func);
             void addUseLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc);
+            bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<const PointerTy*>&);
 
 
 
