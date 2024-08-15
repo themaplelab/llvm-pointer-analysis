@@ -11,7 +11,8 @@
 
 // 1. some def use edge are found more than once. DONE
 // 2. temporary variables should not be propagated. DONE
-// 3. only handle para of ptr type.
+// 3. only handle para of ptr type. DONE
+// 5. Add support for global variable.
 
 using namespace llvm;
 
@@ -106,6 +107,14 @@ void FlowSensitivePointerAnalysis::dumpLabelMap(){
 /// @brief Initialize analysis for all functions in current module. 
 /// @return The largest pointer level among all functions.
 size_t FlowSensitivePointerAnalysis::globalInitialize(Module &M){
+
+    // for(auto &Global : M.globals()){
+    //     if(Global.getType()->isPointerTy()){
+    //         auto PointerLevel = computePointerLevel(&Global);
+    //         GlobalWorkList[PointerLevel].insert(&Global);
+    //     }
+    // }
+
     size_t PtrLvl = 0;
     for(auto &Func : M.functions()){
         ++TotalFunctionNumber;
@@ -189,6 +198,13 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
         else if(const CallInst *Call = dyn_cast<CallInst>(&Inst)){
             Func2CallerLocation[Call->getCalledFunction()].insert(Call);
             if(!Call->getCalledFunction()){
+                // dbgs() << *Call << "\n";
+                // if(isa<Function>(Call->getCalledOperand()->stripPointerCasts())){
+                //     dbgs() << Call->getCalledOperand()->stripPointerCasts()->getName() << "\n";
+                // }
+                // else{
+                //     dbgs() << *Call->getCalledOperand()->stripPointerCasts() << "\n";
+                // }
                 DEBUG_WITH_TYPE("warning", dbgs() << getCurrentTime() << " WARNING:" 
                     << *Call << " performs an indirect call\n");
             }
@@ -216,49 +232,6 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
     return res;
 }
 
-/// @brief Propagate points-to set for a pointer if it is not defined at a
-///     program location
-void FlowSensitivePointerAnalysis::populatePointsToSet(Module &M){
-
-
-    for(auto &Func : M.functions()){
-
-        if(Func.isDeclaration()){
-            continue;
-        }
-
-        DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Populate points-to set for function "
-            << Func.getName() << "\n");
-
-        SetVector<const PointerTy*> AllocatedPointersAndParameterAliases{};
-
-        // Collect all allocated pointer in current function.
-        if(Func2WorkList.count(&Func)){
-            for(auto WorkList : Func2WorkList.at(&Func)){
-                AllocatedPointersAndParameterAliases.insert(WorkList.second.begin(), WorkList.second.end());
-            }
-        }
-        // Collect all pointers that alias to parameters of this function.
-        if(FuncParas2AliasSet.count(&Func)){
-            for(auto Paras2AliasSet : FuncParas2AliasSet[&Func]){
-                AllocatedPointersAndParameterAliases.insert(Paras2AliasSet.second.begin(), Paras2AliasSet.second.end());
-            }
-        }
-        Func2AllocatedPointersAndParameterAliases[&Func] = AllocatedPointersAndParameterAliases;
-
-        populatePTSForFunc(&Func);
-
-    }
-}
-
-
-void FlowSensitivePointerAnalysis::populatePTSForFunc(const Function *Func){
-    DenseSet<const ProgramLocationTy*> Visited{};
-    for(auto &Inst : instructions(Func)){
-        populatePTSAtLocation(&Inst);
-    }
-    
-}
 
 /// @brief Check if a program location defines a pointer \p Ptr.
 bool FlowSensitivePointerAnalysis::hasDef(const ProgramLocationTy *Loc, const PointerTy *Ptr){
@@ -270,106 +243,6 @@ bool FlowSensitivePointerAnalysis::hasDef(const ProgramLocationTy *Loc, const Po
         return L.Type == Label::LabelType::Def && L.Ptr == Ptr;
         });
     return (iter == LabelMap.at(Loc).end() ? false : true);
-}
-
-/// @brief Find all possible next program location of program location
-///     \p Loc inter-procedurally. If we run in to a function call, we will take
-///     all return instructions of the function as result. If we already at the 
-///     first instruction of the function, we will return all program locations
-///     one instruction before the calling instruction that calls this function.
-/// @return A set of program locations that possible be the next location of \p Loc.
-std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::
-    getNextProgramLocations(const ProgramLocationTy *Loc, const Function *MadeFrom){
-
-    DEBUG_WITH_TYPE("debug", dbgs() << getCurrentTime() << " Getting next loc for " 
-        << Loc->getFunction()->getName() << "::" << Loc->getParent()->getName() << "::" << *Loc << "\n");
-
-    std::set<const ProgramLocationTy*> res{};
-
-    auto Next = Loc->getNextNonDebugInstruction();
-    if(Next){
-        if(auto Call = dyn_cast<CallInst>(Next)){
-            // dbgs() << Call->getCalledFunction()->isDeclaration() << "\n";
-            if(Call->getCalledFunction() != MadeFrom && Call->getCalledFunction() && !Call->getCalledFunction()->isDeclaration()){
-                // should get first instruction of the function.
-                res.insert(Call->getCalledFunction()->getEntryBlock().getFirstNonPHIOrDbg());
-                return res;
-            }
-        }
-        
-        return std::set<const ProgramLocationTy*>{Next};
- 
-    }
-    else{
-        auto NextBasicBlocksRange = successors(Loc->getParent());
-            
-        if(NextBasicBlocksRange.empty()){
-            if(Func2CallerLocation.count(Loc->getParent()->getParent())){
-                for(auto CallLoc : Func2CallerLocation.at(Loc->getParent()->getParent())){
-                    auto P = getNextProgramLocations(CallLoc, Loc->getFunction());
-                    res.insert(P.begin(), P.end());
-                }
-            }
-            return res;
-        }
-        else{
-            for(auto *NextBasicBlock : NextBasicBlocksRange){
-                auto N = NextBasicBlock->getFirstNonPHIOrDbg();
-                if(auto Call = dyn_cast<CallInst>(N)){
-                    // dbgs() << Call->getCalledFunction()->isDeclaration() << "\n";
-                    if(Call->getCalledFunction() != MadeFrom && Call->getCalledFunction() && !Call->getCalledFunction()->isDeclaration()){
-                        // should get first instruction of the function.
-                        res.insert(Call->getCalledFunction()->getEntryBlock().getFirstNonPHIOrDbg());
-                    }
-                    else{
-                        res.insert(N);
-                    }
-                }
-                else{
-                    res.insert(N);
-                }
-                
-            }
-            return res;
-        }
-    }
-    
-    
-}
-
-/// @brief Populate all points-to set in \p PassedPTS to program location \p Loc
-void FlowSensitivePointerAnalysis::populatePTSAtLocation(const ProgramLocationTy *Loc){
-
-
-    for(auto Pointer : Func2AllocatedPointersAndParameterAliases[Loc->getFunction()]){
-        // If program location Loc defines points-to set of Pointer, we make sure
-        // no intermediate pointer is removed.
-        if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(Pointer)){
-            for(auto it = PointsToSetOut[Loc][Pointer].begin(); it != PointsToSetOut[Loc][Pointer].end();){
-                if(*it && dyn_cast<LoadInst>(*it)){
-                    it = PointsToSetOut[Loc][Pointer].erase(it);
-                }
-                else{
-                    ++it;
-                }
-            }
-        }
-        else{
-            if(Loc == &Loc->getFunction()->getEntryBlock().front()){
-                break;
-            }
-            auto Defs = findDefFromPrevOfUseLoc(Loc, Pointer);
-            for(auto Def : Defs){
-                // dbgs() << "Found def " << *Def << "\n";
-                for(auto Ptr : PointsToSetOut[Def][Pointer]){
-                    if(!dyn_cast_or_null<LoadInst>(Ptr)){
-                        PointsToSetOut[Loc][Pointer].insert(Ptr);
-                    }
-                }
-                // PointsToSet[Loc][Pointer].insert(PointsToSet[Def][Pointer].begin(), PointsToSet[Def][Pointer].end());
-            }  
-        }
-    }
 }
 
 /// @brief Mark def and use labels for pointer \p Ptr. The labels are later 
@@ -487,159 +360,6 @@ void FlowSensitivePointerAnalysis::buildDefUseGraph(std::set<const ProgramLocati
     }
 }
 
-/// @brief Find all possible previous program location of program location
-///     \p Loc inter-procedurally. If we run in to a function call, we will take
-///     all return instructions of the function as result. If we already at the 
-///     first instruction of the function, we will return all program locations
-///     one instruction before the calling instruction that calls this function.
-/// @return A set of program locations that possible be the previous location of \p Loc.
-std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*>  
-    FlowSensitivePointerAnalysis::getPrevProgramLocations(const ProgramLocationTy *Loc){
-
-    std::set<const ProgramLocationTy*> res{};
-
-    auto Prev = Loc->getPrevNonDebugInstruction();
-    if(Prev){
-        return std::set<const ProgramLocationTy*>{Prev};
-    }
-    else{
-        auto PrevBasicBlocksRange = predecessors(Loc->getParent());
-            
-        if(PrevBasicBlocksRange.empty()){
-            // bug: we need to perform two different operations in two cases:
-            // 1. we finished a function and need to go back to the call location
-            // 2. we finished a function but does not need to return to a specific location.
-            // The first case can be recognized by a callstack. Everytime we get into a function,
-            // we push the stack, and when we need to return, we check the callstack. If it is not
-            // empty, it means we need to get back to the last element of the callstack. Otherwise,
-            // we will go to all call locs.
-            if(Func2CallerLocation.count(Loc->getParent()->getParent())){
-                for(auto callLoc : Func2CallerLocation.at(Loc->getParent()->getParent())){
-                    auto P = getPrevProgramLocations(callLoc);
-                    res.insert(P.begin(), P.end());
-                }
-            }
-            return res;
-        }
-        else{
-            for(auto *PrevBasicBlock : PrevBasicBlocksRange){
-                res.insert(&(PrevBasicBlock->back()));
-            }
-            return res;
-        }
-    }
-
-}
-
-
-/// @brief Find all program locations that defined pointer \p Ptr and dominates 
-///     program location \p Loc.
-std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::findDefFromPrevOfUseLoc(
-    const ProgramLocationTy *Loc, const PointerTy *Ptr){
-
-    DEBUG_WITH_TYPE("dfg", dbgs() << getCurrentTime() << " Finding defs of " 
-        << *Ptr << " at program location " << Loc->getFunction()->getName() 
-        << "::" << Loc->getParent()->getName() << "::" << *Loc << "\n");
-
-
-
-    // if(DefLoc.count(Loc) && DefLoc[Loc].count(Ptr)){
-    //     return DefLoc.at(Loc).at(Ptr);
-    // }
-    
-
-    std::set<const ProgramLocationTy*> Res{};
-    std::set<const ProgramLocationTy*> Visited{};
-    std::vector<const ProgramLocationTy*> CallStack{};
-
-    Res = findDefFromInst(Loc, Ptr, Visited, CallStack, true);
-
-    // DefLoc[Loc][Ptr] = Res;
-    return Res;
-}
-
-std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::
-    findDefFromFunc(const Function *Func, const PointerTy *Ptr, 
-    std::set<const ProgramLocationTy *> &Visited, std::vector<const ProgramLocationTy*> CallStack){
-
-
-    // Skip indirect call or external call or recursive call.
-    if(!Func || Func->isDeclaration() || (!CallStack.empty() && CallStack.back()->getFunction() == Func)){
-        return std::set<const ProgramLocationTy*>{};
-    }
-
-    std::set<const ProgramLocationTy*> Res{};
-
-    auto TerminatedBBs = std::set<const BasicBlock*>{};
-    if(Func2TerminateBBs.count(Func)){
-        TerminatedBBs = Func2TerminateBBs.at(Func);
-        for(auto TBB : TerminatedBBs){
-            assert(TBB && "Cannot get the last instruction of nullptr.");
-            auto Defs = findDefFromInst(&(TBB->back()), Ptr, Visited, CallStack);
-            Res.insert(Defs.begin(), Defs.end());
-        }
-
-        return Res;
-    }
-}
-
-
-
-std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::
-    findDefFromInst(const ProgramLocationTy *Loc, const PointerTy *Ptr, std::set<const ProgramLocationTy *> &Visited,
-    std::vector<const ProgramLocationTy*> CallStack, bool SkipSelf){
-
-    if(Visited.count(Loc)){
-        return std::set<const ProgramLocationTy*>{};
-    }
-
-    Visited.insert(Loc);
-    
-    DEBUG_WITH_TYPE("dfg", dbgs() << getCurrentTime() << " Finding defs of " 
-        << *Ptr << " at program location " << Loc->getFunction()->getName() 
-        << "::" << Loc->getParent()->getName() << "::" << *Loc << "\n");
-
-    // if(Loc->getFunction()->getName().str() == "S__make_exactf_invlist"){
-    //     dbgs() << getCurrentTime() << " inst: Finding defs of " 
-    //         << *Ptr << " at program location " << Loc->getFunction()->getName() 
-    //         << "::" << Loc->getParent()->getName() << "::" << *Loc << "\n";
-    // }
-
-    if(hasDef(Loc, Ptr) && !SkipSelf){
-        return std::set<const ProgramLocationTy*>{Loc};
-    }
-    // if(DefLoc.count(Loc) && DefLoc.at(Loc).count(Ptr)){
-    //     return DefLoc.at(Loc).at(Ptr);
-    // }
-
-    auto Prev = Loc->getPrevNonDebugInstruction();
-    if(Prev){
-        auto Defs = findDefFromInst(Prev, Ptr, Visited, CallStack);
-        // DefLoc[Loc][Ptr] = Defs;
-        return Defs;
-    }
-    else{
-        // we are reaching top of bb. Either we go pred bbs or go to calling context.
-        std::set<const ProgramLocationTy*> Res{};
-        auto PredBBRange = predecessors(Loc->getParent());
-        if(PredBBRange.empty()){
-            DEBUG_WITH_TYPE("dfg", dbgs() << getCurrentTime() << " WARNING: Cannot find defs of " 
-            << *Ptr << " at entry of function " << Loc->getFunction()->getName() 
-            << "\n");
-        }
-        else{
-            for(auto *PrevBasicBlock : PredBBRange){
-                auto Defs = findDefFromInst(&(PrevBasicBlock->back()), Ptr, Visited, CallStack);
-                Res.insert(Defs.begin(), Defs.end());
-            }
-        }
-        // DefLoc[Loc][Ptr] = Res;
-        return Res;
-    }
-}
-
-
-
 /// @brief Build def use graph for all global variables of pointer level \p PtrLvl
 void FlowSensitivePointerAnalysis::processGlobalVariables(size_t PtrLvl){
 
@@ -715,9 +435,6 @@ void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLoc
             }
         }
 
-    // PointsToSetIn[UseLoc][Ptr].insert(PointsToSetOut.at(DefLoc).at(Ptr).begin(), PointsToSetOut.at(DefLoc).at(Ptr).end());
-
-
     return;
 }
 
@@ -747,34 +464,10 @@ std::set<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointerAna
 bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const ProgramLocationTy *Loc, 
     const PointerTy *Ptr, std::set<const PointerTy*> PTS){
 
-        // dbgs() << "Set pts of " << *Ptr << " at " << *Loc << " to\n";
-        // for(auto P : PTS){
-        //     if(!P){
-        //         dbgs() << "\tnullptr\n";
-        //     }
-        //     else{
-        //         dbgs() << "\t" << *P << "\n";
-        //     }
-            
-        // }
-
-
-
     auto OldPTS = std::set<const Value*>{};
     if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(Ptr)){
         OldPTS = PointsToSetOut.at(Loc).at(Ptr);
     }
-
-    // dbgs() << "Old pts of " << *Ptr << " at " << *Loc << " to\n";
-    // for(auto P : OldPTS){
-    //     if(!P){
-    //         dbgs() << "\tnullptr\n";
-    //     }
-    //     else{
-    //         dbgs() << "\t" << *P << "\n";
-    //     }
-        
-    // }
     
     if(OldPTS != PTS){
         PointsToSetOut[Loc][Ptr] = PTS;
@@ -821,11 +514,6 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
 
 
         for(auto Alias : AliasSet){
-            // if(!Alias){
-            //     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " WARNING: pointer " 
-            //         << *Store->getPointerOperand() << " may alias to nullptr at " << *Loc << "\n");
-            //         continue;
-            // }
             if(dyn_cast<LoadInst>(Alias)){
                 continue;
             }
@@ -891,21 +579,6 @@ std::vector<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointer
 
     std::vector<const PointerTy*> Res{};
 
-    // if(auto Store = dyn_cast<StoreInst>(Loc)){
-    //     Res.push_back(Store->getPointerOperand());
-    // }
-
-
-    // if(PointsToSet.count(Loc)){
-    //     for(auto PtsAtPtr : PointsToSet.at(Loc)){
-    //         auto it = std::find_if(PtsAtPtr.second.begin(), PtsAtPtr.second.end(), 
-    //             [&](const PointerTy *pvar) -> bool {return pvar == Ptr;});
-    //         if(it != PtsAtPtr.second.end()){
-    //             Res.push_back(PtsAtPtr.first);
-    //         }
-    //     }
-    // }
-
     if(PointsToSetOut.count(Loc)){
         for(auto PtsAtPtr : PointsToSetOut.at(Loc)){
             if(AliasMap[Loc][dyn_cast<StoreInst>(Loc)->getPointerOperand()].count(PtsAtPtr.first) || 
@@ -917,51 +590,6 @@ std::vector<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointer
     }
     
     return Res;
-}
-
-/// @brief Update the alias set for \p ArgIdx-th parameter of function \p Func
-///     to \p AliasSet.
-void FlowSensitivePointerAnalysis::updateArgAliasOfFunc(const CallInst *CallSite, std::set<const PointerTy*> AliasSet, size_t ArgIdx,
-        std::vector<DefUseEdgeTupleTy> &PropagateList){
-
-    
-    const Value *Parameter;
-    for(auto &Para : CallSite->getCalledFunction()->args()){
-        Parameter = &Para;
-        if(!ArgIdx){
-            break;
-        }
-        --ArgIdx;
-    }
-
-    size_t OldSize = 0;
-    auto Func = CallSite->getCalledFunction();
-    if(FuncParas2AliasSet.count(Func) && FuncParas2AliasSet[Func].count(Parameter)){
-        OldSize = FuncParas2AliasSet.at(Func).at(Parameter).size();
-    }
-    
-    FuncParas2AliasSet[Func][Parameter].insert(AliasSet.begin(), AliasSet.end());
-
-    if(OldSize != FuncParas2AliasSet.at(Func).at(Parameter).size()){
-        ReAnalysisFunctions.push_back(Func);
-    }
-
-
-    // std::set<const PointerTy*> PTS{};
-    // for(auto Alias : AliasSet){
-    //     if(PointsToSet.count(CallSite) && PointsToSet[CallSite].count(Alias)){
-    //         PTS.insert(PointsToSet[CallSite][Alias].begin(), PointsToSet[CallSite][Alias].end());
-    //     }
-    // }
-    // auto FirstInst = CallSite->getCalledFunction()->getEntryBlock().getFirstNonPHIOrDbg();
-    // auto Changed = updatePointsToSetAtProgramLocation(FirstInst, Parameter, PTS);
-    // if(Changed){
-    //     for(auto UseLoc : getAffectUseLocations(FirstInst, Parameter)){    
-    //         PropagateList.push_back(std::make_tuple(FirstInst, UseLoc, Parameter));
-    //     }
-    // }
-    
-
 }
 
 /// @brief Propagate the alias set of \p Loc at \p Loc to its use locations.
@@ -1086,8 +714,6 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
     size_t ArgIdx, std::vector<DefUseEdgeTupleTy> &PropagateList){
     // Densemap has no at member function in llvm-14. Move back to use std::map.
 
-    // dbgs() << "2222222\n";
-
     const Value *Parameter;
     for(auto &Para : Func->args()){
         Parameter = &Para;
@@ -1169,25 +795,11 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
                 continue;
             }
 
+            if(!Ptr->getType()->isPointerTy()){
+                continue;
+            }
             // Find corresponding parameter index from the actual argument.
             auto ArgumentIdxs = CallSite2ArgIdx[Call][Ptr];
-            // for(auto Arg : Call->operand_values()){
-            //     if(Arg == Ptr){
-            //         break;
-            //     }
-            //     bool Stop = false;
-            //     for(auto Alias : AliasMap[Call][Arg]){
-            //         if(Alias == Ptr){
-            //             Stop = true;
-            //             break;
-            //         }
-            //     }
-            //     if(Stop){
-            //         break;
-            //     }
-                
-            //     ++ArgumentIdx;
-            // }
             for(auto ArgumentIdx : ArgumentIdxs){
                 assert(ArgumentIdx < Call->arg_size() && "Arguemnt idx out of bound.");
                 updateArgPointsToSetOfFunc(Call->getCalledFunction(), PointsToSetIn.at(UseLoc).at(Ptr), ArgumentIdx, PropagateList);
@@ -1198,7 +810,8 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
 
             // todo : remove idx finding 
             PointsToSetOut[UseLoc][Ptr] = PointsToSetIn.at(UseLoc).at(Ptr);
-            if(dyn_cast<Argument>(Ptr)){
+            // only propagate ptr parameter.
+            if(dyn_cast<Argument>(Ptr) && Ptr->getType()->isPointerTy()){
                 size_t ParaIdx = 0;
                 for(auto &Arg : Return->getFunction()->args()){
                     if(&Arg == Ptr){
@@ -1232,16 +845,6 @@ void FlowSensitivePointerAnalysis::propagate(std::vector<DefUseEdgeTupleTy> Prop
     return;
 }
 
-/// @brief Get all functions called by \p Func.
-std::set<const Function*> FlowSensitivePointerAnalysis::getCallees(const Function *Func){
-    
-    if(Caller2Callee.count(Func)){
-        return Caller2Callee.at(Func);
-    }
-    return std::set<const Function *>{};
-}
-
-
 
 std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
     FlowSensitivePointerAnalysis::buildDominatorGraph(const Function *Func, const PointerTy *Ptr){
@@ -1255,8 +858,7 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
     }
 
     // get idf
-    // dbgs() << "111111\n";
-    
+
     std::set<const Instruction *> CurNodes = DG.getNodes();
     while(!CurNodes.empty()){
 
@@ -1268,7 +870,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
             // DominanceFromtierAnalysis will not having entry for this basicblock.
             // i.e., running find will return end ietrator.
             if(it == Func2DomFrontier.at(Func).get().end()){
-                // dbgs() << "!!!!!!!!! " << *Node << "\n";
                 CurNodes = std::set<const Instruction *>{};
                 break;
             }
@@ -1288,8 +889,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
         CurNodes = NextNodes;
 
     }
-    
-    // dbgs() << "222222\n";
 
     // for any two nodes a b in dg, add a -> b if a dominates b or b in a's df.
     std::map<const Instruction*, std::set<const Instruction*>> Doms;
@@ -1301,7 +900,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
             }
             if(Func2DomTree.at(Func).get().dominates(Node1, Node2)){
                 Doms[Node2].insert(Node1);
-                // DG.addEdge(Node1, Node2);
             }
         }
     }
@@ -1321,24 +919,11 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
         DG.addEdge(IDom, P.first);
     }
 
-    // for(auto N : DG.getNodes()){
-    //     dbgs() << "Node: " << *N << "\n";
-    // }
-
-    // for(auto E : DG.getEdges()){
-    //     for(auto EE: E.second){
-    //         dbgs() << "Edge " << *(E.first) << " => " << *EE << "\n";
-    //     }
-    // }
-
 
     // fix point solution in dg
 
     std::map<const Instruction*, std::set<const Instruction*>> IN;
     std::map<const Instruction*, std::set<const Instruction*>> OUT;
-
-    // dbgs() << "333333\n";
-
 
     while(true){
         bool Changed = false;
@@ -1364,14 +949,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
             }
 
             if(OldOut != OUT[Node]){
-                // dbgs() << "Old out\n";
-                // for(auto O : OldOut){
-                //     dbgs() << *O << "\n";
-                // }
-                // dbgs() << "New out\n";
-                // for(auto O : OUT[Node]){
-                //     dbgs() << *O << "\n";
-                // }
                 Changed = true;
             }
 
@@ -1380,27 +957,15 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
                 auto OldIN = IN[ToNode];
                 IN[ToNode].insert(OUT[Node].begin(), OUT[Node].end());
                 if(OldIN != IN[ToNode]){
-                // dbgs() << "Old in\n";
-                // for(auto O : OldIN){
-                //     dbgs() << *O << "\n";
-                // }
-                // dbgs() << "New in\n";
-                // for(auto O : IN[ToNode]){
-                //     dbgs() << *O << "\n";
-                // }
                     Changed = true;
                 }
             }
         }
 
         if(!Changed){
-
             break;
         }
     }
-
-    // dbgs() << "444444\n";
-
 
     return {OUT, DG};
 
@@ -1419,6 +984,9 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Start analyzing module " 
         << m.getName() << "\n");
+
+    auto start = std::chrono::high_resolution_clock::now();
+
 
     auto CurrentPointerLevel = globalInitialize(m);
 
@@ -1445,15 +1013,14 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
         }
 
         for(auto &Func : m.functions()){
-            dbgs() << getCurrentTime() << " Analyzing function: " 
-                << Func.getName() << " with pointer level: " << CurrentPointerLevel << "\n";
+            // dbgs() << getCurrentTime() << " Analyzing function: " 
+            //     << Func.getName() << " with pointer level: " << CurrentPointerLevel << "\n";
 
             auto Pointers = std::set<const PointerTy*>{};
             if(Func2WorkList.count(&Func) && Func2WorkList[&Func].count(CurrentPointerLevel)){
                 Pointers = Func2WorkList.at(&Func).at(CurrentPointerLevel);
             }
             for(auto Ptr : Pointers){
-                // dbgs() << "Processing pointer " << *Ptr << "\n";
                 auto Pair = buildDominatorGraph(&Func, Ptr);
                 auto OUT = Pair.first;
                 auto DG = Pair.second;
@@ -1471,10 +1038,16 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     }
 
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+ 
+    // To get the value of duration use the count()
+    // member function on the duration object
+    dbgs() << duration.count() << "\n";
+
+
     DEBUG_WITH_TYPE("label", dumpLabelMap());
     DEBUG_WITH_TYPE("pts", dumpPointsToSet());
-    // DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << " Populating PTS\n");
-    // populatePointsToSet(m);
 
     DEBUG_WITH_TYPE("pts", dumpPointsToSet());
     dumpAliasMap();
@@ -1482,15 +1055,15 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
     AnalysisResult.setPointsToSet(PointsToSetOut);
 
-    size_t TotalPtsSize = 0, NumPts = 0;
-    for(auto Pair : PointsToSetOut){
-        for(auto P : Pair.second){
-            TotalPtsSize += P.second.size();
-            NumPts += 1;
-        }
-    }
+    // size_t TotalPtsSize = 0, NumPts = 0;
+    // for(auto Pair : PointsToSetOut){
+    //     for(auto P : Pair.second){
+    //         TotalPtsSize += P.second.size();
+    //         NumPts += 1;
+    //     }
+    // }
 
-    dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << "\n";
+    // dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << "\n";
 
     return AnalysisResult;
 }

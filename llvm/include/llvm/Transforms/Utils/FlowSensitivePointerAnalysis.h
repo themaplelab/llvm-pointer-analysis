@@ -172,16 +172,11 @@ namespace llvm{
             void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
-            std::set<const ProgramLocationTy*> findDefFromPrevOfUseLoc(const ProgramLocationTy*, const PointerTy*);
             std::set<const ProgramLocationTy*> findDefFromUseLoc(const ProgramLocationTy*, 
                 const PointerTy*, std::set<const ProgramLocationTy*>&);
             std::set<const ProgramLocationTy*> findDefFromUseByDom(const ProgramLocationTy *, const PointerTy*);
             std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, const PointerTy*);
             std::set<const PointerTy*> getAlias(const ProgramLocationTy*, const LoadInst*);
-            std::set<const Function*> getCallees(const Function*);
-            std::set<const ProgramLocationTy*> getNextProgramLocations(const ProgramLocationTy*, const Function*);
-            std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*>
-                    getPrevProgramLocations(const ProgramLocationTy*);
             std::set<const PointerTy*> getRealPointsToSet(const ProgramLocationTy*, const PointerTy*);
             std::set<const ProgramLocationTy*> getUseLocations(const PointerTy*);
             size_t globalInitialize(Module&);
@@ -190,8 +185,6 @@ namespace llvm{
             std::vector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
             void markLabelsForPtr(const PointerTy*);
             void performPointerAnalysisOnFunction(const Function*, size_t);
-            void populatePTSAtLocation(const ProgramLocationTy *);
-            void populatePointsToSet(Module&);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
             void propagate(std::vector<DefUseEdgeTupleTy>, const Function*);
@@ -199,18 +192,11 @@ namespace llvm{
             std::vector<const PointerTy*> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
             void updateAliasInformation(const ProgramLocationTy *, const LoadInst *);
             void updateAliasUsers(const ProgramLocationTy*, std::vector<DefUseEdgeTupleTy>&);
-            void updateArgAliasOfFunc(const CallInst*, std::set<const PointerTy*>, size_t, std::vector<DefUseEdgeTupleTy> &);
             void updateArgPointsToSetOfFunc(const Function*, std::set<const PointerTy*>, size_t, std::vector<DefUseEdgeTupleTy> &);
             void updatePointsToSet(const ProgramLocationTy*, const PointerTy*, 
                 std::set<const PointerTy*>, std::vector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const PointerTy*>);
 
-
-            std::set<const ProgramLocationTy*> findDefFromInst(const ProgramLocationTy *Loc, const PointerTy *Ptr, 
-                std::set<const ProgramLocationTy *> &Visited, std::vector<const ProgramLocationTy*> CallStack, bool SkipSelf = false);
-            std::set<const ProgramLocationTy*> findDefFromFunc(const Function *Func, const PointerTy *Ptr, 
-                std::set<const ProgramLocationTy *> &Visited, std::vector<const ProgramLocationTy*> CallStack);
-            void populatePTSForFunc(const Function *Func);
 
             std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
                 buildDominatorGraph(const Function *Func, const PointerTy *Ptr);
