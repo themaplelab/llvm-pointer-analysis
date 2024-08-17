@@ -128,37 +128,22 @@ namespace llvm{
         PointsToSetTy AliasMap;
         std::map<const PointerTy*, std::set<const User*>> AliasUser;
         std::map<const Function*, std::set<const Function*>> Caller2Callee;
-        std::map<const PointerTy*, std::set<const Function*>> Def2Functions;
         DefUseGraphTy DefUseGraph;
-        std::map<const Value*, std::set<const ProgramLocationTy*>> DefList;
-        // DefUseGraphTy DefLoc;
         std::map<const Function*, SetVector<const PointerTy*>> Func2AllocatedPointersAndParameterAliases;
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2CallerLocation;
-        std::map<const Function*, std::unique_ptr<DominatorTreeAnalysis::Result>> Func2DT;
-        std::map<const Function*, std::unique_ptr<DominanceFrontierAnalysis::Result>> Func2DF;
         std::map<const Function*, WorkListTy> Func2WorkList; 
         std::map<const Function*, std::set<const BasicBlock*>> Func2TerminateBBs;
-        std::map<const Function*, PointsToSetTy::mapped_type> FuncParas2AliasSet;
         std::map<const Function*, PointsToSetTy::mapped_type> FuncParas2PointsToSet;
         WorkListTy GlobalWorkList;
         std::map<const ProgramLocationTy*, std::set<Label>> LabelMap; 
-        // WithColor Logger = WithColor(outs(), HighlightColor::String);
         PointsToSetTy PointsToSetOut;
         PointsToSetTy PointsToSetIn;
-        std::vector<const Function*> ReAnalysisFunctions;
         std::map<const Value*, std::set<const ProgramLocationTy*>> UseList;
-
-        std::map<const Function*, PointsToSetTy::mapped_type> Func2PopulatedPTS;
-
         std::map<const Function*, std::reference_wrapper<DominatorTreeAnalysis::Result>> Func2DomTree;
         std::map<const Function*, std::reference_wrapper<DominanceFrontierAnalysis::Result>> Func2DomFrontier;
-        std::map<const Function*, std::map<const PointerTy*, DomGraph>> FuncPtr2DomGraph;
         std::map<const PointerTy*, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
         std::map<const CallInst*, std::map<const PointerTy*, std::set<size_t>>> CallSite2ArgIdx;
 
-
-        size_t TotalFunctionNumber = 0;
-        size_t ProcessedFunctionNumber = 0;
         FlowSensitivePointerAnalysisResult AnalysisResult;
 
         static AnalysisKey Key;
@@ -166,15 +151,16 @@ namespace llvm{
 
         private:
             void addDefUseEdge(const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*);
-            size_t computePointerLevel(const PointerTy*);
+            void addDefLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc, const Function *Func);
+            void addUseLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc);
+            std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
+                buildDominatorGraph(const Function *Func, const PointerTy *Ptr);
             void buildDefUseGraph(std::set<const ProgramLocationTy*>, const PointerTy*, 
                 std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
+            size_t computePointerLevel(const PointerTy*);
             void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
-            std::set<const ProgramLocationTy*> findDefFromUseLoc(const ProgramLocationTy*, 
-                const PointerTy*, std::set<const ProgramLocationTy*>&);
-            std::set<const ProgramLocationTy*> findDefFromUseByDom(const ProgramLocationTy *, const PointerTy*);
             std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, const PointerTy*);
             std::set<const PointerTy*> getAlias(const ProgramLocationTy*, const LoadInst*);
             std::set<const PointerTy*> getRealPointsToSet(const ProgramLocationTy*, const PointerTy*);
@@ -183,8 +169,8 @@ namespace llvm{
             bool hasDef(const ProgramLocationTy*, const PointerTy*);
             size_t initialize(const Function*);
             SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
+            bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<const PointerTy*>&);
             void markLabelsForPtr(const PointerTy*);
-            void performPointerAnalysisOnFunction(const Function*, size_t);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
             void propagate(SetVector<DefUseEdgeTupleTy>, const Function*);
@@ -197,24 +183,10 @@ namespace llvm{
                 std::set<const PointerTy*>, SetVector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const PointerTy*>&);
 
-
-            std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
-                buildDominatorGraph(const Function *Func, const PointerTy *Ptr);
-
-            void addDefLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc, const Function *Func);
-            void addUseLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc);
-            bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<const PointerTy*>&);
-
-
-
             
         public:
             using Result = FlowSensitivePointerAnalysisResult;
-            #ifdef LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_ANALYSIS
-                FlowSensitivePointerAnalysisResult run(Module&, ModuleAnalysisManager&);
-            #else
-                PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
-            #endif
+            FlowSensitivePointerAnalysisResult run(Module&, ModuleAnalysisManager&);
             FlowSensitivePointerAnalysisResult getResult() {return AnalysisResult;}
     };
 

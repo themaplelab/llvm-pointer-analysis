@@ -117,7 +117,6 @@ size_t FlowSensitivePointerAnalysis::globalInitialize(Module &M){
 
     size_t PtrLvl = 0;
     for(auto &Func : M.functions()){
-        ++TotalFunctionNumber;
         auto PL = initialize(&Func);
         if(PtrLvl < PL){
             PtrLvl = PL;
@@ -127,7 +126,6 @@ size_t FlowSensitivePointerAnalysis::globalInitialize(Module &M){
     assert(PtrLvl >= 0 && "Pointer level cannot be negative.");
 
     AnalysisResult.setWorkList(Func2WorkList);
-    TotalFunctionNumber *= PtrLvl;
     return PtrLvl;
 }
 
@@ -738,7 +736,6 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
         assert(UseLoc && "Cannot have nullptr as use loc");
         assert(Ptr && "Cannot have nullptr as pointer");
 
-        // dbgs() << " Propagating edge " << *DefLoc << " === " << *Ptr << " ===> " << *UseLoc << "\n";
 
         DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Propagating edge " 
             << *DefLoc << " === " << *Ptr << " ===> " << *UseLoc << "\n");
