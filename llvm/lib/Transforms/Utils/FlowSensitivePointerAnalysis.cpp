@@ -976,7 +976,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     
     
-    while(CurrentPointerLevel){
+    while(CurrentPointerLevel > 1){
         for(auto &Func : m.functions()){
             if(Func.isDeclaration()){
                 continue;
