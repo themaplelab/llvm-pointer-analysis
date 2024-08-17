@@ -643,7 +643,6 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
 
 
                     if(OldPTS != PointsToSetOut.at(UseLoc).at(Pointer)){
-
                         for(auto AffectedLoc : getAffectUseLocations(UseLoc, Pointer)){    
                                 PropagateList.insert(std::make_tuple(UseLoc, AffectedLoc, Pointer));
                         }
@@ -673,9 +672,6 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 // Ignore indirect call.
                 continue;
             }
-
-            
-
             // Find corresponding parameter index from the actual argument.
             size_t ArgumentIdx = 0;
             for(auto Arg : Call->operand_values()){
@@ -691,9 +687,6 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 addUseLabel(Alias, UseLoc);
                 CallSite2ArgIdx[Call][Alias].insert(ArgumentIdx);
             }
-            
-    
-            // updateArgAliasOfFunc(Call, AliasMap.at(UseLoc).at(Ptr), ArgumentIdx, PropagateList);
         }
         else{
             DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Cannot process alias user clause type: " 
@@ -816,14 +809,14 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
                 for(auto CallSite : Func2CallerLocation[Return->getFunction()]){
                     const Value *Arg = CallSite->getOperand(ParaIdx);
 
-                    auto Changed = updatePointsToSetAtProgramLocation(CallSite, Arg, PointsToSetOut[Return][Ptr]);
+                    auto Changed = insertPointsToSetAtProgramLocation(CallSite, Arg, PointsToSetOut[Return][Ptr]);
                     if(Changed){
                         for(auto UseLoc : getAffectUseLocations(CallSite, Arg)){    
                             PropagateList.insert(std::make_tuple(CallSite, UseLoc, Arg));
                         }
                     }
                     for(auto Alias : AliasMap[CallSite][Arg]){
-                        if(updatePointsToSetAtProgramLocation(CallSite, Alias, PointsToSetOut[Return][Ptr])){
+                        if(insertPointsToSetAtProgramLocation(CallSite, Alias, PointsToSetOut[Return][Ptr])){
                         for(auto UseLoc : getAffectUseLocations(CallSite, Alias)){    
                             PropagateList.insert(std::make_tuple(CallSite, UseLoc, Alias));
                         }
