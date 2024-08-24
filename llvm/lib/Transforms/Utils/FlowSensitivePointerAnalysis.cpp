@@ -274,7 +274,7 @@ void FlowSensitivePointerAnalysis::markLabelsForPtr(const PointerTy *Ptr){
         }
         else if(dyn_cast<GetElementPtrInst>(User) || dyn_cast<BitCastInst>(User) || 
                 dyn_cast<CmpInst>(User) || dyn_cast<InvokeInst>(User) || dyn_cast<VAArgInst>(User) || 
-                dyn_cast<PHINode>(User) || dyn_cast<PtrToIntInst>(User)){
+                dyn_cast<PHINode>(User) || dyn_cast<PtrToIntInst>(User) || dyn_cast<SelectInst>(User)){
 
             DEBUG_WITH_TYPE("warning", dbgs() << getCurrentTime() << "WARNING:" << *User << " is in the user list of pointer "
                 << *Ptr << ", but it's neither storeinst nor loadinst.\n");
@@ -1040,15 +1040,22 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
     AnalysisResult.setPointsToSet(PointsToSetOut);
 
-    // size_t TotalPtsSize = 0, NumPts = 0;
-    // for(auto Pair : PointsToSetOut){
-    //     for(auto P : Pair.second){
-    //         TotalPtsSize += P.second.size();
-    //         NumPts += 1;
-    //     }
-    // }
+    size_t TotalPtsSize = 0, NumPts = 0, MaxSize = 0, MinSize = 1000;
+    for(auto Pair : PointsToSetOut){
+        for(auto P : Pair.second){
+            TotalPtsSize += P.second.size();
+            NumPts += 1;
 
-    // dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << "\n";
+            if(P.second.size() > MaxSize){
+                MaxSize = P.second.size();
+            }
+            if(P.second.size() < MinSize){
+                MinSize = P.second.size();
+            }
+        }
+    }
+
+    dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << " " << MaxSize << " " << MinSize << "\n";
 
     return AnalysisResult;
 }

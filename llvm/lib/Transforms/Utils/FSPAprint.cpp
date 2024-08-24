@@ -7,9 +7,17 @@ using namespace llvm;
 
 PreservedAnalyses PrintPL::run(Module &m, ModuleAnalysisManager &mam){
     auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
+
     // auto AndersenResult = mam.getResult<AndersenPointerAnalysis>(m);
     // auto SFSResult = mam.getResult<StagedFlowSensitivePointerAnalysis>(m);
     // auto worklist = result.getWorkList();
+
+    // size_t cnt = 0;
+    // for(auto &Func : m.functions()){
+    //     ++cnt;
+    // }
+
+    // outs() << "#Func " << cnt << "\n";
 
     return PreservedAnalyses::all();
 
