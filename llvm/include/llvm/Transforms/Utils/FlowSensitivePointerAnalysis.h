@@ -183,6 +183,8 @@ namespace llvm{
                 std::set<const PointerTy*>, SetVector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const PointerTy*>&);
 
+            std::set<const User*> includeBitCastUsers(const BitCastInst *BC);
+
             
         public:
             using Result = FlowSensitivePointerAnalysisResult;
