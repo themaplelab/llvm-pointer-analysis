@@ -50,6 +50,9 @@ void FlowSensitivePointerAnalysis::printPointsToSetAtProgramLocation(const Progr
                 else if(dyn_cast<Instruction>(Pointee)){
                     dbgs() << "\t" << *Pointee << "\n";
                 }
+                else if(auto Func = dyn_cast<Function>(Pointee)){
+                    dbgs() << "\t" << Func->getName() << "\n";
+                }
                 else{
                     dbgs() << "\t " << *Pointee << "\n";
                 }
@@ -196,13 +199,6 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
         else if(const CallInst *Call = dyn_cast<CallInst>(&Inst)){
             Func2CallerLocation[Call->getCalledFunction()].insert(Call);
             if(!Call->getCalledFunction()){
-                // dbgs() << *Call << "\n";
-                // if(isa<Function>(Call->getCalledOperand()->stripPointerCasts())){
-                //     dbgs() << Call->getCalledOperand()->stripPointerCasts()->getName() << "\n";
-                // }
-                // else{
-                //     dbgs() << *Call->getCalledOperand()->stripPointerCasts() << "\n";
-                // }
                 DEBUG_WITH_TYPE("warning", dbgs() << getCurrentTime() << " WARNING:" 
                     << *Call << " performs an indirect call\n");
             }
@@ -440,12 +436,23 @@ void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLoc
      const ProgramLocationTy *DefLoc, const PointerTy *Ptr){
         PointsToSetIn[UseLoc][Ptr];
         for(auto P : PointsToSetOut.at(DefLoc).at(Ptr)){
-            // if(!isa_and_nonnull<LoadInst>(P)){
+            if(!isa_and_nonnull<LoadInst>(P)){
                 PointsToSetIn[UseLoc][Ptr].insert(P);
-            // }
+            }
         }
 
     return;
+}
+
+const FlowSensitivePointerAnalysis::PointerTy* FlowSensitivePointerAnalysis::
+    getOriginalPointer(const PointerTy *Ptr){
+
+    while(Ptr != Ptr->stripPointerCastsAndAliases()->stripInBoundsOffsets()){
+        Ptr = Ptr->stripPointerCastsAndAliases()->stripInBoundsOffsets();
+    }
+
+    return Ptr;
+
 }
 
 /// @brief Get the set of real pointee represented by a pointer. For a storeInst 
@@ -461,9 +468,14 @@ std::set<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointerAna
     
     std::set<const PointerTy*> Pointees{};
 
-    Pointees.insert(ValueOperand->stripPointerCasts());
-    if(AliasMap.count(Loc) && AliasMap[Loc].count(ValueOperand)){
-        Pointees = AliasMap.at(Loc).at(ValueOperand);
+    auto OriginalPtr = getOriginalPointer(ValueOperand);
+    while(auto GEP = dyn_cast<GetElementPtrInst>(OriginalPtr)){
+        OriginalPtr = GEP->getPointerOperand();
+    }
+
+    Pointees.insert(OriginalPtr);
+    if(AliasMap.count(Loc) && AliasMap[Loc].count(OriginalPtr)){
+        Pointees = AliasMap.at(Loc).at(OriginalPtr);
     }
     
     return Pointees;
@@ -519,7 +531,7 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
         }
     }
     else if(auto GEP = dyn_cast<GetElementPtrInst>(Loc)){
-        if(auto Load = dyn_cast<LoadInst>(GEP->getPointerOperand()->stripPointerCasts())){
+        if(auto Load = dyn_cast<LoadInst>(getOriginalPointer(GEP->getPointerOperand()))){
             if(PointsToSetOut.count(Load) && PointsToSetOut[Load].count(Load->getPointerOperand())){
                 for(auto Ptr : PointsToSetOut[Load][Load->getPointerOperand()]){
                     if(Ptr && !isa<LoadInst>(Ptr)){
@@ -561,23 +573,37 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
 /// @brief Get all alias for the pointer operand of a load instruction.
 /// If no such alias, return the pointer itself.
 std::set<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointerAnalysis::
-    getAlias(const ProgramLocationTy *Loc, const LoadInst *Load){
+    getAlias(const ProgramLocationTy *Loc, const PointerTy *Ptr){
 
-    if(AliasMap.count(Loc) && AliasMap[Loc].count(Load->getPointerOperand())){
+    if(auto Load = dyn_cast<LoadInst>(Ptr)){
+        if(AliasMap.count(Loc) && AliasMap[Loc].count(Load->getPointerOperand())){
         return AliasMap.at(Loc).at(Load->getPointerOperand());
+        }
+        else{
+            return std::set<const PointerTy*>{Load->getPointerOperand()};
+        }
     }
     else{
-        return std::set<const PointerTy*>{Load->getPointerOperand()};
+        return std::set<const PointerTy*>{Ptr};
     }
+
+    
 }
 
-std::set<const User*> FlowSensitivePointerAnalysis::includeBitCastUsers(const BitCastInst *BC){
+std::set<const User*> FlowSensitivePointerAnalysis::includeBitCastAndGEPUsers(const User *U){
 
     std::set<const User*> Res;
 
-    for(auto User : BC->users()){
+    for(auto User : U->users()){
         if(auto BC = dyn_cast<BitCastInst>(User)){
-            auto UseLocs = includeBitCastUsers(BC);
+            auto UseLocs = includeBitCastAndGEPUsers(User);
+            Res.insert(UseLocs.begin(), UseLocs.end());
+        }
+        else if(auto GEP = dyn_cast<GetElementPtrInst>(User)){
+            if(GEP->getPointerOperand() != U){
+                continue;
+            }
+            auto UseLocs = includeBitCastAndGEPUsers(User);
             Res.insert(UseLocs.begin(), UseLocs.end());
         }
         else{
@@ -588,9 +614,9 @@ std::set<const User*> FlowSensitivePointerAnalysis::includeBitCastUsers(const Bi
 }
 
 /// @brief Update the alias set of pointer x introduced by a \p loadInst 'x = load y'.
-void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationTy *Loc, const LoadInst *Load){
+void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationTy *Loc, const PointerTy *Ptr){
     
-    auto Aliases = getAlias(Loc, Load);
+    auto Aliases = getAlias(Loc, Ptr);
     for(auto &Alias : Aliases){
         if(!Alias){
             continue;
@@ -600,8 +626,13 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
         // if we have x = load y, and y alias z, we will need pts(z) at current program location.
         if(!AliasUser.count(Alias)){
             for(auto User : Alias->users()){
-                if(auto BC = dyn_cast<BitCastInst>(User)){
-                    auto UseLocs = includeBitCastUsers(BC);
+                if(isa<BitCastInst>(User) || isa<GetElementPtrInst>(User)){
+                    if(auto GEP = dyn_cast<GetElementPtrInst>(User)){
+                        if(Alias != GEP->getPointerOperand()){
+                            continue;
+                        }
+                    }
+                    auto UseLocs = includeBitCastAndGEPUsers(User);
                     AliasUser[Alias].insert(UseLocs.begin(), UseLocs.end());
                 }
                 else{
@@ -612,7 +643,7 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
         AliasUser[Alias].insert(Loc);
         if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(Alias)){
             // bug: should be assign not insert
-            AliasMap[Loc][Load].insert(PointsToSetOut.at(Loc).at(Alias).begin(), PointsToSetOut.at(Loc).at(Alias).end());
+            AliasMap[Loc][Ptr].insert(PointsToSetOut.at(Loc).at(Alias).begin(), PointsToSetOut.at(Loc).at(Alias).end());
         }
     }
     return;
@@ -642,8 +673,9 @@ std::vector<const FlowSensitivePointerAnalysis::PointerTy*> FlowSensitivePointer
 void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc, 
     SetVector<DefUseEdgeTupleTy> &PropagateList){
 
-    
-    // dbgs() << AliasUser.count(Loc) << "\n";
+    if(!AliasUser.count(Loc)){
+        dbgs() << *Loc << "\n";
+    }
     for(auto User : AliasUser.at(Loc)){      
 
         DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Updating alias user for pointer " 
@@ -659,7 +691,8 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
         }
         
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
-            if(Ptr == Store->getPointerOperand()->stripPointerCasts()){ 
+
+            if(Ptr == getOriginalPointer(Store->getPointerOperand())){ 
                 // if user is 'store x y', and we are passing alias-set(y), we need to make
                 // pts(z) = pts(y) for each z in alias-set(y)
                 for(auto Alias : AliasMap.at(UseLoc).at(Ptr)){
@@ -673,7 +706,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 }
                 
             }
-            else if(Ptr == Store->getValueOperand()->stripPointerCasts()){
+            else if(Ptr == getOriginalPointer(Store->getValueOperand())){
                 
                 auto Pointers = ptsPointsTo(UseLoc, Ptr);
                 for(auto Pointer : Pointers){
@@ -698,7 +731,8 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
             
             else{
                 std::string Str;
-                raw_string_ostream(Str) << "Hitting at " << *Store << " with pointer " << *Loc << "\n";
+                raw_string_ostream(Str) << "Hitting at " << *Store << " with pointer " << *Loc << " " 
+                    << *getOriginalPointer(Store->getPointerOperand()) << "\n";
                 llvm_unreachable(Str.c_str());
             }
         }
@@ -722,7 +756,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
             // Find corresponding parameter index from the actual argument.
             size_t ArgumentIdx = 0;
             for(auto Arg : Call->operand_values()){
-                if(Arg->stripPointerCasts() == Ptr){
+                if(getOriginalPointer(Arg) == Ptr){
                     break;
                 }
                 ++ArgumentIdx;
@@ -735,24 +769,42 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 CallSite2ArgIdx[Call][Alias].insert(ArgumentIdx);
             }
         }
-        else if(auto GEP = dyn_cast<GetElementPtrInst>(UseLoc)){
-            // a = GEP b
-            // update pts(a) to alias(b)
-            // if pts(a) changed
-            // propagate along new def use dege.
-            std::string Str;
-            raw_string_ostream(Str) << *GEP << " " << *Ptr;
-            if(GEP->getPointerOperand()->stripPointerCasts() != Ptr){
-                dbgs() << Str << "\n";
-                continue;
-            }
-            
-            updatePointsToSet(GEP, GEP, AliasMap.at(GEP).at(Ptr), PropagateList);
+        // else if(auto GEP = dyn_cast<GetElementPtrInst>(UseLoc)){
+        //     // a = GEP b
+        //     // GEP is used to calculated an address from b, which means a = b + (constant c), which means a alias to b
+        //     // it does not matter if b is a array.
+        //     // e.g., b is int[][] (i.e., int **), and gep b 0 0 gets an address of the first element (i.e., int *)
+        //     // but we can view b as an int* here since it can also be used as the address of an element.
 
-            // have to explicitly call users
+        //     // update aliasinformation, a alias to b
+        //     // if alias(a) is updated
+        //     // call updateAliasUser(a)
+        //     std::string Str;
+        //     raw_string_ostream(Str) << *GEP << " " << *Ptr;
+        //     if(getOriginalPointer(GEP->getPointerOperand()) != Ptr){
+        //         dbgs() << Str << "\n";
+        //         continue;
+        //     }
+
+        //     auto OldAliasSetSize = AliasMap[GEP][GEP].size();
+        //     AliasMap[GEP][GEP].insert(AliasMap[UseLoc][Ptr].begin(), AliasMap[UseLoc][Ptr].end());
+        //     if(OldAliasSetSize != AliasMap[GEP][GEP].size()){
+        //         if(!AliasUser.count(GEP)){
+        //             for(auto User : GEP->users()){
+        //                 if(auto BC = dyn_cast<BitCastInst>(User)){
+        //                     auto UseLocs = includeBitCastUsers(BC);
+        //                     AliasUser[GEP].insert(UseLocs.begin(), UseLocs.end());
+        //                 }
+        //                 else{
+        //                     AliasUser[GEP].insert(User);
+        //                 }
+        //             }
+        //         }
+        //         updateAliasUsers(GEP, PropagateList);
+        //     }
             
 
-        }
+        // }
         else{
             DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Cannot process alias user clause type: " 
                 << *UseLoc << "\n");
@@ -835,8 +887,13 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
                     for(auto User : UseLoc->users()){
                         // AliasUser[UseLoc].insert(user);
 
-                        if(auto BC = dyn_cast<BitCastInst>(User)){
-                            auto UseLocs = includeBitCastUsers(BC);
+                        if(isa<BitCastInst>(User) || isa<GetElementPtrInst>(User)){
+                            if(auto GEP = dyn_cast<GetElementPtrInst>(User)){
+                                if(UseLoc != GEP->getPointerOperand()){
+                                    continue;
+                                }
+                            }
+                            auto UseLocs = includeBitCastAndGEPUsers(User);
                             AliasUser[UseLoc].insert(UseLocs.begin(), UseLocs.end());
                         }
                         else{
@@ -867,10 +924,9 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
         }
         else if(auto Return = dyn_cast<ReturnInst>(UseLoc)){
 
-            // todo : remove idx finding 
             PointsToSetOut[UseLoc][Ptr] = PointsToSetIn.at(UseLoc).at(Ptr);
-            // only propagate ptr parameter.
-            if(dyn_cast<Argument>(Ptr) && Ptr->getType()->isPointerTy()){
+            // Propagate ptr parameter.
+            if(isa<Argument>(Ptr) && Ptr->getType()->isPointerTy()){
                 size_t ParaIdx = 0;
                 for(auto &Arg : Return->getFunction()->args()){
                     if(&Arg == Ptr){
@@ -896,6 +952,47 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
                     }
                     }
                 }
+            }
+            else if(Ptr->getType()->isPointerTy() && Ptr == Return->getReturnValue()){
+                // propagate return ptr
+                for(auto CallSite : Func2CallerLocation[Return->getFunction()]){
+                    auto OldAliasSet = std::set<const PointerTy*>{};
+                    if(AliasMap.count(CallSite) && AliasMap[CallSite].count(CallSite)){
+                        OldAliasSet = AliasMap.at(CallSite).at(CallSite);
+                    }
+
+                    updateAliasInformation(CallSite, CallSite);
+
+                    auto NewAliasSet = std::set<const PointerTy*>{};
+                    if(AliasMap.count(CallSite) && AliasMap[CallSite].count(CallSite)){
+                        NewAliasSet = AliasMap.at(CallSite).at(CallSite);
+                    }
+
+                    if(OldAliasSet != NewAliasSet){
+                        if(!AliasUser.count(CallSite)){
+                            // Create empty entry
+                            AliasUser[CallSite];
+                            for(auto User : CallSite->users()){
+                                // AliasUser[CallSite].insert(user);
+
+                                if(isa<BitCastInst>(User) || isa<GetElementPtrInst>(User)){
+                                    if(auto GEP = dyn_cast<GetElementPtrInst>(User)){
+                                        if(CallSite != GEP->getPointerOperand()){
+                                            continue;
+                                        }
+                                    }
+                                    auto CallSites = includeBitCastAndGEPUsers(User);
+                                    AliasUser[CallSite].insert(CallSites.begin(), CallSites.end());
+                                }
+                                else{
+                                    AliasUser[CallSite].insert(User);
+                                }
+                            }
+                        }
+                        updateAliasUsers(CallSite, PropagateList);
+                    }
+                }
+
             }
         }
         // else if(auto GEP = dyn_cast<GetElementPtrInst>(UseLoc)){
@@ -1056,7 +1153,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     
     
-    while(CurrentPointerLevel > 1){
+    while(CurrentPointerLevel > 0){
         for(auto &Func : m.functions()){
             if(Func.isDeclaration()){
                 continue;
@@ -1111,17 +1208,25 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     dbgs() << duration.count() << "\n";
 
 
-    DEBUG_WITH_TYPE("label", dumpLabelMap());
-    DEBUG_WITH_TYPE("pts", dumpPointsToSet());
+    // dumpLabelMap();
 
     dumpPointsToSet();
 
-    dumpAliasMap();
+    // dumpAliasMap();
+
+    // for(auto Pair : AliasUser){
+    //     dbgs() << *Pair.first << " is used at\n";
+    //     for(auto U : Pair.second){
+    //         dbgs() << "\t" << *U << "\n";
+    //     }
+    // }
 
     AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
     AnalysisResult.setPointsToSet(PointsToSetOut);
 
     size_t TotalPtsSize = 0, NumPts = 0, MaxSize = 0, MinSize = 1000;
+    
+    const ProgramLocationTy *Loc = nullptr;
     for(auto Pair : PointsToSetOut){
         if(!isa<StoreInst>(Pair.first) && !isa<LoadInst>(Pair.first)){
             continue;
@@ -1132,6 +1237,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
             if(P.second.size() > MaxSize){
                 MaxSize = P.second.size();
+                Loc = Pair.first;
             }
             if(P.second.size() < MinSize){
                 MinSize = P.second.size();
@@ -1141,6 +1247,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     }
 
     dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << " " << MaxSize << " " << MinSize << "\n";
+    dbgs() << *Loc << "\n";
 
     return AnalysisResult;
 }

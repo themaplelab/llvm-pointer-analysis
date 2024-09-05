@@ -162,7 +162,7 @@ namespace llvm{
             void dumpLabelMap();
             void dumpPointsToSet();
             std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, const PointerTy*);
-            std::set<const PointerTy*> getAlias(const ProgramLocationTy*, const LoadInst*);
+            std::set<const PointerTy*> getAlias(const ProgramLocationTy*, const PointerTy*);
             std::set<const PointerTy*> getRealPointsToSet(const ProgramLocationTy*, const PointerTy*);
             std::set<const ProgramLocationTy*> getUseLocations(const PointerTy*);
             size_t globalInitialize(Module&);
@@ -176,14 +176,15 @@ namespace llvm{
             void propagate(SetVector<DefUseEdgeTupleTy>, const Function*);
             void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*);
             std::vector<const PointerTy*> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
-            void updateAliasInformation(const ProgramLocationTy *, const LoadInst *);
+            void updateAliasInformation(const ProgramLocationTy*, const PointerTy*);
             void updateAliasUsers(const ProgramLocationTy*, SetVector<DefUseEdgeTupleTy>&);
             void updateArgPointsToSetOfFunc(const Function*, std::set<const PointerTy*>, size_t, SetVector<DefUseEdgeTupleTy> &);
             void updatePointsToSet(const ProgramLocationTy*, const PointerTy*, 
                 std::set<const PointerTy*>, SetVector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<const PointerTy*>&);
 
-            std::set<const User*> includeBitCastUsers(const BitCastInst *BC);
+            std::set<const User*> includeBitCastAndGEPUsers(const User *U);
+            const PointerTy* getOriginalPointer(const PointerTy *Ptr);
 
             
         public:
