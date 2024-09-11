@@ -143,6 +143,7 @@ namespace llvm{
         std::map<const Function*, std::reference_wrapper<DominanceFrontierAnalysis::Result>> Func2DomFrontier;
         std::map<const PointerTy*, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
         std::map<const CallInst*, std::map<const PointerTy*, std::set<size_t>>> CallSite2ArgIdx;
+        std::map<const Function*, std::map<const PointerTy*, std::set<const PointerTy*>>> FuncPara2Alias;
 
         FlowSensitivePointerAnalysisResult AnalysisResult;
 
@@ -170,7 +171,7 @@ namespace llvm{
             size_t initialize(const Function*);
             SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
             bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<const PointerTy*>&);
-            void markLabelsForPtr(const PointerTy*);
+            void markLabelsForPtrAtInstUsers(const PointerTy*, const PointerTy*);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
             void propagate(SetVector<DefUseEdgeTupleTy>, const Function*);
@@ -185,6 +186,7 @@ namespace llvm{
 
             std::set<const User*> includeBitCastAndGEPUsers(const User *U);
             const PointerTy* getOriginalPointer(const PointerTy *Ptr);
+            void updateArgAliasSetOfFunc(const Function *, const Function *, const PointerTy *, size_t, SetVector<DefUseEdgeTupleTy>&);
 
             
         public:
