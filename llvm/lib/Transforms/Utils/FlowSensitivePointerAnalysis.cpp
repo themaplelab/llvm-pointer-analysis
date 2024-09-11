@@ -1,5 +1,6 @@
 #include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
 
+#include "llvm/IR/DerivedUser.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
 
@@ -144,12 +145,12 @@ void FlowSensitivePointerAnalysis::dumpLabelMap(){
 /// @return The largest pointer level among all functions.
 size_t FlowSensitivePointerAnalysis::globalInitialize(Module &M){
 
-    // for(auto &Global : M.globals()){
-    //     if(Global.getType()->isPointerTy()){
-    //         auto PointerLevel = computePointerLevel(&Global);
-    //         GlobalWorkList[PointerLevel].insert(&Global);
-    //     }
-    // }
+    for(auto &Global : M.globals()){
+        if(Global.getType()->isPointerTy()){
+            auto PointerLevel = computePointerLevel(&Global);
+            GlobalWorkList[PointerLevel].insert(&Global);
+        }
+    }
 
     size_t PtrLvl = 0;
     for(auto &Func : M.functions()){
@@ -216,6 +217,20 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
             auto PointerLevel = computePointerLevel(&Arg);
             WorkList[PointerLevel].insert(&Arg);
         }
+
+        for(auto &Global : Func->getParent()->globals()){
+            if(!Global.getType()->isPointerTy()){
+                continue;
+            }
+            addDefLabel(&Global, FirstInst, Func);
+            if(Global.hasInitializer()){
+                PointsToSetOut[FirstInst][&Global] = std::set<const Value*>{Global.getInitializer()};
+            }
+            else{
+                PointsToSetOut[FirstInst][&Global] = std::set<const Value*>{nullptr};
+            }
+            
+        }
     }
 
     for(auto &Inst : instructions(*Func)){
@@ -238,12 +253,21 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
             else{
                 Caller2Callee[Func].insert(Call->getCalledFunction());
                 size_t idx = 0;
+
+                // for(auto &Global : Func->getParent()->globals()){
+                //     addDefLabel(&Global, Call, Func);
+                //     addUseLabel(&Global, Call);          
+                // }
                 
                 for(auto Arg : Call->operand_values()){
                     auto Arg0 = Arg;
                     if(isa<BitCastInst>(Arg) || isa<GetElementPtrInst>(Arg)){
                         // dbgs() << "initialize" << "\n";
                         Arg0 = getOriginalPointer(Arg);
+                    }
+                    if(isa_and_nonnull<GlobalVariable>(Arg0)){
+                        addDefLabel(Arg0, Call, Call->getFunction());
+                        addUseLabel(Arg0, Call);
                     }
                     
                     if(Arg0 && !isa<LoadInst>(Arg0) && Arg0->getType()->isPointerTy()){
@@ -312,8 +336,9 @@ void FlowSensitivePointerAnalysis::markLabelsForPtrAtInstUsers(const PointerTy *
             markLabelsForPtrAtInstUsers(Ptr, User);          
         }
         else if(dyn_cast<CmpInst>(User) || dyn_cast<InvokeInst>(User) || dyn_cast<VAArgInst>(User) || 
-                dyn_cast<PHINode>(User) || dyn_cast<PtrToIntInst>(User) || dyn_cast<SelectInst>(User)){
-
+                dyn_cast<PHINode>(User) || dyn_cast<PtrToIntInst>(User) || dyn_cast<SelectInst>(User) || 
+                dyn_cast<DerivedUser>(User)){
+                    // cannot find program location from a derived user. Do it alternatively in initialize
             DEBUG_WITH_TYPE("warning", dbgs() << getCurrentTime() << "WARNING:" << *User << " is in the user list of pointer "
                 << *Ptr << ", but it's neither storeinst nor loadinst.\n");
         }
@@ -445,30 +470,37 @@ SetVector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerA
     initializePropagateList(std::set<const PointerTy*> Pointers, size_t PtrLvl, const Function *Func){
 
     SetVector<DefUseEdgeTupleTy> PropagateList{};
+
+    if(Func->isDeclaration()){
+        return PropagateList;
+    }
+
     for(auto Ptr: Pointers){
-        if(!Func->isDeclaration()){
-            if(auto Arg = dyn_cast<Argument>(Ptr)){
-                auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
-                auto InitialDUEdges = getAffectUseLocations(FirstInst, Arg);
-                for(auto UseLoc : InitialDUEdges){
-                    PropagateList.insert(std::make_tuple(FirstInst, UseLoc, Arg));
-                }
-                continue;
+        
+        if(auto Arg = dyn_cast<Argument>(Ptr)){
+            auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
+            auto InitialDUEdges = getAffectUseLocations(FirstInst, Arg);
+            for(auto UseLoc : InitialDUEdges){
+                PropagateList.insert(std::make_tuple(FirstInst, UseLoc, Arg));
             }
         }
-        
-        // An allocated pointer in llvm also represents its allocation location.
-        auto Loc = dyn_cast<ProgramLocationTy>(Ptr);
-        assert(Loc && "Cannot use nullptr as program location");
-        auto InitialDUEdges = getAffectUseLocations(Loc, Ptr);
-        for(auto UseLoc : InitialDUEdges){
-            PropagateList.insert(std::make_tuple(Loc, UseLoc, Ptr));
+        else if(auto Global = dyn_cast<GlobalVariable>(Ptr)){
+            auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
+            auto InitialDUEdges = getAffectUseLocations(FirstInst, Global);
+            for(auto UseLoc : InitialDUEdges){
+                PropagateList.insert(std::make_tuple(FirstInst, UseLoc, Global));
+            }
         }
-    }
-    if(GlobalWorkList.count(PtrLvl)){
-        for(auto Ptr : GlobalWorkList.at(PtrLvl)){
-            // Global variables are not supported yet.
+        else if(auto Loc = dyn_cast<ProgramLocationTy>(Ptr)){
+            // An allocated pointer in llvm also represents its allocation location.
+            auto InitialDUEdges = getAffectUseLocations(Loc, Ptr);
+            for(auto UseLoc : InitialDUEdges){
+                PropagateList.insert(std::make_tuple(Loc, UseLoc, Ptr));
+            }
         }
+        else{
+            assert(false && "Cannot use nullptr as program location");
+        } 
     }
     return PropagateList;
 }
@@ -871,17 +903,6 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
         --ArgIdx;
     }
 
-    // dbgs() << "Update alias user " << Func->getName() << " " << *Parameter << "\n";
-    // for(auto P : PTS){
-    //     if(!P){
-    //         dbgs() << "nullptr" << "\n";
-    //     }
-    //     else{
-    //         dbgs() << *P << "\n";
-    //     }
-        
-    // }
-
     
     auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
 
@@ -914,7 +935,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
         DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Propagating edge " 
             << *DefLoc << " === " << *Ptr << " ===> " << *UseLoc << "\n");
 
-        dbgs() << getCurrentTime() << " Propagating edge " << *DefLoc << " === " << *Ptr << " ===> " << *UseLoc << "\n";
+        // dbgs() << getCurrentTime() << " Propagating edge " << *DefLoc << " === " << *Ptr << " ===> " << *UseLoc << "\n";
 
         propagatePointsToInformation(UseLoc, DefLoc, Ptr);
 
@@ -1285,7 +1306,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     
     
-    while(CurrentPointerLevel > 0){
+    while(CurrentPointerLevel > 1){
         for(auto &Func : m.functions()){
             if(Func.isDeclaration()){
                 continue;
@@ -1297,6 +1318,9 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
             auto Pointers = std::set<const PointerTy*>{};
             if(Func2WorkList.count(&Func) && Func2WorkList[&Func].count(CurrentPointerLevel)){
                 Pointers = Func2WorkList.at(&Func).at(CurrentPointerLevel);
+            }
+            if(GlobalWorkList.count(CurrentPointerLevel)){
+                Pointers.insert(GlobalWorkList[CurrentPointerLevel].begin(), GlobalWorkList[CurrentPointerLevel].end());
             }
             for(auto Ptr : Pointers){
                 markLabelsForPtrAtInstUsers(Ptr, Ptr);
@@ -1311,6 +1335,9 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
             auto Pointers = std::set<const PointerTy*>{};
             if(Func2WorkList.count(&Func) && Func2WorkList[&Func].count(CurrentPointerLevel)){
                 Pointers = Func2WorkList.at(&Func).at(CurrentPointerLevel);
+            }
+            if(GlobalWorkList.count(CurrentPointerLevel)){
+                Pointers.insert(GlobalWorkList[CurrentPointerLevel].begin(), GlobalWorkList[CurrentPointerLevel].end());
             }
             for(auto Ptr : Pointers){
                 auto Pair = buildDominatorGraph(&Func, Ptr);
@@ -1340,18 +1367,18 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     dbgs() << duration.count() << "\n";
 
 
-    dumpLabelMap();
+    // dumpLabelMap();
 
-    dumpPointsToSet();
+    // dumpPointsToSet();
 
     // dumpAliasMap();
 
-    for(auto Pair : AliasUser){
-        dbgs() << *Pair.first << " is used at\n";
-        for(auto U : Pair.second){
-            dbgs() << "\t" << *U << "\n";
-        }
-    }
+    // for(auto Pair : AliasUser){
+    //     dbgs() << *Pair.first << " is used at\n";
+    //     for(auto U : Pair.second){
+    //         dbgs() << "\t" << *U << "\n";
+    //     }
+    // }
 
     // for(auto Pair : CallSite2ArgIdx){
     //     dbgs() << *Pair.first <<" CALLSITE \n";
