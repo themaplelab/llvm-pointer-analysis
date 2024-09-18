@@ -855,7 +855,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
             }
         }
         else if(auto Call = dyn_cast<CallInst>(UseLoc)){
-            if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
+            if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration() || !Ptr->getType()->isPointerTy()){
                 // Ignore indirect call.
                 continue;
             }
@@ -940,6 +940,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
         propagatePointsToInformation(UseLoc, DefLoc, Ptr);
 
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
+            // add the case of c = call f x
             auto PTS = getRealPointsToSet(UseLoc, Store->getValueOperand());
             updatePointsToSet(UseLoc, Ptr, PTS, PropagateList);
             
@@ -1071,7 +1072,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
                     }
                 }
             }
-            else if(Ptr->getType()->isPointerTy() && Ptr == Return->getReturnValue()){
+            else if(Ptr->getType()->isPointerTy() && Ptr == getOriginalPointer(Return->getReturnValue())){
                 // propagate return ptr
                 for(auto CallSite : Func2CallerLocation[Return->getFunction()]){
                     auto OldAliasSet = std::set<const PointerTy*>{};
@@ -1306,7 +1307,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     
     
-    while(CurrentPointerLevel > 1){
+    while(CurrentPointerLevel > 0){
         for(auto &Func : m.functions()){
             if(Func.isDeclaration()){
                 continue;
@@ -1437,6 +1438,23 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << " " << MaxSize << " " << MinSize << "\n";
     dbgs() << *Loc << "\n";
+
+
+    // count dug nodes number and edge numbers.
+    size_t TotalEdges = 0;
+    std::set<const ProgramLocationTy*> Nodes;
+
+    for(auto Pair : DefUseGraph){
+        Nodes.insert(Pair.first);
+        for(auto P : Pair.second){
+            for(auto E : P.second){
+                Nodes.insert(E);
+                ++TotalEdges;
+            }
+        }
+    }
+
+    dbgs() << "Total number of nodes: " << Nodes.size() << ", and total number of edges is " << TotalEdges << "\n";
 
     return AnalysisResult;
 }
