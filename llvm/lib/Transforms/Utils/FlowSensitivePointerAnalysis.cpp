@@ -529,8 +529,11 @@ const FlowSensitivePointerAnalysis::PointerTy* FlowSensitivePointerAnalysis::
     }
 
     while(Ptr != Ptr->stripPointerCastsAndAliases()->stripInBoundsOffsets()){
-        // dbgs() <<"123" << *Ptr << " => " << *(Ptr->stripPointerCastsAndAliases()->stripInBoundsOffsets()) << "\n";
         Ptr = Ptr->stripPointerCastsAndAliases()->stripInBoundsOffsets();
+        
+    }
+    if(auto GEP = dyn_cast<GetElementPtrInst>(Ptr)){
+        Ptr = getOriginalPointer(GEP->getPointerOperand());
     }
 
     return Ptr;
