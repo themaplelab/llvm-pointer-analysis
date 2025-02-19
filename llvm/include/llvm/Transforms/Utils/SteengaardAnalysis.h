@@ -47,6 +47,7 @@ namespace llvm{
         std::map<size_t, std::set<size_t>> Alias;
         std::map<size_t, size_t> PointerLevel;
         std::map<std::pair<const Value*, bool>, size_t> pointerID;
+        std::map<size_t, std::pair<const Value*, bool>> ID2Ptr;
         size_t maxPl;
 
 
@@ -65,6 +66,10 @@ namespace llvm{
 
             void setPointerID(std::map<std::pair<const Value*, bool>, size_t> &PointerID){
                 this->pointerID = PointerID;
+            }
+
+            void setId2Ptr(const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr){
+                this->ID2Ptr = ID2Ptr;
             }
 
             void setMaxPl(size_t pl){
@@ -90,6 +95,12 @@ namespace llvm{
                 }
             
                 return pointerID.at({Ptr, isTopLevel});
+            }
+
+            std::pair<const Value*, bool> getPtr(size_t Id){
+                // errs() << Id << "\n";
+                assert(ID2Ptr.count(Id) && "Cannot retrieve id.");
+                return ID2Ptr.at(Id);
             }
     };
 

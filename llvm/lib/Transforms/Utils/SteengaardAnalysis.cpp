@@ -107,6 +107,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     AnalysisResult.setPointerLevels(PointerLevel);
     AnalysisResult.setPointerID(pointerID);
     AnalysisResult.setMaxPl(maxPl);
+    AnalysisResult.setId2Ptr(ID2Ptr);
 
     return AnalysisResult;
 
@@ -114,7 +115,8 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
 
 
 void SteengaardAnalysis::createID(const Value *Ptr, bool isTopLevel){
-    pointerID.try_emplace({Ptr,isTopLevel}, id++);
+    pointerID.try_emplace({Ptr,isTopLevel}, id);
+    ID2Ptr.try_emplace(id++, std::make_pair(Ptr,isTopLevel));
 }
 
 
@@ -199,6 +201,11 @@ void SteengaardAnalysis::printStats(){
     outs() << "pointer level\n";
     for(auto p : Uf.getParent()){
         outs() << p.first << " => " << getPointerLevel(p.first) << "\n";
+    }
+
+    outs() << "id2Ptr\n";
+    for(auto p : ID2Ptr){
+        outs() << p.first << " => " << *p.second.first << " " << p.second.second << "\n";
     }
 
 

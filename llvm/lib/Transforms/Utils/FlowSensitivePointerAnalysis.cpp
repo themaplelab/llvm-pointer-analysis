@@ -174,17 +174,16 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func, Steengaard
                 continue;
             }
             addDefLabel(&Arg, FirstInst, Func);
-            
             PointsToSetOut[FirstInst][&Arg] = std::set<const Value*>{};
             auto PointerLevel = computePointerLevel(&Arg, true, SAR);
-            WorkList[PointerLevel].insert(&Arg);
+            WorkList[PointerLevel].insert(SAR.getID(&Arg, true));
         }
     }
 
     for(auto &Inst : instructions(*Func)){
         if(const AllocaInst *Alloca = dyn_cast<AllocaInst>(&Inst)){
             auto PointerLevel = computePointerLevel(Alloca, true, SAR);
-            WorkList[PointerLevel].insert(Alloca);
+            WorkList[PointerLevel].insert(SAR.getID(Alloca, true));
             if(PointerLevel > res){
                 res = PointerLevel;
             }
@@ -237,7 +236,9 @@ bool FlowSensitivePointerAnalysis::hasDef(const ProgramLocationTy *Loc, const Po
 
 /// @brief Mark def and use labels for pointer \p Ptr. The labels are later 
 /// used for building def use graph.
-void FlowSensitivePointerAnalysis::markLabelsForPtr(const PointerTy *Ptr){
+void FlowSensitivePointerAnalysis::markLabelsForPtr(const PointerTy *Ptr, bool isTopLevel){
+
+    assert(isTopLevel && "Marking explicit label can only used on top level ptrs");
 
     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Marking labels for "
          << *Ptr << "\n");
@@ -384,10 +385,11 @@ std::vector<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitiv
 /// @brief Find all def use edges starting from the allocation location of pointers.
 ///     When we start propagating points-to information, we want to start with these edges.
 SetVector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerAnalysis::
-    initializePropagateList(std::set<const PointerTy*> Pointers, size_t PtrLvl, const Function *Func){
+    initializePropagateList(std::set<size_t> Pointers, size_t PtrLvl, const Function *Func, SteengaardAnalysisResult &SAR){
 
     SetVector<DefUseEdgeTupleTy> PropagateList{};
-    for(auto Ptr: Pointers){
+    for(auto PtrId: Pointers){
+        auto Ptr = SAR.getPtr(PtrId).first;
         if(!Func->isDeclaration()){
             if(auto Arg = dyn_cast<Argument>(Ptr)){
                 auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
@@ -979,12 +981,13 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
             Func2DomTree.emplace(&Func, FAM.getResult<DominatorTreeAnalysis>(Func));
             Func2DomFrontier.emplace(&Func, FAM.getResult<DominanceFrontierAnalysis>(Func));
 
-            auto Pointers = std::set<const PointerTy*>{};
+            auto Pointers = std::set<size_t>{};
             if(Func2WorkList.count(&Func) && Func2WorkList[&Func].count(CurrentPointerLevel)){
                 Pointers = Func2WorkList.at(&Func).at(CurrentPointerLevel);
             }
-            for(auto Ptr : Pointers){
-                markLabelsForPtr(Ptr);
+            for(auto PtrId : Pointers){
+                auto Ptr = SteengaardResult.getPtr(PtrId);
+                markLabelsForPtr(Ptr.first, Ptr.second);
             }
 
         }
@@ -993,19 +996,20 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
             // dbgs() << getCurrentTime() << " Analyzing function: " 
             //     << Func.getName() << " with pointer level: " << CurrentPointerLevel << "\n";
 
-            auto Pointers = std::set<const PointerTy*>{};
+            auto Pointers = std::set<size_t>{};
             if(Func2WorkList.count(&Func) && Func2WorkList[&Func].count(CurrentPointerLevel)){
                 Pointers = Func2WorkList.at(&Func).at(CurrentPointerLevel);
             }
-            for(auto Ptr : Pointers){
-                auto Pair = buildDominatorGraph(&Func, Ptr);
+            for(auto PtrId : Pointers){
+                auto Ptr = SteengaardResult.getPtr(PtrId);
+                auto Pair = buildDominatorGraph(&Func, Ptr.first);
                 auto OUT = Pair.first;
                 auto DG = Pair.second;
-                auto UseLocs = getUseLocations(Ptr);
-                buildDefUseGraph(UseLocs, Ptr, OUT, DG);
+                auto UseLocs = getUseLocations(Ptr.first);
+                buildDefUseGraph(UseLocs, Ptr.first, OUT, DG);
             }
 
-            auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
+            auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func, SteengaardResult);
 
             // dbgs() << getCurrentTime() << " Propagating function: " 
             //     << Func.getName() << " with pointer level: " << CurrentPointerLevel << "\n";

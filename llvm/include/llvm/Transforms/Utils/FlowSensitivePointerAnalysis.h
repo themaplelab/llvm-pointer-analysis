@@ -86,7 +86,7 @@ namespace llvm{
 
         using PointerTy = Value;
         using ProgramLocationTy = Instruction;
-        using WorkListTy = std::map<size_t, std::set<const PointerTy*>>;
+        using WorkListTy = std::map<size_t, std::set<size_t>>;
         using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<const PointerTy*, std::set<const PointerTy*>>>;
 
 
@@ -122,7 +122,7 @@ namespace llvm{
         using PointerTy = Value;
         using ProgramLocationTy = Instruction;
         using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<const PointerTy*, std::set<const PointerTy*>>>;
-        using WorkListTy = std::map<size_t, std::set<const PointerTy*>>;
+        using WorkListTy = std::map<size_t, std::set<size_t>>;
         using DefUseEdgeTupleTy = std::tuple<const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*>;
         using DefUseGraphTy = std::map<const ProgramLocationTy*, std::map<const PointerTy*, std::set<const ProgramLocationTy*>>>;
 
@@ -170,9 +170,9 @@ namespace llvm{
             void globalInitialize(Module&, SteengaardAnalysisResult &SAR);
             bool hasDef(const ProgramLocationTy*, const PointerTy*);
             size_t initialize(const Function*, SteengaardAnalysisResult &SAR);
-            SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
+            SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function *, SteengaardAnalysisResult &SAR);
             bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<const PointerTy*>&);
-            void markLabelsForPtr(const PointerTy*);
+            void markLabelsForPtr(const PointerTy*, bool isTopLevel);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
             void propagate(SetVector<DefUseEdgeTupleTy>, const Function*);
