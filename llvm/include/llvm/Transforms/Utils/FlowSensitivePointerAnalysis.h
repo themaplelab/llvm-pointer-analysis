@@ -124,7 +124,7 @@ namespace llvm{
         using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<size_t>>>;
         using WorkListTy = std::map<size_t, std::set<size_t>>;
         using DefUseEdgeTupleTy = std::tuple<const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*>;
-        using DefUseGraphTy = std::map<const ProgramLocationTy*, std::map<const PointerTy*, std::set<const ProgramLocationTy*>>>;
+        using DefUseGraphTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<const ProgramLocationTy*>>>;
 
         // Map each pointer to the program location that requires its alias information.
         PointsToSetTy AliasMap;
@@ -140,10 +140,10 @@ namespace llvm{
         std::map<const ProgramLocationTy*, std::set<Label>> LabelMap; 
         PointsToSetTy PointsToSetOut;
         PointsToSetTy PointsToSetIn;
-        std::map<const Value*, std::set<const ProgramLocationTy*>> UseList;
+        std::map<size_t, std::set<const ProgramLocationTy*>> UseList;
         std::map<const Function*, std::reference_wrapper<DominatorTreeAnalysis::Result>> Func2DomTree;
         std::map<const Function*, std::reference_wrapper<DominanceFrontierAnalysis::Result>> Func2DomFrontier;
-        std::map<const PointerTy*, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
+        std::map<size_t, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
         std::map<const CallInst*, std::map<const PointerTy*, std::set<size_t>>> CallSite2ArgIdx;
 
         FlowSensitivePointerAnalysisResult AnalysisResult;
@@ -153,23 +153,23 @@ namespace llvm{
         static bool isRequired() { return true; }
 
         private:
-            void addDefUseEdge(const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*);
-            void addDefLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc, const Function *Func);
-            void addUseLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc);
+            void addDefUseEdge(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
+            void addDefLabel(size_t Ptr, const ProgramLocationTy *Loc, const Function *Func);
+            void addUseLabel(size_t Ptr, const ProgramLocationTy *Loc);
             std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
-                buildDominatorGraph(const Function *Func, const PointerTy *Ptr);
-            void buildDefUseGraph(std::set<const ProgramLocationTy*>, const PointerTy*, 
+                buildDominatorGraph(const Function *Func, size_t PtrId);
+            void buildDefUseGraph(std::set<const ProgramLocationTy*>, size_t, 
                 std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
             size_t computePointerLevel(const PointerTy*, bool isTopLevel, SteengaardAnalysisResult &SAR);
             void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
-            std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, const PointerTy*);
+            std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, size_t);
             std::set<size_t> getAlias(const ProgramLocationTy*, const LoadInst*);
             std::set<size_t> getRealPointsToSet(const ProgramLocationTy*, const PointerTy*);
-            std::set<const ProgramLocationTy*> getUseLocations(const PointerTy*);
+            std::set<const ProgramLocationTy*> getUseLocations(size_t);
             void globalInitialize(Module&, SteengaardAnalysisResult &SAR);
-            bool hasDef(const ProgramLocationTy*, const PointerTy*);
+            bool hasDef(const ProgramLocationTy*, size_t);
             void initialize(const Function*, SteengaardAnalysisResult &SAR);
             SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function *, SteengaardAnalysisResult &SAR);
             bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<size_t>&);
@@ -200,14 +200,14 @@ namespace llvm{
     //      2. the memoryobject being defed or used. 
     struct Label{
 
-        const FlowSensitivePointerAnalysis::PointerTy *Ptr;
+        size_t Ptr;
         enum class LabelType{
             None = 0, Use, Def, DefUse
         };
         LabelType Type;
 
         // Label() = default;
-        Label(const FlowSensitivePointerAnalysis::PointerTy *Ptr, Label::LabelType Type) : Ptr(Ptr), Type(Type) {}
+        Label(size_t Ptr, Label::LabelType Type) : Ptr(Ptr), Type(Type) {}
     };
 
     raw_ostream& operator<<(raw_ostream&, const Label&);
