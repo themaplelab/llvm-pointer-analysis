@@ -1,5 +1,5 @@
 #include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
-#include "llvm/Transforms/Utils/SteengaardAnalysis.h"
+
 
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
@@ -107,7 +107,7 @@ void FlowSensitivePointerAnalysis::dumpLabelMap(){
 
 /// @brief Initialize analysis for all functions in current module. 
 /// @return The largest pointer level among all functions.
-size_t FlowSensitivePointerAnalysis::globalInitialize(Module &M){
+void FlowSensitivePointerAnalysis::globalInitialize(Module &M, SteengaardAnalysisResult &SAR){
 
     // for(auto &Global : M.globals()){
     //     if(Global.getType()->isPointerTy()){
@@ -116,34 +116,24 @@ size_t FlowSensitivePointerAnalysis::globalInitialize(Module &M){
     //     }
     // }
 
-    size_t PtrLvl = 0;
     for(auto &Func : M.functions()){
-        auto PL = initialize(&Func);
-        if(PtrLvl < PL){
-            PtrLvl = PL;
-        }
+        auto PL = initialize(&Func, SAR);
     }
 
-    assert(PtrLvl >= 0 && "Pointer level cannot be negative.");
-
     AnalysisResult.setWorkList(Func2WorkList);
-    return PtrLvl;
 }
 
 /// @brief Compute the pointer level of an allocated pointer.
 /// @return Pointer level for \p Ptr.
-size_t FlowSensitivePointerAnalysis::computePointerLevel(const PointerTy *Ptr){
+size_t FlowSensitivePointerAnalysis::computePointerLevel(const PointerTy *Ptr, bool isTopLevel, SteengaardAnalysisResult &SAR){
 
-    // dbgs() << "Compute ptr level for " << *Ptr << "\n";
-
-    size_t PointerLevel = 1;
-
-    auto ty = Ptr->getType();
-    while(ty->getPointerElementType()->isPointerTy()){
-        ++PointerLevel;
-        ty = ty->getPointerElementType();
+    const auto &PointerLevel = SAR.getPointerLevels();
+    auto Id = SAR.getID(Ptr, isTopLevel);
+    if(!PointerLevel.count(Id)){
+        errs() << *Ptr << " " << isTopLevel << "\n";
+        llvm_unreachable("Cannot get pointer level for a missing pointer.");
     }
-    return PointerLevel;
+    return PointerLevel.at(Id);
 }
 
 void FlowSensitivePointerAnalysis::addDefLabel(const PointerTy *Ptr, const ProgramLocationTy *Loc, const Function *Func){
@@ -162,7 +152,7 @@ void FlowSensitivePointerAnalysis::addUseLabel(const PointerTy *Ptr, const Progr
 
 /// @brief Calculate pointer level for function \p Func. Mark labels for each pointer
 ///     related instructions. Store pointers into worklist according to their pointer level.
-size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
+size_t FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAnalysisResult &SAR){
 
     /*
         1. get result of steengaard analysis.
@@ -176,6 +166,7 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
     WorkListTy WorkList;
     size_t res = 0;
 
+    // function parameters
     if(!Func->isDeclaration()){
         auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
         for(auto &Arg : Func->args()){
@@ -185,14 +176,14 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
             addDefLabel(&Arg, FirstInst, Func);
             
             PointsToSetOut[FirstInst][&Arg] = std::set<const Value*>{};
-            auto PointerLevel = computePointerLevel(&Arg);
+            auto PointerLevel = computePointerLevel(&Arg, true, SAR);
             WorkList[PointerLevel].insert(&Arg);
         }
     }
 
     for(auto &Inst : instructions(*Func)){
         if(const AllocaInst *Alloca = dyn_cast<AllocaInst>(&Inst)){
-            auto PointerLevel = computePointerLevel(Alloca);
+            auto PointerLevel = computePointerLevel(Alloca, true, SAR);
             WorkList[PointerLevel].insert(Alloca);
             if(PointerLevel > res){
                 res = PointerLevel;
@@ -971,10 +962,10 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    auto SteengaardAnalysisResult = mam.getResult<SteengaardAnalysis>(m);
+    auto SteengaardResult = mam.getResult<SteengaardAnalysis>(m);
 
-    auto CurrentPointerLevel = SteengaardAnalysisResult.getMaxPl();
-    globalInitialize(m);
+    auto CurrentPointerLevel = SteengaardResult.getMaxPl();
+    globalInitialize(m, SteengaardResult);
 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     

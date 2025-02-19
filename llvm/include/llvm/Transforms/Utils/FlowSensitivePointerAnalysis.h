@@ -28,6 +28,8 @@
 #include <utility>
 #include <vector>
 
+#include "llvm/Transforms/Utils/SteengaardAnalysis.h"
+
 
 #define LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_ANALYSIS
 
@@ -157,7 +159,7 @@ namespace llvm{
                 buildDominatorGraph(const Function *Func, const PointerTy *Ptr);
             void buildDefUseGraph(std::set<const ProgramLocationTy*>, const PointerTy*, 
                 std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
-            size_t computePointerLevel(const PointerTy*);
+            size_t computePointerLevel(const PointerTy*, bool isTopLevel, SteengaardAnalysisResult &SAR);
             void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
@@ -165,9 +167,9 @@ namespace llvm{
             std::set<const PointerTy*> getAlias(const ProgramLocationTy*, const LoadInst*);
             std::set<const PointerTy*> getRealPointsToSet(const ProgramLocationTy*, const PointerTy*);
             std::set<const ProgramLocationTy*> getUseLocations(const PointerTy*);
-            size_t globalInitialize(Module&);
+            void globalInitialize(Module&, SteengaardAnalysisResult &SAR);
             bool hasDef(const ProgramLocationTy*, const PointerTy*);
-            size_t initialize(const Function*);
+            size_t initialize(const Function*, SteengaardAnalysisResult &SAR);
             SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<const PointerTy*>, size_t, const Function *);
             bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<const PointerTy*>&);
             void markLabelsForPtr(const PointerTy*);
