@@ -189,16 +189,17 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAn
             auto PointerLevel = computePointerLevel(Alloca, true, SAR);
             WorkList[PointerLevel].insert(SAR.getID(Alloca, true));
             // todo: also add def label for memory object (Addr-taken)
-            // todo: make addDefLabel takes size_t
             addDefLabel(SAR.getID(Alloca, true), Alloca, Func);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
+            //todo: add id for nullptr
             PointsToSetOut[&Inst][SAR.getID(Alloca, true)] = std::set<size_t>{};
 
-            // auto MemoryObjPl = computePointerLevel(Alloca, false, SAR);
-            // WorkList[MemoryObjPl].insert(SAR.getID(Alloca, false));
+            auto MemoryObjPl = computePointerLevel(Alloca, false, SAR);
+            WorkList[MemoryObjPl].insert(SAR.getID(Alloca, false));
             // todo: introduce labels for memory object
-            // addDefLabel(Alloca, Alloca, Func);
-            // PointsToSetOut[&Inst][Alloca] = std::set<const Value*>{nullptr};
+            addDefLabel(SAR.getID(Alloca, true), Alloca, Func);
+            // todo: add id for nullptr
+            PointsToSetOut[&Inst][SAR.getID(Alloca, true)] = std::set<size_t>{};
 
 
         }
@@ -247,7 +248,10 @@ bool FlowSensitivePointerAnalysis::hasDef(const ProgramLocationTy *Loc, size_t P
 /// used for building def use graph.
 void FlowSensitivePointerAnalysis::markLabelsForPtr(const PointerTy *Ptr, bool isTopLevel){
 
-    assert(isTopLevel && "Marking explicit label can only used on top level ptrs");
+    if(!isTopLevel){
+        errs() << "Marking labels for addr-taken " << *Ptr << " " << isTopLevel << "\n";
+        return; 
+    }
 
     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Marking labels for "
          << *Ptr << "\n");
@@ -1063,11 +1067,11 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     dbgs() << duration.count() << "\n";
 
 
-    DEBUG_WITH_TYPE("label", dumpLabelMap());
+    // DEBUG_WITH_TYPE("label", dumpLabelMap());
     DEBUG_WITH_TYPE("pts", dumpPointsToSet());
 
-    DEBUG_WITH_TYPE("pts", dumpPointsToSet());
-    dumpAliasMap();
+    // DEBUG_WITH_TYPE("pts", dumpPointsToSet());
+    // dumpAliasMap();
 
     AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
     AnalysisResult.setPointsToSet(PointsToSetOut);
