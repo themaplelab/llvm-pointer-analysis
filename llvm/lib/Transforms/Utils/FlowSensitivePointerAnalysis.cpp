@@ -117,7 +117,7 @@ void FlowSensitivePointerAnalysis::globalInitialize(Module &M, SteengaardAnalysi
     // }
 
     for(auto &Func : M.functions()){
-        auto PL = initialize(&Func, SAR);
+        initialize(&Func, SAR);
     }
 
     AnalysisResult.setWorkList(Func2WorkList);
@@ -152,7 +152,7 @@ void FlowSensitivePointerAnalysis::addUseLabel(const PointerTy *Ptr, const Progr
 
 /// @brief Calculate pointer level for function \p Func. Mark labels for each pointer
 ///     related instructions. Store pointers into worklist according to their pointer level.
-size_t FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAnalysisResult &SAR){
+void FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAnalysisResult &SAR){
 
     /*
         1. get result of steengaard analysis.
@@ -164,7 +164,6 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func, Steengaard
          << Func->getName() << "\n");
 
     WorkListTy WorkList;
-    size_t res = 0;
 
     // function parameters
     if(!Func->isDeclaration()){
@@ -184,13 +183,20 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func, Steengaard
         if(const AllocaInst *Alloca = dyn_cast<AllocaInst>(&Inst)){
             auto PointerLevel = computePointerLevel(Alloca, true, SAR);
             WorkList[PointerLevel].insert(SAR.getID(Alloca, true));
-            if(PointerLevel > res){
-                res = PointerLevel;
-            }
             // todo: also add def label for memory object (Addr-taken)
+            // todo: make addDefLabel takes size_t
             addDefLabel(Alloca, Alloca, Func);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
+            //todo: makes PointsToSetOut takes size_t
             PointsToSetOut[&Inst][Alloca] = std::set<const Value*>{nullptr};
+
+            // auto MemoryObjPl = computePointerLevel(Alloca, false, SAR);
+            // WorkList[MemoryObjPl].insert(SAR.getID(Alloca, false));
+            // todo: introduce labels for memory object
+            // addDefLabel(Alloca, Alloca, Func);
+            // PointsToSetOut[&Inst][Alloca] = std::set<const Value*>{nullptr};
+
+
         }
         else if(const CallInst *Call = dyn_cast<CallInst>(&Inst)){
             Func2CallerLocation[Call->getCalledFunction()].insert(Call);
@@ -218,7 +224,6 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func, Steengaard
     }
 
     Func2WorkList.emplace(Func, WorkList);
-    return res;
 }
 
 

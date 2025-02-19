@@ -169,7 +169,7 @@ namespace llvm{
             std::set<const ProgramLocationTy*> getUseLocations(const PointerTy*);
             void globalInitialize(Module&, SteengaardAnalysisResult &SAR);
             bool hasDef(const ProgramLocationTy*, const PointerTy*);
-            size_t initialize(const Function*, SteengaardAnalysisResult &SAR);
+            void initialize(const Function*, SteengaardAnalysisResult &SAR);
             SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function *, SteengaardAnalysisResult &SAR);
             bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<const PointerTy*>&);
             void markLabelsForPtr(const PointerTy*, bool isTopLevel);
