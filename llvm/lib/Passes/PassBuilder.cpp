@@ -252,6 +252,10 @@
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
 
+#include "llvm/Transforms/Utils/SteengaardAnalysis.h"
+#include "llvm/Transforms/Utils/PointerAnalysis.h"
+
+
 using namespace llvm;
 
 static const Regex DefaultAliasRegex(

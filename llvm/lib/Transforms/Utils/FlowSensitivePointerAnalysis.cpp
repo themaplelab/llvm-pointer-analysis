@@ -1,4 +1,5 @@
 #include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
+#include "llvm/Transforms/Utils/SteengaardAnalysis.h"
 
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
@@ -163,6 +164,12 @@ void FlowSensitivePointerAnalysis::addUseLabel(const PointerTy *Ptr, const Progr
 ///     related instructions. Store pointers into worklist according to their pointer level.
 size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
 
+    /*
+        1. get result of steengaard analysis.
+        2. for leaf node in pts graph, pl = 0
+        3. pl(x) = max(pl(y), y is child of x) + 1
+    */
+
     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Initializing function "
          << Func->getName() << "\n");
 
@@ -176,6 +183,7 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
                 continue;
             }
             addDefLabel(&Arg, FirstInst, Func);
+            
             PointsToSetOut[FirstInst][&Arg] = std::set<const Value*>{};
             auto PointerLevel = computePointerLevel(&Arg);
             WorkList[PointerLevel].insert(&Arg);
@@ -189,6 +197,7 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
             if(PointerLevel > res){
                 res = PointerLevel;
             }
+            // todo: also add def label for memory object (Addr-taken)
             addDefLabel(Alloca, Alloca, Func);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
             PointsToSetOut[&Inst][Alloca] = std::set<const Value*>{nullptr};
@@ -196,13 +205,6 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
         else if(const CallInst *Call = dyn_cast<CallInst>(&Inst)){
             Func2CallerLocation[Call->getCalledFunction()].insert(Call);
             if(!Call->getCalledFunction()){
-                // dbgs() << *Call << "\n";
-                // if(isa<Function>(Call->getCalledOperand()->stripPointerCasts())){
-                //     dbgs() << Call->getCalledOperand()->stripPointerCasts()->getName() << "\n";
-                // }
-                // else{
-                //     dbgs() << *Call->getCalledOperand()->stripPointerCasts() << "\n";
-                // }
                 DEBUG_WITH_TYPE("warning", dbgs() << getCurrentTime() << " WARNING:" 
                     << *Call << " performs an indirect call\n");
             }
@@ -222,7 +224,6 @@ size_t FlowSensitivePointerAnalysis::initialize(const Function *Func){
             for(auto &Arg : Func->args()){
                 addUseLabel(&Arg, Return);
             }
-            
         }
     }
 
@@ -970,8 +971,10 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     auto start = std::chrono::high_resolution_clock::now();
 
+    auto SteengaardAnalysisResult = mam.getResult<SteengaardAnalysis>(m);
 
-    auto CurrentPointerLevel = globalInitialize(m);
+    auto CurrentPointerLevel = SteengaardAnalysisResult.getMaxPl();
+    globalInitialize(m);
 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     

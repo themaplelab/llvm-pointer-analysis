@@ -32,6 +32,7 @@ MODULE_ANALYSIS("ir-similarity", IRSimilarityAnalysis())
 MODULE_ANALYSIS("fspa", FlowSensitivePointerAnalysis())
 MODULE_ANALYSIS("ander", AndersenPointerAnalysis())
 MODULE_ANALYSIS("sfs", StagedFlowSensitivePointerAnalysis())
+MODULE_ANALYSIS("steengaard", SteengaardAnalysis())
 
 
 
@@ -128,6 +129,8 @@ MODULE_PASS("pseudo-probe-update", PseudoProbeUpdatePass())
 MODULE_PASS("print-pointer-level", PrintPL())
 MODULE_PASS("print-alias-pairs", PrintAliasToPairs())
 MODULE_PASS("nullptr-checker", NullPointerChecker())
+MODULE_PASS("pointer-analysis", PointerAnalysis())
+
 
 #undef MODULE_PASS
 
@@ -224,6 +227,8 @@ FUNCTION_ANALYSIS("targetir",
 FUNCTION_ANALYSIS("verify", VerifierAnalysis())
 FUNCTION_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
 FUNCTION_ANALYSIS("divergence", DivergenceAnalysis())
+
+
 
 #ifndef FUNCTION_ALIAS_ANALYSIS
 #define FUNCTION_ALIAS_ANALYSIS(NAME, CREATE_PASS)                             \

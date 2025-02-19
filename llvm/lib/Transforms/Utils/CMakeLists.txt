@@ -83,6 +83,8 @@ add_llvm_component_library(LLVMTransformUtils
   Utils.cpp
   ValueMapper.cpp
   VNCoercion.cpp
+  SteengaardAnalysis.cpp
+  PointerAnalysis.cpp
 
 
   ADDITIONAL_HEADER_DIRS
