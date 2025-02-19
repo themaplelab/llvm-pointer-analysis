@@ -37,24 +37,26 @@ void FlowSensitivePointerAnalysis::printPointsToSetAtProgramLocation(const Progr
     if(PointsToSetOut.count(Loc)){
         DEBUG_WITH_TYPE("pts", dbgs() << "At program location" << *Loc << ":\n");
         for(auto PtsForPtr : PointsToSetOut.at(Loc)){
-            auto Ptr = SteengaardResult.getPtr(PtsForPtr.first).first;
-            if(dyn_cast<Argument>(Ptr)){
-                DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *(Ptr) << " ==>\n");
+            auto Ptr = SteengaardResult.getPtr(PtsForPtr.first);
+            std::string PtrType = Ptr.second ? "(TopLevel)" : "(AddrTaken)";
+            if(dyn_cast<Argument>(Ptr.first)){
+                DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *(Ptr.first) << " " << PtrType << " ==>\n");
             }
             else{
-                DEBUG_WITH_TYPE("pts", dbgs() << *(Ptr) << " ==>\n");
+                DEBUG_WITH_TYPE("pts", dbgs() << *(Ptr.first) << " " << PtrType << " ==>\n");
             }
             
             for(auto PointeeId : PtsForPtr.second){
-                auto Pointee = SteengaardResult.getPtr(PointeeId).first;
-                if(!Pointee){
+                auto Pointee = SteengaardResult.getPtr(PointeeId);
+                std::string PtrType = Pointee.second ? "(TopLevel)" : "(AddrTaken)";
+                if(!Pointee.first){
                     DEBUG_WITH_TYPE("pts", dbgs() << "\t " << "nullptr" << "\n");
                 }
-                else if(dyn_cast<Instruction>(Pointee)){
-                    DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *Pointee << "\n");
+                else if(dyn_cast<Instruction>(Pointee.first)){
+                    DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *(Pointee.first) << " " << PtrType << "\n");
                 }
                 else{
-                    DEBUG_WITH_TYPE("pts", dbgs() << "\t " << *Pointee << "\n");
+                    DEBUG_WITH_TYPE("pts", dbgs() << "\t " << *(Pointee.first) << " " << PtrType << "\n");
                 }
             }
         }
@@ -177,32 +179,40 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAn
             if(!Arg.getType()->isPointerTy()){
                 continue;
             }
-            addDefLabel(SAR.getID(&Arg, true), FirstInst, Func);
-            PointsToSetOut[FirstInst][SAR.getID(&Arg, true)] = std::set<size_t>{};
+            auto ArgId = SAR.getID(&Arg, true);
+            addDefLabel(ArgId, FirstInst, Func);
+            PointsToSetOut[FirstInst][ArgId] = std::set<size_t>{};
             auto PointerLevel = computePointerLevel(&Arg, true, SAR);
-            WorkList[PointerLevel].insert(SAR.getID(&Arg, true));
+            WorkList[PointerLevel].insert(ArgId);
         }
     }
 
+    
     for(auto &Inst : instructions(*Func)){
+        // x = alloca ptr
         if(const AllocaInst *Alloca = dyn_cast<AllocaInst>(&Inst)){
-            auto PointerLevel = computePointerLevel(Alloca, true, SAR);
-            WorkList[PointerLevel].insert(SAR.getID(Alloca, true));
-            // todo: also add def label for memory object (Addr-taken)
-            addDefLabel(SAR.getID(Alloca, true), Alloca, Func);
-            // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
-            //todo: add id for nullptr
-            PointsToSetOut[&Inst][SAR.getID(Alloca, true)] = std::set<size_t>{};
 
-            auto MemoryObjPl = computePointerLevel(Alloca, false, SAR);
-            WorkList[MemoryObjPl].insert(SAR.getID(Alloca, false));
-            // todo: introduce labels for memory object
-            addDefLabel(SAR.getID(Alloca, true), Alloca, Func);
+            auto AllocaMemoryObjPl = computePointerLevel(Alloca, false, SAR);
+            auto AllocaAddrTakenId = SAR.getID(Alloca, false);
+            WorkList[AllocaMemoryObjPl].insert(AllocaAddrTakenId);
+            addDefLabel(AllocaAddrTakenId, Alloca, Func);
             // todo: add id for nullptr
-            PointsToSetOut[&Inst][SAR.getID(Alloca, true)] = std::set<size_t>{};
+            PointsToSetOut[&Inst][AllocaAddrTakenId] = std::set<size_t>{};
+
+
+
+            auto AllocaTopLevelId = SAR.getID(Alloca, true);
+            auto PointerLevel = computePointerLevel(Alloca, true, SAR);
+            WorkList[PointerLevel].insert(AllocaTopLevelId);
+            addDefLabel(AllocaTopLevelId, Alloca, Func);
+            // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
+            PointsToSetOut[&Inst][AllocaTopLevelId] = std::set<size_t>{AllocaAddrTakenId};
+
+            
 
 
         }
+        // callgraph
         else if(const CallInst *Call = dyn_cast<CallInst>(&Inst)){
             Func2CallerLocation[Call->getCalledFunction()].insert(Call);
             if(!Call->getCalledFunction()){
