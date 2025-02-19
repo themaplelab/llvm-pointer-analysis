@@ -6,20 +6,20 @@ using namespace llvm;
 
 
 PreservedAnalyses PrintAliasToPairs::run(Module &m, ModuleAnalysisManager &mam){
-    auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
-    auto pts = result.getPointsToSet();
-    auto worklist = result.getWorkList();
-    auto Func2AllocatedPointersAndParameterAliases = result.getFunc2Pointers();
+    // auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
+    // auto pts = result.getPointsToSet();
+    // auto worklist = result.getWorkList();
+    // auto Func2AllocatedPointersAndParameterAliases = result.getFunc2Pointers();
     
 
-    for(auto &func : m.functions()){
-        auto Pointers = SetVector<const Value*>();
-        if(Func2AllocatedPointersAndParameterAliases.count(&func)){
-            Pointers = Func2AllocatedPointersAndParameterAliases[&func];
-        }
+    // for(auto &func : m.functions()){
+    //     auto Pointers = SetVector<const Value*>();
+    //     if(Func2AllocatedPointersAndParameterAliases.count(&func)){
+    //         Pointers = Func2AllocatedPointersAndParameterAliases[&func];
+    //     }
         
-        processAliasPairsForFunc(&func, Pointers, pts);
-    }
+    //     processAliasPairsForFunc(&func, Pointers, pts);
+    // }
 
     return PreservedAnalyses::all();
 

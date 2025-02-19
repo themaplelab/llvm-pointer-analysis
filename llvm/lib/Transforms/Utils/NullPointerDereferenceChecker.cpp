@@ -5,20 +5,20 @@ using namespace llvm;
 
 
 PreservedAnalyses NullPointerChecker::run(Module &M, ModuleAnalysisManager &MAM){
-    auto Result = MAM.getResult<FlowSensitivePointerAnalysis>(M);
-    auto PTS = Result.getPointsToSet();
-    auto Worklist = Result.getWorkList();
-    auto Func2AllocatedPointersAndParameterAliases = Result.getFunc2Pointers();
+    // auto Result = MAM.getResult<FlowSensitivePointerAnalysis>(M);
+    // auto PTS = Result.getPointsToSet();
+    // auto Worklist = Result.getWorkList();
+    // auto Func2AllocatedPointersAndParameterAliases = Result.getFunc2Pointers();
 
 
-    for(auto &Func : M.functions()){
-        auto Pointers = SetVector<const Value*>();
-        if(Func2AllocatedPointersAndParameterAliases.count(&Func)){
-            Pointers = Func2AllocatedPointersAndParameterAliases[&Func];
-        }
+    // for(auto &Func : M.functions()){
+    //     auto Pointers = SetVector<const Value*>();
+    //     if(Func2AllocatedPointersAndParameterAliases.count(&Func)){
+    //         Pointers = Func2AllocatedPointersAndParameterAliases[&Func];
+    //     }
 
-        CheckNullPtrAtFunc(&Func, Pointers, PTS);
-    }
+    //     CheckNullPtrAtFunc(&Func, Pointers, PTS);
+    // }
 
     return PreservedAnalyses::all();
 
