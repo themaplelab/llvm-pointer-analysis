@@ -100,6 +100,10 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     auto maxPl = computePointerLevel();
 
     // printStats();
+    outs() << "Pointer ID:\n";
+    for(auto p : pointerID){
+        outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
+    }
     
     Result AnalysisResult;
     AnalysisResult.setPts(truePts);

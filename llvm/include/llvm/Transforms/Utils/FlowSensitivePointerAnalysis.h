@@ -123,7 +123,7 @@ namespace llvm{
         using ProgramLocationTy = Instruction;
         using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<size_t>>>;
         using WorkListTy = std::map<size_t, std::set<size_t>>;
-        using DefUseEdgeTupleTy = std::tuple<const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*>;
+        using DefUseEdgeTupleTy = std::tuple<const ProgramLocationTy*, const ProgramLocationTy*, size_t>;
         using DefUseGraphTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<const ProgramLocationTy*>>>;
 
         // Map each pointer to the program location that requires its alias information.
@@ -144,7 +144,7 @@ namespace llvm{
         std::map<const Function*, std::reference_wrapper<DominatorTreeAnalysis::Result>> Func2DomTree;
         std::map<const Function*, std::reference_wrapper<DominanceFrontierAnalysis::Result>> Func2DomFrontier;
         std::map<size_t, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
-        std::map<const CallInst*, std::map<const PointerTy*, std::set<size_t>>> CallSite2ArgIdx;
+        std::map<const CallBase*, std::map<size_t, std::set<size_t>>> CallSite2ArgIdx;
 
         FlowSensitivePointerAnalysisResult AnalysisResult;
         SteengaardAnalysisResult SteengaardResult;
@@ -172,19 +172,20 @@ namespace llvm{
             bool hasDef(const ProgramLocationTy*, size_t);
             void initialize(const Function*, SteengaardAnalysisResult &SAR);
             SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function *, SteengaardAnalysisResult &SAR);
-            bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, const PointerTy *, std::set<size_t>&);
+            bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, size_t, std::set<size_t>&);
             void markLabelsForPtr(const PointerTy*, bool isTopLevel);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
             void propagate(SetVector<DefUseEdgeTupleTy>, const Function*);
-            void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, const PointerTy*);
+            void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
             std::vector<size_t> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
             void updateAliasInformation(const ProgramLocationTy *, const LoadInst *);
             void updateAliasUsers(const ProgramLocationTy*, SetVector<DefUseEdgeTupleTy>&);
             void updateArgPointsToSetOfFunc(const Function*, std::set<size_t>, size_t, SetVector<DefUseEdgeTupleTy> &);
-            void updatePointsToSet(const ProgramLocationTy*, const PointerTy*, 
+            void updatePointsToSet(const ProgramLocationTy*, size_t, 
                 std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
-            bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, const PointerTy*, std::set<size_t>&);
+            bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, size_t, std::set<size_t>&);
+            std::set<size_t> getPointsToSet(size_t Ptr, const ProgramLocationTy *Store);
 
             
         public:
