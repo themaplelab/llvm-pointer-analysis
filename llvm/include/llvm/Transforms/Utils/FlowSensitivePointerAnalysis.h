@@ -179,13 +179,15 @@ namespace llvm{
             void propagate(SetVector<DefUseEdgeTupleTy>, const Function*);
             void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
             std::vector<size_t> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
-            void updateAliasInformation(const ProgramLocationTy *, const LoadInst *);
-            void updateAliasUsers(const ProgramLocationTy*, SetVector<DefUseEdgeTupleTy>&);
+            void updateAliasInformation(const ProgramLocationTy *, size_t, size_t);
+            void updateAliasUsers(const ProgramLocationTy*, size_t, size_t);
             void updateArgPointsToSetOfFunc(const Function*, std::set<size_t>, size_t, SetVector<DefUseEdgeTupleTy> &);
             void updatePointsToSet(const ProgramLocationTy*, size_t, 
                 std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, size_t, std::set<size_t>&);
             std::set<size_t> getPointsToSet(size_t Ptr, const ProgramLocationTy *Store);
+
+            bool isAlias(size_t LoadId, size_t PtrId, const PointerTy *Loc);
 
             
         public:

@@ -80,18 +80,21 @@ void FlowSensitivePointerAnalysis::dumpAliasMap(){
             DEBUG_WITH_TYPE("pts", dbgs() << "At program location" << *LocAndPtr.first << ":\n");
             for(auto AliasForPtr : AliasMap.at(LocAndPtr.first)){
                 auto Ptr = SteengaardResult.getPtr(AliasForPtr.first).first;
-                DEBUG_WITH_TYPE("pts", dbgs() << *Ptr << " alias to \n");
+                std::string PtrType = SteengaardResult.getPtr(AliasForPtr.first).second ? "(TopLevel)" : "(AddrTaken)";
+
+                DEBUG_WITH_TYPE("pts", dbgs() << *Ptr << " " << PtrType << " alias to \n");
                 for(auto PointeeId : AliasForPtr.second){
                     auto Pointee = SteengaardResult.getPtr(PointeeId).first;
+                    std::string PtrType = SteengaardResult.getPtr(PointeeId).second ? "(TopLevel)" : "(AddrTaken)";
 
                     if(!Pointee){
                         DEBUG_WITH_TYPE("pts", dbgs() << "\t " << "nullptr" << "\n");
                     }
                     else if(dyn_cast<Instruction>(Pointee)){
-                        DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *Pointee << "\n");
+                        DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *Pointee << " " << PtrType << "\n");
                     }
                     else{
-                        DEBUG_WITH_TYPE("alias", dbgs() << "\t " << *Pointee << "\n");
+                        DEBUG_WITH_TYPE("pts", dbgs() << "\t " << *Pointee << " " << PtrType << "\n");
                     }
                 }
             }
@@ -657,31 +660,34 @@ std::set<size_t> FlowSensitivePointerAnalysis::
     }
 }
 
-/// @brief Update the alias set of pointer x introduced by a \p loadInst 'x = load y'.
-void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationTy *Loc, const LoadInst *Load){
+/// @brief Update the alias set of pointer x introduced by a \p loadInst 'x = load y' or 'store y x' using pts(PtrId).
+void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationTy *Loc, size_t AliasId, size_t PtrId){
+
+    auto Pts = getPointsToSet(PtrId, Loc);
+    AliasMap[Loc][AliasId].insert(Pts.begin(), Pts.end());
     
-    auto Aliases = getAlias(Loc, Load);
-    // outs() << "UAI: " << Aliases.size() << "\n";
-    for(auto &AliasId : Aliases){
-        if(!AliasId){
-            continue;
-        }
-        assert(AliasId && "Cannot process nullptr");
+    // auto Aliases = getAlias(Loc, Load);
+    // // outs() << "UAI: " << Aliases.size() << "\n";
+    // for(auto &AliasId : Aliases){
+    //     if(!AliasId){
+    //         continue;
+    //     }
+    //     assert(AliasId && "Cannot process nullptr");
 
 
-        // if we have x = load y, and y alias z, we will need pts(z) at current program location.
-        auto Alias = SteengaardResult.getPtr(AliasId).first;
-        if(!AliasUser.count(Alias)){
-            for(auto User : Alias->users()){
-                AliasUser[Alias].insert(User);
-            }
-        }
-        AliasUser[Alias].insert(Loc);
-        if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(AliasId)){
-            // bug: should be assign not insert
-            AliasMap[Loc][SteengaardResult.getID(Load, true)].insert(PointsToSetOut.at(Loc).at(AliasId).begin(), PointsToSetOut.at(Loc).at(AliasId).end());
-        }
-    }
+    //     // if we have x = load y, and y alias z, we will need pts(z) at current program location.
+    //     auto Alias = SteengaardResult.getPtr(AliasId).first;
+    //     if(!AliasUser.count(Alias)){
+    //         for(auto User : Alias->users()){
+    //             AliasUser[Alias].insert(User);
+    //         }
+    //     }
+    //     AliasUser[Alias].insert(Loc);
+    //     if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(AliasId)){
+    //         // bug: should be assign not insert
+    //         AliasMap[Loc][SteengaardResult.getID(Load, true)].insert(PointsToSetOut.at(Loc).at(AliasId).begin(), PointsToSetOut.at(Loc).at(AliasId).end());
+    //     }
+    // }
 
     // outs() << "new alias map\n";
     // for(auto p : AliasMap[Loc]){
@@ -716,16 +722,22 @@ std::vector<size_t> FlowSensitivePointerAnalysis::
 /// @brief Propagate the alias set of \p Loc at \p Loc to its use locations.
 ///     Update its user accordingly.
 void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc, 
-    SetVector<DefUseEdgeTupleTy> &PropagateList){
+    size_t AliasId, size_t PtrId){
 
     
     // dbgs() << AliasUser.count(Loc) << "\n";
-    for(auto User : AliasUser.at(Loc)){      
+    for(auto User : Loc->users()){      
 
         DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << " Updating alias user for pointer " 
             << *Loc << " at " << *User << "\n");  
+        auto UseLoc = dyn_cast<Instruction>(User);
+        if(UseLoc){
+            propagatePointsToInformation(UseLoc, Loc, PtrId);
+            PointsToSetOut[UseLoc][PtrId] = PointsToSetIn[UseLoc][PtrId];
+        }
         
-        auto UseLoc = dyn_cast<ProgramLocationTy>(User);
+        
+        
         auto Ptr = dyn_cast<PointerTy>(Loc);
         auto PtrId = SteengaardResult.getID(Ptr, true);
 
@@ -768,9 +780,6 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
 
                     if(OldPTS != PointsToSetOut.at(UseLoc).at(PointerId)){
                         auto Pointer = SteengaardResult.getPtr(PointerId).first;
-                        for(auto AffectedLoc : getAffectUseLocations(UseLoc, PointerId)){    
-                                PropagateList.insert(std::make_tuple(UseLoc, AffectedLoc, PointerId));
-                        }
                     }
                 }
             }
@@ -781,8 +790,11 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
             }
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
-            for(auto AliasId : AliasMap.at(Load).at(PtrId)){
-                addUseLabel(AliasId, Load);
+            auto LoadId = SteengaardResult.getID(Loc, true);
+            if(isAlias(LoadId, PtrId, Load)){
+                for(auto Pe : getPointsToSet(PtrId, Load)){
+                    addUseLabel(Pe, Load);
+                }
             }
         }
         else if(auto Ret = dyn_cast<ReturnInst>(UseLoc)){
@@ -853,6 +865,15 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
     }
 }
 
+bool FlowSensitivePointerAnalysis::isAlias(size_t LoadId, size_t PtrId, const PointerTy *Loc){
+    if(LoadId == PtrId){
+        return true;
+    }
+
+    auto Inst = dyn_cast<Instruction>(Loc);
+    return Inst && AliasMap[Inst][LoadId].count(PtrId);
+}
+
 /// @brief Propagate pointer information along def use graph until fix-point.
 void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> PropagateList, 
     const Function *Func){
@@ -875,6 +896,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
         propagatePointsToInformation(UseLoc, DefLoc, PtrId);
 
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
+            PointsToSetOut[UseLoc][PtrId] = PointsToSetIn.at(UseLoc).at(PtrId);
             auto ValueOpId = SteengaardResult.getID(Store->getValueOperand(), true);
             auto PTS = getPointsToSet(ValueOpId, Store);
             // outs() << "Pts:\n";
@@ -883,6 +905,24 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
             // }
             // outs() << "\n";
             updatePointsToSet(UseLoc, PtrId, PTS, PropagateList);
+
+            auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand(), true);
+
+            // updateAliasInformation(UseLoc, PointerOpId, SteengaardResult.getID(Load->getPointerOperand(), true));
+
+
+            // dumpAliasMap();
+
+            if(isAlias(PointerOpId, PtrId, Store)){
+                // outs() << PointerOpId << " alias to " << PtrId << "\n";
+
+                for(auto Pe : PointsToSetOut[UseLoc][PtrId]){
+                    addUseLabel(Pe, Store);
+                }
+            }
+            else{
+                // outs() << PointerOpId << " not alias to " << PtrId << "\n";
+            }
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
             PointsToSetOut[UseLoc][PtrId] = PointsToSetIn.at(UseLoc).at(PtrId);
@@ -891,23 +931,41 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
             if(AliasMap.count(UseLoc) && AliasMap[UseLoc].count(UseLocId)){
                 OldAliasSet = AliasMap.at(UseLoc).at(UseLocId);
             }
-
-            updateAliasInformation(UseLoc, Load);
             
-            auto NewAliasSet = std::set<size_t>{};
-            if(AliasMap.count(UseLoc) && AliasMap[UseLoc].count(UseLocId)){
-                NewAliasSet = AliasMap.at(UseLoc).at(UseLocId);
-            }
+            // update alias(load) to pts(Ptrid);
+            updateAliasInformation(UseLoc, UseLocId, SteengaardResult.getID(Load->getPointerOperand(), true));
+            auto PointerOpId = SteengaardResult.getID(Load->getPointerOperand(), true);
 
-            if(OldAliasSet != NewAliasSet){
-                if(!AliasUser.count(UseLoc)){
-                    // Create empty entry
-                    AliasUser[UseLoc];
-                    for(auto user : UseLoc->users()){
-                        AliasUser[UseLoc].insert(user);
-                    }
+            // dumpAliasMap();
+
+            // loadid alias to ptrid at load
+            // if(isAlias(PointerOpId, PtrId, Load)){
+            //     // outs() << PointerOpId << " alias to " << PtrId << "\n";
+            //     for(auto Pe : PointsToSetOut[UseLoc][PtrId]){
+            //         addUseLabel(Pe, Load);
+            //     }
+            //     for(auto U : Load->users()){
+            //         if(auto Ul = dyn_cast<Instruction>(U)){
+            //             for(auto Pe : PointsToSetOut[UseLoc][PtrId]){
+            //                 addUseLabel(Pe, Ul);
+            //             }
+            //         }
+            //     }
+            // }
+            // else{
+            //     outs() << PointerOpId << " not alias to " << PtrId << "\n";
+
+            // }
+            
+            // auto NewAliasSet = std::set<size_t>{};
+            // if(AliasMap.count(UseLoc) && AliasMap[UseLoc].count(UseLocId)){
+            //     NewAliasSet = AliasMap.at(UseLoc).at(UseLocId);
+            // }
+
+            if(OldAliasSet != AliasMap.at(UseLoc).at(UseLocId)){
+                for(auto user : UseLoc->users()){
+                    updateAliasUsers(UseLoc, UseLocId, PtrId);
                 }
-                updateAliasUsers(UseLoc, PropagateList);
             }
         }
         else if(auto Call = dyn_cast<CallInst>(UseLoc)){
@@ -1130,22 +1188,24 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto CurrentPointerLevel = SteengaardResult.getMaxPl();
     globalInitialize(m, SteengaardResult);
 
-    // outs() << "Worklist\n";
-    // for(auto p : Func2WorkList){
-    //     outs() << "Function " << p.first->getName().str() << "\n";
-    //     for(auto wl : p.second){
-    //         outs() << "Pointer level: " << wl.first << "\n";
-    //         for(auto e : wl.second){
-    //             outs() << "\t" << e << "\n";
-    //         }
-    //     }
+    outs() << "Worklist\n";
+    for(auto p : Func2WorkList){
+        outs() << "Function " << p.first->getName().str() << "\n";
+        for(auto wl : p.second){
+            outs() << "Pointer level: " << wl.first << "\n";
+            for(auto e : wl.second){
+                outs() << "\t" << e << "\n";
+            }
+        }
         
-    // }
+    }
+
+    //todo: mo_a and mo_b are not in the worklist of swap.
 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     
     
-    while(CurrentPointerLevel > 1){
+    while(CurrentPointerLevel > 0){
         for(auto &Func : m.functions()){
             if(Func.isDeclaration()){
                 continue;
@@ -1194,7 +1254,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
         }
         dumpPointsToSet();
         --CurrentPointerLevel;
-        if(CurrentPointerLevel == 1){
+        if(CurrentPointerLevel == 2){
             llvm_unreachable("test");
         }
         
