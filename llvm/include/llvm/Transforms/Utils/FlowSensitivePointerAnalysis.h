@@ -135,6 +135,8 @@ namespace llvm{
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2CallerLocation;
         std::map<const Function*, WorkListTy> Func2WorkList; 
         std::map<const Function*, std::set<const BasicBlock*>> Func2TerminateBBs;
+        std::map<const Function*, std::set<const ProgramLocationTy*>> Func2Returns;
+
         std::map<const Function*, PointsToSetTy::mapped_type> FuncParas2PointsToSet;
         WorkListTy GlobalWorkList;
         std::map<const ProgramLocationTy*, std::set<Label>> LabelMap; 
@@ -180,7 +182,7 @@ namespace llvm{
             void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
             std::vector<size_t> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
             void updateAliasInformation(const ProgramLocationTy *, size_t, size_t);
-            void updateAliasUsers(const ProgramLocationTy*, size_t, size_t);
+            void updateAliasUsers(const ProgramLocationTy*, size_t, size_t, SetVector<DefUseEdgeTupleTy>&);
             void updateArgPointsToSetOfFunc(const Function*, std::set<size_t>, size_t, SetVector<DefUseEdgeTupleTy> &);
             void updatePointsToSet(const ProgramLocationTy*, size_t, 
                 std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
@@ -211,6 +213,9 @@ namespace llvm{
 
         // Label() = default;
         Label(size_t Ptr, Label::LabelType Type) : Ptr(Ptr), Type(Type) {}
+        bool operator=(const Label &l){
+            return this->Ptr == l.Ptr && this->Type==l.Type;
+        }
     };
 
     raw_ostream& operator<<(raw_ostream&, const Label&);
