@@ -1178,6 +1178,7 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
 }
 
 
+/// @brief Get all pointers with pointer level \p PointerLevel in worklist of function \p Func/ 
 const std::set<size_t>& FlowSensitivePointerAnalysis::getPointersInWorkList(size_t PointerLevel, const Function *Func){
     auto Pointers = std::set<size_t>{};
     if(Func2WorkList.count(Func) && Func2WorkList[Func].count(PointerLevel)){
@@ -1198,10 +1199,10 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
 
     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Start analyzing module " << m.getName() << "\n");
+    SteengaardResult = mam.getResult<SteengaardAnalysis>(m);
+
 
     auto start = std::chrono::high_resolution_clock::now();
-
-    SteengaardResult = mam.getResult<SteengaardAnalysis>(m);
     auto CurrentPointerLevel = SteengaardResult.getMaxPl();
     globalInitialize(m);
 
@@ -1218,25 +1219,19 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
             for(auto PtrId : Pointers){
-                auto Ptr = SteengaardResult.getPtr(PtrId);
-                markLabelsForPtr(Ptr.first, Ptr.second);
+                const auto& [Ptr, IsTopLevel] = SteengaardResult.getPtr(PtrId);
+                markLabelsForPtr(Ptr, IsTopLevel);
             }
         }
-
-        
 
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
             for(auto PtrId : Pointers){
-                auto Pair = buildDominatorGraph(&Func, PtrId);
-                auto OUT = Pair.first;
-                auto DG = Pair.second;
-                auto UseLocs = getUseLocations(PtrId);
-                buildDefUseGraph(UseLocs, PtrId, OUT, DG);
+                const auto& [Out, DG] = buildDominatorGraph(&Func, PtrId);
+                buildDefUseGraph(getUseLocations(PtrId), PtrId, Out, DG);
             }
             auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
             propagate(PropagateList, &Func);
-
         }
         --CurrentPointerLevel;
     }
@@ -1244,10 +1239,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
  
-    // To get the value of duration use the count()
-    // member function on the duration object
-    dbgs() << duration.count() << "\n";
-
+    dbgs() << "Runtime: " << duration.count() << "ms\n";
     std::cout << "End of analysis. Avg Pts Size is " << std::setprecision(2) << computeAvgPtsSize() << "\n";
 
     return FlowSensitivePointerAnalysisResult(PointsToSetOut);
