@@ -198,6 +198,7 @@ namespace llvm{
             void dumpDefUseGraph();
 
             const std::set<size_t>& getPointersInWorkList(size_t PointerLevel, const Function *Func);
+            const Instruction* getFirstInst(const Function *Func);
 
             
         public:

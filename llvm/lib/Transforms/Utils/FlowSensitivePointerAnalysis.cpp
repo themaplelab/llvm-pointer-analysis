@@ -158,16 +158,7 @@ void FlowSensitivePointerAnalysis::dumpDefUseGraph(){
 
 
 /// @brief Initialize analysis for all functions in current module. 
-/// @return The largest pointer level among all functions.
 void FlowSensitivePointerAnalysis::globalInitialize(Module &M){
-
-    // for(auto &Global : M.globals()){
-    //     if(Global.getType()->isPointerTy()){
-    //         auto PointerLevel = computePointerLevel(&Global);
-    //         GlobalWorkList[PointerLevel].insert(&Global);
-    //     }
-    // }
-
     for(auto &Func : M.functions()){
         initialize(&Func);
     }
@@ -201,9 +192,9 @@ void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocati
 
 
         // add def label at first inst of the current function.
-        auto firstInst = Loc->getFunction()->getEntryBlock().getFirstNonPHIOrDbg();
-        LabelMap[firstInst].insert(Label(PtrId, Label::LabelType::Def));
-        DefLocations[PtrId][firstInst->getFunction()].insert(firstInst);
+        auto FirstInst = getFirstInst(Loc->getFunction());
+        LabelMap[FirstInst].insert(Label(PtrId, Label::LabelType::Def));
+        DefLocations[PtrId][FirstInst->getFunction()].insert(FirstInst);
 
 
         // recursively add use label at all callsite of the current function.
@@ -238,9 +229,9 @@ void FlowSensitivePointerAnalysis::addUseLabel(size_t PtrId, const ProgramLocati
         Func2WorkList[Loc->getFunction()][SteengaardResult.getPointerLevels().at(PtrId)].insert(PtrId);
 
         // add def label at first inst of the current function.
-        auto firstInst = Loc->getFunction()->getEntryBlock().getFirstNonPHIOrDbg();
-        LabelMap[firstInst].insert(Label(PtrId, Label::LabelType::Use));
-        UseList[PtrId].insert(firstInst);
+        auto FirstInst = getFirstInst(Loc->getFunction());
+        LabelMap[FirstInst].insert(Label(PtrId, Label::LabelType::Use));
+        UseList[PtrId].insert(FirstInst);
 
         for(auto Ret : Func2Returns[Loc->getFunction()]){
             LabelMap[Ret].insert(Label(PtrId, Label::LabelType::Use));
@@ -260,25 +251,22 @@ void FlowSensitivePointerAnalysis::addUseLabel(size_t PtrId, const ProgramLocati
     return;
 }
 
+const Instruction* FlowSensitivePointerAnalysis::getFirstInst(const Function *Func){
+    return Func->getEntryBlock().getFirstNonPHIOrDbg();
+}
+
 /// @brief Calculate pointer level for function \p Func. Mark labels for each pointer
 ///     related instructions. Store pointers into worklist according to their pointer level.
 void FlowSensitivePointerAnalysis::initialize(const Function *Func){
 
-    /*
-        1. get result of steengaard analysis.
-        2. for leaf node in pts graph, pl = 0
-        3. pl(x) = max(pl(y), y is child of x) + 1
-    */
-
-    DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Initializing function "
-         << Func->getName() << "\n");
+    DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Initializing function " << Func->getName() << "\n");
 
     WorkListTy WorkList;
 
     // function parameters
     if(!Func->isDeclaration()){
-        auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
-        for(auto &Arg : Func->args()){
+        auto FirstInst = getFirstInst(Func);
+        for(const auto &Arg : Func->args()){
             if(!Arg.getType()->isPointerTy()){
                 continue;
             }
@@ -302,9 +290,6 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
             // todo: add id for nullptr
             PointsToSetOut[&Inst][AllocaAddrTakenId] = std::set<size_t>{};
             PointsToSetIn[&Inst][AllocaAddrTakenId] = std::set<size_t>{};
-
-
-
 
             auto AllocaTopLevelId = SteengaardResult.getID(Alloca, true);
             auto PointerLevel = computePointerLevel(Alloca, true);
@@ -339,9 +324,6 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
         else if(const ReturnInst *Return = dyn_cast<ReturnInst>(&Inst)){
             Func2TerminateBBs[Func].insert(Return->getParent());
             Func2Returns[Func].insert(Return);
-            // for(auto &Arg : Func->args()){
-            //     addUseLabel(SAR.getID(&Arg, true), Return);
-            // }
         }
     }
 
@@ -391,7 +373,7 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
             return res;
         }  
         else if(auto Arg = dyn_cast<Argument>(Ptr)){
-            auto FirstInst = Loc->getFunction()->getEntryBlock().getFirstNonPHIOrDbg();
+            auto FirstInst = getFirstInst(Loc->getFunction());
             auto ArgId = SteengaardResult.getID(Arg, true);
             return PointsToSetOut[FirstInst][ArgId];
         }
@@ -585,7 +567,7 @@ SetVector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerA
         if(!Func->isDeclaration()){
             if(auto Arg = dyn_cast<Argument>(Ptr)){
                 auto ArgId = SteengaardResult.getID(Arg, true);
-                auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
+                auto FirstInst = getFirstInst(Func);
                 auto InitialDUEdges = getAffectUseLocations(FirstInst, ArgId);
                 for(auto UseLoc : InitialDUEdges){
                     PropagateList.insert(std::make_tuple(FirstInst, UseLoc, ArgId));
@@ -891,10 +873,9 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 ArgIdx++;
             }
 
-            // outs() << ArgIdx << " " <<*(Call->getCalledFunction()->getEntryBlock().getFirstNonPHIOrDbg()) << " " << SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgIdx), true) << "\n";
             // dumpPointsToSet();
             if(ArgIdx < Call->arg_size()){
-                PointsToSetOut[Call->getCalledFunction()->getEntryBlock().getFirstNonPHIOrDbg()][SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgIdx), true)].insert(Pts.begin(), Pts.end());
+                PointsToSetOut[getFirstInst(Call->getCalledFunction())][SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgIdx), true)].insert(Pts.begin(), Pts.end());
             }
 
 
@@ -916,7 +897,7 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
 
     const Value *Parameter = Func->getArg(ArgIdx);
     
-    auto FirstInst = Func->getEntryBlock().getFirstNonPHIOrDbg();
+    auto FirstInst = getFirstInst(Func);
     auto ParameterId = SteengaardResult.getID(Parameter, true);
     auto OldSize = PointsToSetOut[FirstInst][ParameterId].size();
     PointsToSetOut[FirstInst][ParameterId].insert(PTS.begin(), PTS.end());
@@ -1014,10 +995,11 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
             }
 
             //todo: if the in set in changed.
-            PointsToSetOut[Call->getCalledFunction()->getEntryBlock().getFirstNonPHIOrDbg()][PtrId].insert(PointsToSetIn[Call][PtrId].begin(), PointsToSetIn[Call][PtrId].end());
-            auto Locations = getAffectUseLocations(Call->getCalledFunction()->getEntryBlock().getFirstNonPHIOrDbg(), PtrId);
+            auto FirstInst = getFirstInst(Call->getCalledFunction());
+            PointsToSetOut[FirstInst][PtrId].insert(PointsToSetIn[Call][PtrId].begin(), PointsToSetIn[Call][PtrId].end());
+            auto Locations = getAffectUseLocations(FirstInst, PtrId);
             for(auto L : Locations){
-                PropagateList.insert(std::make_tuple(Call->getCalledFunction()->getEntryBlock().getFirstNonPHIOrDbg(), L, PtrId));
+                PropagateList.insert(std::make_tuple(FirstInst, L, PtrId));
             }
 
             
