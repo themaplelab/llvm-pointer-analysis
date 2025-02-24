@@ -162,7 +162,7 @@ namespace llvm{
                 buildDominatorGraph(const Function *Func, size_t PtrId);
             void buildDefUseGraph(std::set<const ProgramLocationTy*>, size_t, 
                 std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
-            size_t computePointerLevel(const PointerTy*, bool isTopLevel, SteengaardAnalysisResult &SAR);
+            size_t computePointerLevel(const PointerTy*, bool isTopLevel);
             void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
@@ -170,10 +170,10 @@ namespace llvm{
             std::set<size_t> getAlias(const ProgramLocationTy*, const LoadInst*);
             std::set<size_t> getRealPointsToSet(const ProgramLocationTy*, const PointerTy*);
             std::set<const ProgramLocationTy*> getUseLocations(size_t);
-            void globalInitialize(Module&, SteengaardAnalysisResult &SAR);
+            void globalInitialize(Module&);
             bool hasDef(const ProgramLocationTy*, size_t);
-            void initialize(const Function*, SteengaardAnalysisResult &SAR);
-            SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function *, SteengaardAnalysisResult &SAR);
+            void initialize(const Function*);
+            SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function *);
             bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, size_t, std::set<size_t>&);
             void markLabelsForPtr(const PointerTy*, bool isTopLevel);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
@@ -190,6 +190,8 @@ namespace llvm{
             std::set<size_t> getPointsToSet(size_t Ptr, const ProgramLocationTy *Store);
 
             bool isAlias(size_t LoadId, size_t PtrId, const PointerTy *Loc);
+
+            double computeAvgPtsSize();
 
             
         public:

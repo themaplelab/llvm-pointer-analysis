@@ -115,9 +115,27 @@ void FlowSensitivePointerAnalysis::dumpLabelMap(){
 
 }
 
+double FlowSensitivePointerAnalysis::computeAvgPtsSize(){
+    size_t TotalPtsSize = 0, NumPts = 0;
+    for(auto Pair : PointsToSetOut){
+        for(auto P : Pair.second){
+            if(!SteengaardResult.getPtr(P.first).second){
+                TotalPtsSize += P.second.size();
+                NumPts += 1;    
+            }
+            
+        }
+    }
+
+    return (double)TotalPtsSize / NumPts;
+}
+
+
+
+
 /// @brief Initialize analysis for all functions in current module. 
 /// @return The largest pointer level among all functions.
-void FlowSensitivePointerAnalysis::globalInitialize(Module &M, SteengaardAnalysisResult &SAR){
+void FlowSensitivePointerAnalysis::globalInitialize(Module &M){
 
     // for(auto &Global : M.globals()){
     //     if(Global.getType()->isPointerTy()){
@@ -127,7 +145,7 @@ void FlowSensitivePointerAnalysis::globalInitialize(Module &M, SteengaardAnalysi
     // }
 
     for(auto &Func : M.functions()){
-        initialize(&Func, SAR);
+        initialize(&Func);
     }
 
     AnalysisResult.setWorkList(Func2WorkList);
@@ -135,10 +153,10 @@ void FlowSensitivePointerAnalysis::globalInitialize(Module &M, SteengaardAnalysi
 
 /// @brief Compute the pointer level of an allocated pointer.
 /// @return Pointer level for \p Ptr.
-size_t FlowSensitivePointerAnalysis::computePointerLevel(const PointerTy *Ptr, bool isTopLevel, SteengaardAnalysisResult &SAR){
+size_t FlowSensitivePointerAnalysis::computePointerLevel(const PointerTy *Ptr, bool isTopLevel){
 
-    const auto &PointerLevel = SAR.getPointerLevels();
-    auto Id = SAR.getID(Ptr, isTopLevel);
+    const auto &PointerLevel = SteengaardResult.getPointerLevels();
+    auto Id = SteengaardResult.getID(Ptr, isTopLevel);
     if(!PointerLevel.count(Id)){
         errs() << *Ptr << " " << isTopLevel << "\n";
         llvm_unreachable("Cannot get pointer level for a missing pointer.");
@@ -222,7 +240,7 @@ void FlowSensitivePointerAnalysis::addUseLabel(size_t PtrId, const ProgramLocati
 
 /// @brief Calculate pointer level for function \p Func. Mark labels for each pointer
 ///     related instructions. Store pointers into worklist according to their pointer level.
-void FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAnalysisResult &SAR){
+void FlowSensitivePointerAnalysis::initialize(const Function *Func){
 
     /*
         1. get result of steengaard analysis.
@@ -242,10 +260,10 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAn
             if(!Arg.getType()->isPointerTy()){
                 continue;
             }
-            auto ArgId = SAR.getID(&Arg, true);
+            auto ArgId = SteengaardResult.getID(&Arg, true);
             addDefLabel(ArgId, FirstInst, Func);
             PointsToSetOut[FirstInst][ArgId] = std::set<size_t>{};
-            auto PointerLevel = computePointerLevel(&Arg, true, SAR);
+            auto PointerLevel = computePointerLevel(&Arg, true);
             WorkList[PointerLevel].insert(ArgId);
         }
     }
@@ -255,8 +273,8 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAn
         // x = alloca ptr
         if(const AllocaInst *Alloca = dyn_cast<AllocaInst>(&Inst)){
 
-            auto AllocaMemoryObjPl = computePointerLevel(Alloca, false, SAR);
-            auto AllocaAddrTakenId = SAR.getID(Alloca, false);
+            auto AllocaMemoryObjPl = computePointerLevel(Alloca, false);
+            auto AllocaAddrTakenId = SteengaardResult.getID(Alloca, false);
             WorkList[AllocaMemoryObjPl].insert(AllocaAddrTakenId);
             addDefLabel(AllocaAddrTakenId, Alloca, Func);
             // todo: add id for nullptr
@@ -266,8 +284,8 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func, SteengaardAn
 
 
 
-            auto AllocaTopLevelId = SAR.getID(Alloca, true);
-            auto PointerLevel = computePointerLevel(Alloca, true, SAR);
+            auto AllocaTopLevelId = SteengaardResult.getID(Alloca, true);
+            auto PointerLevel = computePointerLevel(Alloca, true);
             WorkList[PointerLevel].insert(AllocaTopLevelId);
             addDefLabel(AllocaTopLevelId, Alloca, Func);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
@@ -537,11 +555,11 @@ std::vector<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitiv
 /// @brief Find all def use edges starting from the allocation location of pointers.
 ///     When we start propagating points-to information, we want to start with these edges.
 SetVector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerAnalysis::
-    initializePropagateList(std::set<size_t> Pointers, size_t PtrLvl, const Function *Func, SteengaardAnalysisResult &SAR){
+    initializePropagateList(std::set<size_t> Pointers, size_t PtrLvl, const Function *Func){
 
     SetVector<DefUseEdgeTupleTy> PropagateList{};
     for(auto PtrId: Pointers){
-        auto Ptr = SAR.getPtr(PtrId).first;
+        auto Ptr = SteengaardResult.getPtr(PtrId).first;
         if(!Func->isDeclaration()){
             if(auto Arg = dyn_cast<Argument>(Ptr)){
                 auto ArgId = SteengaardResult.getID(Arg, true);
@@ -1157,11 +1175,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     
 
     auto CurrentPointerLevel = SteengaardResult.getMaxPl();
-    globalInitialize(m, SteengaardResult);
-
-
-
-    //todo: mo_a and mo_b are not in the worklist of swap.
+    globalInitialize(m);
 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     
@@ -1200,7 +1214,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
                 buildDefUseGraph(UseLocs, PtrId, OUT, DG);
             }
 
-            auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func, SteengaardResult);
+            auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
             propagate(PropagateList, &Func);
 
         }
@@ -1246,31 +1260,11 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     dbgs() << duration.count() << "\n";
 
 
-    // DEBUG_WITH_TYPE("label", dumpLabelMap());
-    // DEBUG_WITH_TYPE("pts", dumpPointsToSet());
-
-    // DEBUG_WITH_TYPE("pts", dumpPointsToSet());
-    // dumpAliasMap();
 
     AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
     AnalysisResult.setPointsToSet(PointsToSetOut);
 
-    dumpPointsToSet();
-
-    size_t TotalPtsSize = 0, NumPts = 0;
-    for(auto Pair : PointsToSetOut){
-        for(auto P : Pair.second){
-            if(!SteengaardResult.getPtr(P.first).second){
-                TotalPtsSize += P.second.size();
-                outs() << P.second.size() << "\n";
-                NumPts += 1;    
-            }
-            
-        }
-    }
-
-    outs() << TotalPtsSize << " " << NumPts << "\n";
-    dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << "\n";
+    dbgs() << "End of analysis. Avg Pts Size is " << computeAvgPtsSize() << "\n";
 
     return AnalysisResult;
 }
