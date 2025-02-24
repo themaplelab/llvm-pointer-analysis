@@ -36,8 +36,9 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 }
             }
             else if(auto Store = dyn_cast<StoreInst>(&Inst)){
-
+                // outs() << "Store: " << *Store << "\n";
                 if(!Store->getValueOperand()->getType()->isPointerTy()){
+                    // outs() << "cont\n";
                     continue;
                 }
 
@@ -61,7 +62,8 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 
                 if(GEP->getType()->isPointerTy()){
                     auto Lhs = getID(GEP, true);
-                    auto Rhs = getID(GEP->getOperand(1), true);
+                    auto Rhs = getID(GEP->getOperand(0), true);
+                    // outs() << *GEP << " " << *(GEP->getOperand(0)) << "\n";
                     Uf.merge(Uf.find(Lhs), Uf.find(Rhs));
                 }
             }
@@ -100,10 +102,10 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     auto maxPl = computePointerLevel();
 
     // printStats();
-    outs() << "Pointer ID:\n";
-    for(auto p : pointerID){
-        outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
-    }
+    // outs() << "Pointer ID:\n";
+    // for(auto p : pointerID){
+    //     outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
+    // }
     
     Result AnalysisResult;
     AnalysisResult.setPts(truePts);
@@ -128,6 +130,8 @@ size_t SteengaardAnalysis::getID(const Value *Ptr, bool isTopLevel){
     if(pointerID.find({Ptr, isTopLevel}) == pointerID.end()){
         createID(Ptr, isTopLevel);
     }
+
+    // outs() << *Ptr << " " << isTopLevel << " " << pointerID.at({Ptr, isTopLevel}) << "\n";
 
     return pointerID.at({Ptr, isTopLevel});
 }
