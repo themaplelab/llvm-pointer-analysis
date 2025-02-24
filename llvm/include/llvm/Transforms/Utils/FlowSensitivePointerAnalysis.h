@@ -84,21 +84,24 @@ namespace llvm{
     /// @brief Class that keeps result of flow sensitive pointer analysis
     class FlowSensitivePointerAnalysisResult{
 
-        using PointerTy = Value;
+        // using PointerTy = Value;
         using ProgramLocationTy = Instruction;
-        using WorkListTy = std::map<size_t, std::set<size_t>>;
+        // using WorkListTy = std::map<size_t, std::set<size_t>>;
         using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<size_t>>>;
 
 
-        std::map<const Function*, WorkListTy> Worklist;
+        // std::map<const Function*, WorkListTy> Worklist;
         PointsToSetTy PointsToSet;
-        std::map<const Function*, SetVector<const Value*>> Func2AllocatedPointersAndParameterAliases;
+        // std::map<const Function*, SetVector<const Value*>> Func2AllocatedPointersAndParameterAliases;
 
 
 
         public:
-            std::map<const Function*, WorkListTy> getWorkList() {return Worklist;}
-            void setWorkList(std::map<const Function*, WorkListTy> WL) {Worklist = WL; return;}
+            // FlowSensitivePointerAnalysisResult() = default;
+            FlowSensitivePointerAnalysisResult(const PointsToSetTy &Pts) : PointsToSet(Pts) {}
+
+            // std::map<const Function*, WorkListTy> getWorkList() {return Worklist;}
+            // void setWorkList(std::map<const Function*, WorkListTy> WL) {Worklist = WL; return;}
             PointsToSetTy getPointsToSet(){
                 return PointsToSet;
             }
@@ -106,11 +109,11 @@ namespace llvm{
                 PointsToSet = PTS;
             }
 
-            std::map<const Function*, SetVector<const Value*>> getFunc2Pointers() {return Func2AllocatedPointersAndParameterAliases;}
-            void setFunc2Pointers(std::map<const Function*, SetVector<const Value*>> F2P){
-                Func2AllocatedPointersAndParameterAliases = F2P;
-                return;
-            }
+            // std::map<const Function*, SetVector<const Value*>> getFunc2Pointers() {return Func2AllocatedPointersAndParameterAliases;}
+            // void setFunc2Pointers(std::map<const Function*, SetVector<const Value*>> F2P){
+            //     Func2AllocatedPointersAndParameterAliases = F2P;
+            //     return;
+            // }
     };
 
     struct Label;
@@ -148,7 +151,6 @@ namespace llvm{
         std::map<size_t, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
         std::map<const CallBase*, std::map<size_t, std::set<size_t>>> CallSite2ArgIdx;
 
-        FlowSensitivePointerAnalysisResult AnalysisResult;
         SteengaardAnalysisResult SteengaardResult;
 
         static AnalysisKey Key;
@@ -192,12 +194,15 @@ namespace llvm{
             bool isAlias(size_t LoadId, size_t PtrId, const PointerTy *Loc);
 
             double computeAvgPtsSize();
+            void dumpWorkList();
+            void dumpDefUseGraph();
+
+            const std::set<size_t>& getPointersInWorkList(size_t PointerLevel, const Function *Func);
 
             
         public:
             using Result = FlowSensitivePointerAnalysisResult;
             FlowSensitivePointerAnalysisResult run(Module&, ModuleAnalysisManager&);
-            FlowSensitivePointerAnalysisResult getResult() {return AnalysisResult;}
     };
 
 

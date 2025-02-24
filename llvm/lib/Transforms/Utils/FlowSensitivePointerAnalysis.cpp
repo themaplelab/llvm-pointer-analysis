@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 
 
@@ -130,7 +131,30 @@ double FlowSensitivePointerAnalysis::computeAvgPtsSize(){
     return (double)TotalPtsSize / NumPts;
 }
 
+void FlowSensitivePointerAnalysis::dumpWorkList(){
+    outs() << "Worklist\n";
+    for(auto p : Func2WorkList){
+        outs() << "Function " << p.first->getName().str() << "\n";
+        for(auto wl : p.second){
+            outs() << "Pointer level: " << wl.first << "\n";
+            for(auto e : wl.second){
+                outs() << "\t" << e << "\n";
+            }
+        }
+        
+    }
+}
 
+void FlowSensitivePointerAnalysis::dumpDefUseGraph(){
+    outs() << "DUG\n";
+    for(auto edge : DefUseGraph){
+        for(auto p : edge.second){
+            for(auto p0 : p.second){
+                outs() << *edge.first << " == " << p.first << " ==> " << *p0 << "\n";
+            } 
+        }
+    }
+}
 
 
 /// @brief Initialize analysis for all functions in current module. 
@@ -147,8 +171,6 @@ void FlowSensitivePointerAnalysis::globalInitialize(Module &M){
     for(auto &Func : M.functions()){
         initialize(&Func);
     }
-
-    AnalysisResult.setWorkList(Func2WorkList);
 }
 
 /// @brief Compute the pointer level of an allocated pointer.
@@ -1156,6 +1178,15 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
 }
 
 
+const std::set<size_t>& FlowSensitivePointerAnalysis::getPointersInWorkList(size_t PointerLevel, const Function *Func){
+    auto Pointers = std::set<size_t>{};
+    if(Func2WorkList.count(Func) && Func2WorkList[Func].count(PointerLevel)){
+        return Func2WorkList.at(Func).at(PointerLevel);
+    }
+    static std::set<size_t> empty;
+    return empty;
+}
+
 
 /// @brief Main entry of flow sensitive pointer analysis. Process pointer
 ///        variables level by level. 
@@ -1166,19 +1197,15 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
 FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, ModuleAnalysisManager &mam){
 
 
-    DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Start analyzing module " 
-        << m.getName() << "\n");
+    DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Start analyzing module " << m.getName() << "\n");
 
     auto start = std::chrono::high_resolution_clock::now();
 
     SteengaardResult = mam.getResult<SteengaardAnalysis>(m);
-    
-
     auto CurrentPointerLevel = SteengaardResult.getMaxPl();
     globalInitialize(m);
 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
-    
     
     while(CurrentPointerLevel > 0){
         for(auto &Func : m.functions()){
@@ -1189,10 +1216,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
             Func2DomTree.emplace(&Func, FAM.getResult<DominatorTreeAnalysis>(Func));
             Func2DomFrontier.emplace(&Func, FAM.getResult<DominanceFrontierAnalysis>(Func));
 
-            auto Pointers = std::set<size_t>{};
-            if(Func2WorkList.count(&Func) && Func2WorkList[&Func].count(CurrentPointerLevel)){
-                Pointers = Func2WorkList.at(&Func).at(CurrentPointerLevel);
-            }
+            auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
             for(auto PtrId : Pointers){
                 auto Ptr = SteengaardResult.getPtr(PtrId);
                 markLabelsForPtr(Ptr.first, Ptr.second);
@@ -1202,10 +1226,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
         
 
         for(auto &Func : m.functions()){
-            auto Pointers = std::set<size_t>{};
-            if(Func2WorkList.count(&Func) && Func2WorkList[&Func].count(CurrentPointerLevel)){
-                Pointers = Func2WorkList.at(&Func).at(CurrentPointerLevel);
-            }
+            auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
             for(auto PtrId : Pointers){
                 auto Pair = buildDominatorGraph(&Func, PtrId);
                 auto OUT = Pair.first;
@@ -1213,43 +1234,11 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
                 auto UseLocs = getUseLocations(PtrId);
                 buildDefUseGraph(UseLocs, PtrId, OUT, DG);
             }
-
             auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
             propagate(PropagateList, &Func);
 
         }
-
-        // outs() << "Worklist\n";
-        // for(auto p : Func2WorkList){
-        //     outs() << "Function " << p.first->getName().str() << "\n";
-        //     for(auto wl : p.second){
-        //         outs() << "Pointer level: " << wl.first << "\n";
-        //         for(auto e : wl.second){
-        //             outs() << "\t" << e << "\n";
-        //         }
-        //     }
-            
-        // }
-
-        // outs() << "DUG\n";
-        // for(auto edge : DefUseGraph){
-        //     for(auto p : edge.second){
-        //         for(auto p0 : p.second){
-        //             outs() << *edge.first << " == " << p.first << " ==> " << *p0 << "\n";
-        //         } 
-        //     }
-        // }
-
-        // dumpLabelMap();
-        // dumpAliasMap();
-
-        // dumpPointsToSet();
         --CurrentPointerLevel;
-        // if(CurrentPointerLevel == 0){
-        //     llvm_unreachable("test");
-        // }
-        
-
     }
 
     auto stop = std::chrono::high_resolution_clock::now();
@@ -1259,14 +1248,9 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     // member function on the duration object
     dbgs() << duration.count() << "\n";
 
+    std::cout << "End of analysis. Avg Pts Size is " << std::setprecision(2) << computeAvgPtsSize() << "\n";
 
-
-    AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
-    AnalysisResult.setPointsToSet(PointsToSetOut);
-
-    dbgs() << "End of analysis. Avg Pts Size is " << computeAvgPtsSize() << "\n";
-
-    return AnalysisResult;
+    return FlowSensitivePointerAnalysisResult(PointsToSetOut);
 }
 
 
