@@ -158,7 +158,7 @@ namespace llvm{
 
         private:
             void addDefUseEdge(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
-            void addDefLabel(size_t Ptr, const ProgramLocationTy *Loc, const Function *Func);
+            void addDefLabel(size_t Ptr, const ProgramLocationTy *Loc);
             void addUseLabel(size_t Ptr, const ProgramLocationTy *Loc);
             std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
                 buildDominatorGraph(const Function *Func, size_t PtrId);

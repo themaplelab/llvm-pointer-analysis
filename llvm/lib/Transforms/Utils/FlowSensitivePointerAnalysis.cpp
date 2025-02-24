@@ -177,9 +177,9 @@ size_t FlowSensitivePointerAnalysis::computePointerLevel(const PointerTy *Ptr, b
     return PointerLevel.at(Id);
 }
 
-void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocationTy *Loc, const Function *Func){
+void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocationTy *Loc){
     auto IsInserted = LabelMap[Loc].insert(Label(PtrId, Label::LabelType::Def)).second;
-    DefLocations[PtrId][Func].insert(Loc);
+    DefLocations[PtrId][Loc->getFunction()].insert(Loc);
     
 
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
@@ -201,7 +201,7 @@ void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocati
         std::set<const ProgramLocationTy*> WorkList = Func2CallerLocation[Loc->getFunction()];
         while(!WorkList.empty()){
             auto CallSite = *WorkList.begin();
-            addDefLabel(PtrId, CallSite, CallSite->getFunction());
+            addDefLabel(PtrId, CallSite);
             WorkList.erase(CallSite);
         }
     }
@@ -260,10 +260,9 @@ const Instruction* FlowSensitivePointerAnalysis::getFirstInst(const Function *Fu
 void FlowSensitivePointerAnalysis::initialize(const Function *Func){
 
     DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << " Initializing function " << Func->getName() << "\n");
-
     WorkListTy WorkList;
 
-    // function parameters
+    // Initialize function parameters
     if(!Func->isDeclaration()){
         auto FirstInst = getFirstInst(Func);
         for(const auto &Arg : Func->args()){
@@ -271,10 +270,9 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
                 continue;
             }
             auto ArgId = SteengaardResult.getID(&Arg, true);
-            addDefLabel(ArgId, FirstInst, Func);
+            addDefLabel(ArgId, FirstInst);
             PointsToSetOut[FirstInst][ArgId] = std::set<size_t>{};
-            auto PointerLevel = computePointerLevel(&Arg, true);
-            WorkList[PointerLevel].insert(ArgId);
+            WorkList[computePointerLevel(&Arg, true)].insert(ArgId);
         }
     }
 
@@ -286,7 +284,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
             auto AllocaMemoryObjPl = computePointerLevel(Alloca, false);
             auto AllocaAddrTakenId = SteengaardResult.getID(Alloca, false);
             WorkList[AllocaMemoryObjPl].insert(AllocaAddrTakenId);
-            addDefLabel(AllocaAddrTakenId, Alloca, Func);
+            addDefLabel(AllocaAddrTakenId, Alloca);
             // todo: add id for nullptr
             PointsToSetOut[&Inst][AllocaAddrTakenId] = std::set<size_t>{};
             PointsToSetIn[&Inst][AllocaAddrTakenId] = std::set<size_t>{};
@@ -294,7 +292,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
             auto AllocaTopLevelId = SteengaardResult.getID(Alloca, true);
             auto PointerLevel = computePointerLevel(Alloca, true);
             WorkList[PointerLevel].insert(AllocaTopLevelId);
-            addDefLabel(AllocaTopLevelId, Alloca, Func);
+            addDefLabel(AllocaTopLevelId, Alloca);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
             PointsToSetOut[&Inst][AllocaTopLevelId] = std::set<size_t>{AllocaAddrTakenId};
             PointsToSetIn[&Inst][AllocaTopLevelId] = std::set<size_t>{AllocaAddrTakenId};
@@ -410,7 +408,7 @@ void FlowSensitivePointerAnalysis::markLabelsForPtr(const PointerTy *Ptr, bool i
             // get points-to set of Ptr at Store.
             auto Pts = getPointsToSet(PtrId, Store);
             for(auto PointeeId : Pts){
-                addDefLabel(PointeeId, Store, Store->getFunction());
+                addDefLabel(PointeeId, Store);
                 addUseLabel(PointeeId, Store);
             }
 
@@ -807,7 +805,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 // outs() << PointerOpId << " " << *Loc << "\n";
 
                 for(auto Pid : getPointsToSet(PointerOpId, Loc)){
-                    addDefLabel(Pid, UseLoc, UseLoc->getFunction());
+                    addDefLabel(Pid, UseLoc);
                     addUseLabel(Pid, UseLoc);
                 }
                 
