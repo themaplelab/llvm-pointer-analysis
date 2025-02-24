@@ -276,7 +276,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
         }
     }
 
-    
+    auto NullPtrId = SteengaardResult.getID(nullptr, true);
     for(auto &Inst : instructions(*Func)){
         // x = alloca ptr
         if(const AllocaInst *Alloca = dyn_cast<AllocaInst>(&Inst)){
@@ -286,8 +286,9 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
             WorkList[AllocaMemoryObjPl].insert(AllocaAddrTakenId);
             addDefLabel(AllocaAddrTakenId, Alloca);
             // todo: add id for nullptr
-            PointsToSetOut[&Inst][AllocaAddrTakenId] = std::set<size_t>{};
-            PointsToSetIn[&Inst][AllocaAddrTakenId] = std::set<size_t>{};
+            
+            PointsToSetOut[&Inst][AllocaAddrTakenId] = std::set<size_t>{NullPtrId};
+            PointsToSetIn[&Inst][AllocaAddrTakenId] = std::set<size_t>{NullPtrId};
 
             auto AllocaTopLevelId = SteengaardResult.getID(Alloca, true);
             auto PointerLevel = computePointerLevel(Alloca, true);
@@ -593,9 +594,14 @@ SetVector<FlowSensitivePointerAnalysis::DefUseEdgeTupleTy> FlowSensitivePointerA
 /// @brief Pass PTS(Ptr) from DefLoc to UseLoc, skip store instruction.
 void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLocationTy *UseLoc,
      const ProgramLocationTy *DefLoc, size_t PtrId){
+
+        // outs() << "Source pts\n";
+        // for(auto p : PointsToSetOut.at(DefLoc).at(PtrId)){
+        //     outs() << p << "\n";
+        // }
+
+
         PointsToSetIn[UseLoc][PtrId];
-        // dumpPointsToSet();
-        // outs() << 111 << *DefLoc << " " << PtrId << "\n";
         for(auto PointerId : PointsToSetOut.at(DefLoc).at(PtrId)){
             auto Pointer = SteengaardResult.getPtr(PointerId).first;
             if(!isa_and_nonnull<LoadInst>(Pointer)){
@@ -811,22 +817,26 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 
             }
             else if(Ptr == Store->getValueOperand()){
-
                 auto Pts = getPointsToSet(PtrId, Loc);
+                // outs() << Pts.size() << "\n";
+
                 auto LoadId = SteengaardResult.getID(Ptr, true);
                 if(isAlias(LoadId, PtrId, Store)){
                     auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand()->stripPointerCastsAndAliases(), true);
+                    // outs() << LoadId << " " << PtrId << " " << *Store << " " << PointerOpId << "\n";
+
                     if(isa<LoadInst>(Store->getPointerOperand()->stripPointerCastsAndAliases())){
                         auto Location = dyn_cast<Instruction>(Store->getPointerOperand()->stripPointerCastsAndAliases());
                         for(auto Alias : AliasMap[Store][PointerOpId]){
                             for(auto Pe : getPointsToSet(Alias, Location)){
                                 updatePointsToSet(Store, Pe, Pts, PropagateList);
-                            }
-                            
+                            } 
                         }
                     }
                     else{
+                        // outs() << "11111111\n";
                         for(auto Pe : getPointsToSet(PointerOpId, Store)){
+                            // outs() << Pe << "\n";
                             updatePointsToSet(Store, Pe, Pts, PropagateList);
                         }
                     }
@@ -936,12 +946,22 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
         DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << " Propagating edge " 
             << *DefLoc << " === " << PtrId << " ===> " << *UseLoc << "\n");
 
+        // outs() << "In used to be\n";
+        // for(auto p : PointsToSetIn[UseLoc][PtrId]){
+        //     outs() << p << "\n";
+        // }
         propagatePointsToInformation(UseLoc, DefLoc, PtrId);
+        // outs() << "In currently to be\n";
+        // for(auto p : PointsToSetIn[UseLoc][PtrId]){
+        //     outs() << p << "\n";
+        // }
 
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
             PointsToSetOut[UseLoc][PtrId] = PointsToSetIn.at(UseLoc).at(PtrId);
             auto ValueOpId = SteengaardResult.getID(Store->getValueOperand()->stripPointerCastsAndAliases(), true);
-            auto PTS = getPointsToSet(ValueOpId, Store);
+            auto PTS = getPointsToSet(ValueOpId, DefLoc);
+            // outs() << ValueOpId << " " << *DefLoc << " " << PTS.size() << "\n";
+            // dumpPointsToSet();
             updatePointsToSet(UseLoc, PtrId, PTS, PropagateList);
 
             auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand(), true);
@@ -951,12 +971,18 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
                     addUseLabel(Pe, Store);
                 }
             }
-            else{
-                // outs() << PointerOpId << " not alias to " << PtrId << "\n";
-            }
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
+            bool PtsIsChanged = false;
+            auto OldPts = PointsToSetOut[UseLoc][PtrId];
             PointsToSetOut[UseLoc][PtrId] = PointsToSetIn.at(UseLoc).at(PtrId);
+            if(OldPts != PointsToSetOut[UseLoc][PtrId]){
+                PtsIsChanged = true;
+            }
+
+
+
+
             auto OldAliasSet = std::set<size_t>{};
             auto UseLocId = SteengaardResult.getID(UseLoc, true);
             if(AliasMap.count(UseLoc) && AliasMap[UseLoc].count(UseLocId)){
@@ -967,7 +993,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> Propag
             updateAliasInformation(UseLoc, UseLocId, SteengaardResult.getID(Load->getPointerOperand(), true));
             auto PointerOpId = SteengaardResult.getID(Load->getPointerOperand(), true);
 
-            if(OldAliasSet != AliasMap.at(UseLoc).at(UseLocId)){
+            if(OldAliasSet != AliasMap.at(UseLoc).at(UseLocId) || PtsIsChanged){
                 for(auto user : UseLoc->users()){
                     updateAliasUsers(UseLoc, UseLocId, PtrId, PropagateList);
                 }
@@ -1218,9 +1244,11 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+    dumpPointsToSet();
  
     dbgs() << "Runtime: " << duration.count() << "ms\n";
-    std::cout << "End of analysis. Avg Pts Size is " << std::setprecision(2) << computeAvgPtsSize() << "\n";
+    std::cout << "End of analysis. Avg Pts Size is " << std::setprecision(5) << computeAvgPtsSize() << "\n";
 
     return FlowSensitivePointerAnalysisResult(PointsToSetOut);
 }

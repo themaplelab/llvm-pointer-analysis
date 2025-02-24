@@ -14,6 +14,9 @@ size_t SteengaardAnalysis::id = 0;
 
 SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManager &MAM){
 
+    // Create Id for nullptr;
+    getID(nullptr, true);
+
     for(auto &F : M){
         for(auto &Inst : instructions(F)){
             if(auto Alloca = dyn_cast<AllocaInst>(&Inst)){
@@ -104,7 +107,12 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     // printStats();
     // outs() << "Pointer ID:\n";
     // for(auto p : pointerID){
-    //     outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
+    //     if(!p.first.first){
+    //         outs() << "nullptr " << p.first.second << " => " << p.second << "\n";
+    //     }
+    //     else{
+    //         outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
+    //     }
     // }
     
     Result AnalysisResult;
