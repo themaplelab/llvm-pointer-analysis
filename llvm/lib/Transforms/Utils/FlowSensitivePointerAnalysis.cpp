@@ -35,28 +35,28 @@ static std::string getCurrentTime(){
 void FlowSensitivePointerAnalysis::printPointsToSetAtProgramLocation(const ProgramLocationTy *Loc){
 
     if(PointsToSetOut.count(Loc)){
-        DEBUG_WITH_TYPE("pts", dbgs() << "At program location" << *Loc << ":\n");
+        dbgs() << "At program location" << *Loc << ":\n";
         for(auto PtsForPtr : PointsToSetOut.at(Loc)){
             auto Ptr = SteengaardResult.getPtr(PtsForPtr.first);
             std::string PtrType = Ptr.second ? "(TopLevel)" : "(AddrTaken)";
             if(dyn_cast<Argument>(Ptr.first)){
-                DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *(Ptr.first) << " " << PtrType << " ==>\n");
+                dbgs() << "\t" << *(Ptr.first) << " " << PtrType << " ==>\n";
             }
             else{
-                DEBUG_WITH_TYPE("pts", dbgs() << *(Ptr.first) << " " << PtrType << " ==>\n");
+                dbgs() << *(Ptr.first) << " " << PtrType << " ==>\n";
             }
             
             for(auto PointeeId : PtsForPtr.second){
                 auto Pointee = SteengaardResult.getPtr(PointeeId);
                 std::string PtrType = Pointee.second ? "(TopLevel)" : "(AddrTaken)";
                 if(!Pointee.first){
-                    DEBUG_WITH_TYPE("pts", dbgs() << "\t " << "nullptr" << "\n");
+                    dbgs() << "\t " << "nullptr" << "\n";
                 }
                 else if(dyn_cast<Instruction>(Pointee.first)){
-                    DEBUG_WITH_TYPE("pts", dbgs() << "\t" << *(Pointee.first) << " " << PtrType << "\n");
+                    dbgs() << "\t" << *(Pointee.first) << " " << PtrType << "\n";
                 }
                 else{
-                    DEBUG_WITH_TYPE("pts", dbgs() << "\t " << *(Pointee.first) << " " << PtrType << "\n");
+                    dbgs() << "\t " << *(Pointee.first) << " " << PtrType << "\n";
                 }
             }
         }
@@ -1255,15 +1255,22 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     AnalysisResult.setFunc2Pointers(Func2AllocatedPointersAndParameterAliases);
     AnalysisResult.setPointsToSet(PointsToSetOut);
 
-    // size_t TotalPtsSize = 0, NumPts = 0;
-    // for(auto Pair : PointsToSetOut){
-    //     for(auto P : Pair.second){
-    //         TotalPtsSize += P.second.size();
-    //         NumPts += 1;
-    //     }
-    // }
+    dumpPointsToSet();
 
-    // dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << "\n";
+    size_t TotalPtsSize = 0, NumPts = 0;
+    for(auto Pair : PointsToSetOut){
+        for(auto P : Pair.second){
+            if(!SteengaardResult.getPtr(P.first).second){
+                TotalPtsSize += P.second.size();
+                outs() << P.second.size() << "\n";
+                NumPts += 1;    
+            }
+            
+        }
+    }
+
+    outs() << TotalPtsSize << " " << NumPts << "\n";
+    dbgs() << "End of analysis. Avg Pts Size is " << (double)TotalPtsSize / NumPts << "\n";
 
     return AnalysisResult;
 }
