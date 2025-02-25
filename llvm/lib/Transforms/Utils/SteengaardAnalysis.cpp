@@ -66,21 +66,18 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 if(GEP->getType()->isPointerTy()){
                     auto Lhs = getID(GEP, true);
                     auto Rhs = getID(GEP->getOperand(0), true);
-                    // outs() << *GEP << " " << *(GEP->getOperand(0)) << "\n";
                     Uf.merge(Uf.find(Lhs), Uf.find(Rhs));
                 }
             }
             else if(auto Call = dyn_cast<CallBase>(&Inst)){
-                if(!Call->getCalledFunction()){
+                if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
                     continue;
                 }
                 // para-arg passing
                 size_t i = 0;
                 while(i < Call->arg_size()){
-
                     auto Para = getID(Call->getCalledFunction()->getArg(i), true);
                     auto Arg = getID(Call->getOperand(i), true);
-
                     Uf.merge(Uf.find(Para), Uf.find(Arg));
                     ++i;
                 }
@@ -104,7 +101,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     computePtsAndAlias();
     auto MaxPl = computeMaxPointerLevel();
 
-    // printStats();
+    printStats();
     // outs() << "Pointer ID:\n";
     // for(auto p : pointerID){
     //     if(!p.first.first){
@@ -182,7 +179,12 @@ void SteengaardAnalysis::printStats(){
 
     outs() << "Pointer ID:\n";
     for(auto p : pointerID){
-        outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
+        if(!p.first.first){
+            outs() << "nullptr " << p.first.second << " => " << p.second << "\n";
+        }
+        else{
+            outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
+        }
     }
      
     outs() << "Parents\n";
@@ -211,10 +213,10 @@ void SteengaardAnalysis::printStats(){
         outs() << p.first << " => " << getPointerLevel(p.first) << "\n";
     }
 
-    outs() << "id2Ptr\n";
-    for(auto p : ID2Ptr){
-        outs() << p.first << " => " << *p.second.first << " " << p.second.second << "\n";
-    }
+    // outs() << "id2Ptr\n";
+    // for(auto p : ID2Ptr){
+    //     outs() << p.first << " => " << *p.second.first << " " << p.second.second << "\n";
+    // }
 
 
 }
