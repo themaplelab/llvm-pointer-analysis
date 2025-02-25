@@ -73,6 +73,42 @@ void FlowSensitivePointerAnalysis::dumpPointsToSet(){
     }
 }
 
+void FlowSensitivePointerAnalysis::dumpPointsToSetIn(){
+    dbgs() << "Print points-to set in stats\n";
+    // C++26 will treat _ as a special value that does not cause unused warning.
+    for(auto PtsForPtr : PointsToSetIn){
+        // printPointsToSetAtProgramLocation(PtsForPtr.first);
+
+        if(PointsToSetIn.count(PtsForPtr.first)){
+            dbgs() << "At program location" << *PtsForPtr.first << ":\n";
+            for(auto PtsForPtr : PointsToSetIn.at(PtsForPtr.first)){
+                auto Ptr = SteengaardResult.getPtr(PtsForPtr.first);
+                std::string PtrType = Ptr.second ? "(TopLevel)" : "(AddrTaken)";
+                if(dyn_cast<Argument>(Ptr.first)){
+                    dbgs() << "\t" << *(Ptr.first) << " " << PtrType << " ==>\n";
+                }
+                else{
+                    dbgs() << *(Ptr.first) << " " << PtrType << " ==>\n";
+                }
+                
+                for(auto PointeeId : PtsForPtr.second){
+                    auto Pointee = SteengaardResult.getPtr(PointeeId);
+                    std::string PtrType = Pointee.second ? "(TopLevel)" : "(AddrTaken)";
+                    if(!Pointee.first){
+                        dbgs() << "\t " << "nullptr" << "\n";
+                    }
+                    else if(dyn_cast<Instruction>(Pointee.first)){
+                        dbgs() << "\t" << *(Pointee.first) << " " << PtrType << "\n";
+                    }
+                    else{
+                        dbgs() << "\t " << *(Pointee.first) << " " << PtrType << "\n";
+                    }
+                }
+            }
+        }
+    }
+}
+
 void FlowSensitivePointerAnalysis::dumpAliasMap(){
     DEBUG_WITH_TYPE("pts", dbgs() << "Print alias map stats\n");
     // C++26 will treat _ as a special value that does not cause unused warning.
@@ -818,9 +854,13 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
         const auto& [DefLoc, UseLoc, PtrId] = PropagateList.front();
         DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << " Propagating edge " << *DefLoc << " === " << PtrId << " ===> " << *UseLoc << "\n");
         propagatePointsToInformation(UseLoc, DefLoc, PtrId);
+        // outs() << "pts-in of " << PtrId << " \n";
+        // for(auto p : PointsToSetIn[UseLoc][PtrId]){
+        //     outs() << p << "\n";
+        // }
 
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
-            PointsToSetOut[UseLoc][PtrId] = PointsToSetIn.at(UseLoc).at(PtrId);
+            // PointsToSetOut[UseLoc][PtrId] = PointsToSetIn.at(UseLoc).at(PtrId);
             auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand()->stripPointerCastsAndAliases(), true);
             auto ValueOpId = SteengaardResult.getID(Store->getValueOperand()->stripPointerCastsAndAliases(), true);
             updatePointsToSet(UseLoc, PtrId, getPointsToSet(ValueOpId, DefLoc), PropagateList);
@@ -1072,6 +1112,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     dumpLabelMap();
     dumpDefUseGraph();
     dumpPointsToSet();
+    dumpPointsToSetIn();
     dumpAliasMap();
  
     dbgs() << "Runtime: " << duration.count() << "ms\n";

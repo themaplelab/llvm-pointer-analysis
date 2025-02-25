@@ -148,6 +148,7 @@ namespace llvm{
             void dumpDefUseGraph();
             void dumpLabelMap();
             void dumpPointsToSet();
+            void dumpPointsToSetIn();
             void dumpWorkList();
             std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, size_t);
             const Instruction* getFirstInst(const Function*);
