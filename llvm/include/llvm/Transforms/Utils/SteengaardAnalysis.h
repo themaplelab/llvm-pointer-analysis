@@ -46,12 +46,17 @@ namespace llvm{
         std::map<size_t, std::set<size_t>> Pts;
         std::map<size_t, std::set<size_t>> Alias;
         std::map<size_t, size_t> PointerLevel;
-        std::map<std::pair<const Value*, bool>, size_t> pointerID;
+        std::map<std::pair<const Value*, bool>, size_t> PointerID;
         std::map<size_t, std::pair<const Value*, bool>> ID2Ptr;
-        size_t maxPl;
+        size_t MaxPl;
 
 
         public:
+            SteengaardAnalysisResult() = default;
+            SteengaardAnalysisResult(const std::map<size_t, std::set<size_t>> &Pts, const std::map<size_t, std::set<size_t>> &Alias, const std::map<size_t, size_t> &PointerLevel,
+                const std::map<std::pair<const Value*, bool>, size_t> &PointerID, const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr, size_t MaxPl) : Pts(Pts), Alias(Alias),
+                PointerLevel(PointerLevel), PointerID(PointerID), ID2Ptr(ID2Ptr), MaxPl(MaxPl) {}
+
             void setPts(const std::map<size_t, std::set<size_t>> &Pts){
                 this->Pts = Pts;
             }
@@ -65,7 +70,7 @@ namespace llvm{
             }
 
             void setPointerID(std::map<std::pair<const Value*, bool>, size_t> &PointerID){
-                this->pointerID = PointerID;
+                this->PointerID = PointerID;
             }
 
             void setId2Ptr(const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr){
@@ -73,11 +78,11 @@ namespace llvm{
             }
 
             void setMaxPl(size_t pl){
-                this->maxPl = pl;
+                this->MaxPl = pl;
             }
 
             size_t getMaxPl(){
-                return maxPl;
+                return MaxPl;
             }
 
             const std::map<size_t, size_t>& getPointerLevels(){
@@ -85,16 +90,16 @@ namespace llvm{
             }
 
             const std::map<std::pair<const Value*, bool>, size_t> & getPointerIDs(){
-                return pointerID;
+                return PointerID;
             }
 
             size_t getID(const Value *Ptr, bool isTopLevel){
-                if(pointerID.find({Ptr, isTopLevel}) == pointerID.end()){
+                if(PointerID.find({Ptr, isTopLevel}) == PointerID.end()){
                     errs() << "Cannot find id for pointer " << *Ptr << " " << isTopLevel << "\n";
                     std::terminate();
                 }
             
-                return pointerID.at({Ptr, isTopLevel});
+                return PointerID.at({Ptr, isTopLevel});
             }
 
             std::pair<const Value*, bool> getPtr(size_t Id){

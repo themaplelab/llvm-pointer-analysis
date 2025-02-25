@@ -102,7 +102,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     
 
     computePtsAndAlias();
-    auto maxPl = computeMaxPointerLevel();
+    auto MaxPl = computeMaxPointerLevel();
 
     // printStats();
     // outs() << "Pointer ID:\n";
@@ -115,13 +115,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     //     }
     // }
     
-    Result AnalysisResult;
-    AnalysisResult.setPts(truePts);
-    AnalysisResult.setAlias(trueAlias);
-    AnalysisResult.setPointerLevels(PointerLevel);
-    AnalysisResult.setPointerID(pointerID);
-    AnalysisResult.setMaxPl(maxPl);
-    AnalysisResult.setId2Ptr(ID2Ptr);
+    Result AnalysisResult(truePts, trueAlias, PointerLevel, pointerID, ID2Ptr, MaxPl);
 
     return AnalysisResult;
 
@@ -138,8 +132,6 @@ size_t SteengaardAnalysis::getID(const Value *Ptr, bool isTopLevel){
     if(pointerID.find({Ptr, isTopLevel}) == pointerID.end()){
         createID(Ptr, isTopLevel);
     }
-
-    // outs() << *Ptr << " " << isTopLevel << " " << pointerID.at({Ptr, isTopLevel}) << "\n";
 
     return pointerID.at({Ptr, isTopLevel});
 }
