@@ -102,7 +102,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     
 
     computePtsAndAlias();
-    auto maxPl = computePointerLevel();
+    auto maxPl = computeMaxPointerLevel();
 
     // printStats();
     // outs() << "Pointer ID:\n";
@@ -178,7 +178,7 @@ void SteengaardAnalysis::computePtsAndAlias(){
     }
 }
 
-size_t SteengaardAnalysis::computePointerLevel(){
+size_t SteengaardAnalysis::computeMaxPointerLevel(){
     size_t maxPl = 0;
     for(auto p : Uf.getParent()){
         maxPl = std::max(maxPl, getPointerLevel(p.first));

@@ -135,9 +135,10 @@ namespace llvm{
         std::map<const Function*, std::set<const Function*>> Caller2Callee;
         DefUseGraphTy DefUseGraph;
         std::map<const Function*, SetVector<const PointerTy*>> Func2AllocatedPointersAndParameterAliases;
+        // Map function to all call sites that may call it.
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2CallerLocation;
         std::map<const Function*, WorkListTy> Func2WorkList; 
-        std::map<const Function*, std::set<const BasicBlock*>> Func2TerminateBBs;
+        // Map function to all return instructions in itself.
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2Returns;
 
         std::map<const Function*, PointsToSetTy::mapped_type> FuncParas2PointsToSet;
@@ -149,6 +150,7 @@ namespace llvm{
         std::map<const Function*, std::reference_wrapper<DominatorTreeAnalysis::Result>> Func2DomTree;
         std::map<const Function*, std::reference_wrapper<DominanceFrontierAnalysis::Result>> Func2DomFrontier;
         std::map<size_t, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
+        // At each callsite, map the argument to its position at the call site.
         std::map<const CallBase*, std::map<size_t, std::set<size_t>>> CallSite2ArgIdx;
 
         SteengaardAnalysisResult SteengaardResult;
@@ -164,7 +166,7 @@ namespace llvm{
                 buildDominatorGraph(const Function *Func, size_t PtrId);
             void buildDefUseGraph(std::set<const ProgramLocationTy*>, size_t, 
                 std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
-            size_t computePointerLevel(const PointerTy*, bool isTopLevel);
+            size_t computePointerLevel(size_t);
             void dumpAliasMap();
             void dumpLabelMap();
             void dumpPointsToSet();
@@ -180,7 +182,7 @@ namespace llvm{
             void markLabelsForPtr(const PointerTy*, bool isTopLevel);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
             void processGlobalVariables(size_t);
-            void propagate(SetVector<DefUseEdgeTupleTy>, const Function*);
+            void propagate(SetVector<DefUseEdgeTupleTy>&, const Function*);
             void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
             std::vector<size_t> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
             void updateAliasInformation(const ProgramLocationTy *, size_t, size_t);
@@ -199,6 +201,7 @@ namespace llvm{
 
             const std::set<size_t>& getPointersInWorkList(size_t PointerLevel, const Function *Func);
             const Instruction* getFirstInst(const Function *Func);
+            void markLabelsAtUser(const PointerTy*, size_t, const User*);
 
             
         public:

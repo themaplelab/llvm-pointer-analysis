@@ -135,7 +135,7 @@ namespace llvm{
             void createID(const Value *Ptr, bool isTopLevel = true);
             size_t getPointerLevel(size_t Pointer);
             void computePtsAndAlias();
-            size_t computePointerLevel();
+            size_t computeMaxPointerLevel();
     };
 
 
