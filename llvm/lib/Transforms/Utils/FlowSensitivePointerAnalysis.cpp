@@ -1099,6 +1099,14 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
                 const auto& [Out, DG] = buildDominatorGraph(&Func, PtrId);
                 buildDefUseGraph(getUseLocations(PtrId), PtrId, Out, DG);
             }
+        }
+
+        for(auto &Func : m.functions()){
+            auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
+            // for(auto PtrId : Pointers){
+            //     const auto& [Out, DG] = buildDominatorGraph(&Func, PtrId);
+            //     buildDefUseGraph(getUseLocations(PtrId), PtrId, Out, DG);
+            // }
             auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
             propagate(PropagateList, &Func);
         }
