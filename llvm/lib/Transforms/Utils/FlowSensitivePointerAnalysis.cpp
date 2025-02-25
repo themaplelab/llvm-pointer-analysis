@@ -176,7 +176,6 @@ size_t FlowSensitivePointerAnalysis::computePointerLevel(size_t PtrId){
 }
 
 void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocationTy *Loc){
-    auto IsInserted = LabelMap[Loc].insert(Label(PtrId, Label::LabelType::Def)).second;
     DefLocations[PtrId][Loc->getFunction()].insert(Loc);
     
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
@@ -285,7 +284,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
                 continue;
             }
             else{
-                Caller2Callee[Func].insert(Call->getCalledFunction());
+                // Caller2Callee[Func].insert(Call->getCalledFunction());
                 for(size_t Idx = 0; Idx < Call->arg_size(); ++Idx){
                     auto Arg = Call->getArgOperand(Idx);
                     if(Arg && Arg->getType()->isPointerTy()){
@@ -300,18 +299,6 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
     }
 
     Func2WorkList.emplace(Func, WorkList);
-}
-
-/// @brief Check if a program location defines a pointer \p Ptr.
-bool FlowSensitivePointerAnalysis::hasDef(const ProgramLocationTy *Loc, size_t PtrId){
-    // outs() << "HasDef At" << *loc << " with ptr" << *ptr << "\n";
-    if(!LabelMap.count(Loc)){
-        return false;
-    }
-    auto iter = std::find_if(LabelMap.at(Loc).begin(), LabelMap.at(Loc).end(), [&](Label L) -> bool {
-        return L.Type == Label::LabelType::Def && L.Ptr == PtrId;
-        });
-    return (iter == LabelMap.at(Loc).end() ? false : true);
 }
 
 std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, const ProgramLocationTy *Loc){
@@ -498,18 +485,6 @@ void FlowSensitivePointerAnalysis::buildDefUseGraph(std::set<const ProgramLocati
     }
 }
 
-/// @brief Build def use graph for all global variables of pointer level \p PtrLvl
-void FlowSensitivePointerAnalysis::processGlobalVariables(size_t PtrLvl){
-
-    // if(GlobalWorkList.count(PtrLvl)){
-    //     for(auto GlobalPtr : GlobalWorkList.at(PtrLvl)){
-    //         markLabelsForPtr(GlobalPtr);
-    //         auto UseLocs = getUseLocations(GlobalPtr);
-    //         buildDefUseGraph(UseLocs, GlobalPtr);
-    //     }
-    // }
-}
-
 /// @brief Collect all use locations that reachable from a def location by tracing
 ///     pointer \p Ptr.
 std::vector<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePointerAnalysis::
@@ -571,30 +546,6 @@ void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLoc
         }
 
     return;
-}
-
-/// @brief Get the set of real pointee represented by a pointer. For a storeInst 
-///     store x y, x maybe an parameter of a function or a temporary register. In our
-///     analysis, we only want to propagate allocated pointer. Return itself iff no
-///     allocated pointers are alias to it.
-/// @param Loc Program location that we want to query the alias set.
-/// @param ValueOperand Value operand of a store instruction. We will find all allocated pointers that
-///     alias to it.
-/// @return  A set of allocated pointers or \p ValueOperand.
-std::set<size_t> FlowSensitivePointerAnalysis::
-    getRealPointsToSet(const ProgramLocationTy *Loc, const PointerTy *ValueOperand){
-        // todo: the logic is incorrect. for store x y, it should be pts(z) = pts(x) for all z pointed by y.
-    
-    std::set<size_t> Pointees{};
-
-    auto ValueOperandId = SteengaardResult.getID(ValueOperand, true);
-
-    Pointees.insert(SteengaardResult.getID(ValueOperand->stripPointerCasts(), true));
-    if(AliasMap.count(Loc) && AliasMap[Loc].count(ValueOperandId)){
-        Pointees = AliasMap.at(Loc).at(ValueOperandId);
-    }
-    
-    return Pointees;
 }
 
 /// @brief Update points-to-set for \p Ptr at program location \p Loc.
@@ -673,21 +624,6 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
     
 }
 
-/// @brief Get all alias for the pointer operand of a load instruction.
-/// If no such alias, return the pointer itself.
-std::set<size_t> FlowSensitivePointerAnalysis::
-    getAlias(const ProgramLocationTy *Loc, const LoadInst *Load){
-
-    auto PointerOpId = SteengaardResult.getID(Load->getPointerOperand(), true);
-
-    if(AliasMap.count(Loc) && AliasMap[Loc].count(PointerOpId)){
-        return AliasMap.at(Loc).at(PointerOpId);
-    }
-    else{
-        return std::set<size_t>{PointerOpId};
-    }
-}
-
 /// @brief Update the alias set of pointer x introduced by a \p loadInst 'x = load y' or 'store y x' using pts(PtrId).
 void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationTy *Loc, size_t AliasId, size_t PtrId){
 
@@ -700,43 +636,20 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
     return;
 }
 
-/// @brief Find all pointers that points to \p Ptr at \p Loc.
-std::vector<size_t> FlowSensitivePointerAnalysis::
-    ptsPointsTo(const ProgramLocationTy *Loc, const PointerTy *Ptr){
-
-    std::vector<size_t> Res{};
-
-    if(PointsToSetOut.count(Loc)){
-        for(auto PtsAtPtr : PointsToSetOut.at(Loc)){
-            if(AliasMap[Loc][SteengaardResult.getID(dyn_cast<StoreInst>(Loc)->getPointerOperand(), true)].count(PtsAtPtr.first) || 
-                PtsAtPtr.first == SteengaardResult.getID(dyn_cast<StoreInst>(Loc)->getPointerOperand(), true)){
-                    Res.push_back(PtsAtPtr.first);
-                }
-
-        }
-    }
-    
-    return Res;
-}
-
 /// @brief Propagate the alias set of \p Loc at \p Loc to its use locations.
 ///     Update its user accordingly.
-void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc, 
-    size_t AliasId, size_t PtrId, SetVector<DefUseEdgeTupleTy> &PropagateList){
+void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc, size_t PtrId, SetVector<DefUseEdgeTupleTy> &PropagateList){
 
     if(!isa<LoadInst>(Loc)){
         return;
     }
 
     
-    // dbgs() << AliasUser.count(Loc) << "\n";
     for(auto User : Loc->users()){      
 
         DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << " Updating alias user for pointer " 
             << *Loc << " at " << *User << "\n");  
         auto UseLoc = dyn_cast<Instruction>(User);
-        
-        
         
         auto Ptr = dyn_cast<PointerTy>(Loc);
         auto LoadId = SteengaardResult.getID(Ptr, true);
@@ -821,7 +734,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
 
             auto PointerOpId = SteengaardResult.getID(dyn_cast<LoadInst>(Loc), true);
             auto Pts = getPointsToSet(PointerOpId, Loc);
-            auto ArgIdx = 0;
+            size_t ArgIdx = 0;
             while(ArgIdx < Call->arg_size()){
                 if(Call->getArgOperand(ArgIdx) == Loc){
                     break;
@@ -829,7 +742,6 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
                 ArgIdx++;
             }
 
-            // dumpPointsToSet();
             if(ArgIdx < Call->arg_size()){
                 PointsToSetOut[getFirstInst(Call->getCalledFunction())][SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgIdx), true)].insert(Pts.begin(), Pts.end());
             }
@@ -911,12 +823,9 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
             }
             
             updateAliasInformation(UseLoc, UseLocId, SteengaardResult.getID(Load->getPointerOperand(), true));
-            auto PointerOpId = SteengaardResult.getID(Load->getPointerOperand(), true);
 
             if(OldAliasSet != AliasMap.at(UseLoc).at(UseLocId) || PtsIsChanged){
-                for(auto user : UseLoc->users()){
-                    updateAliasUsers(UseLoc, UseLocId, PtrId, PropagateList);
-                }
+                updateAliasUsers(UseLoc, PtrId, PropagateList);
             }
         }
         else if(auto Call = dyn_cast<CallInst>(UseLoc)){
@@ -1084,7 +993,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
     return {OUT, DG};
 }
 
-
 /// @brief Get all pointers with pointer level \p PointerLevel in worklist of function \p Func/ 
 const std::set<size_t>& FlowSensitivePointerAnalysis::getPointersInWorkList(size_t PointerLevel, const Function *Func){
     if(Func2WorkList.count(Func) && Func2WorkList[Func].count(PointerLevel)){
@@ -1145,9 +1053,6 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     return FlowSensitivePointerAnalysisResult(PointsToSetOut);
 }
-
-
-
 
 AnalysisKey FlowSensitivePointerAnalysis::Key;
 namespace llvm{

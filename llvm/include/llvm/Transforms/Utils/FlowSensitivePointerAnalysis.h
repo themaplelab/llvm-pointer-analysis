@@ -76,7 +76,7 @@ namespace llvm{
 
 
         private:
-            const Instruction *Root;
+            // const Instruction *Root;
             std::set<const Instruction *> Nodes;
             std::map<const Instruction *, std::set<const Instruction *>> Edges;
     };
@@ -84,36 +84,20 @@ namespace llvm{
     /// @brief Class that keeps result of flow sensitive pointer analysis
     class FlowSensitivePointerAnalysisResult{
 
-        // using PointerTy = Value;
         using ProgramLocationTy = Instruction;
-        // using WorkListTy = std::map<size_t, std::set<size_t>>;
         using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<size_t>>>;
 
-
-        // std::map<const Function*, WorkListTy> Worklist;
         PointsToSetTy PointsToSet;
-        // std::map<const Function*, SetVector<const Value*>> Func2AllocatedPointersAndParameterAliases;
-
-
 
         public:
-            // FlowSensitivePointerAnalysisResult() = default;
             FlowSensitivePointerAnalysisResult(const PointsToSetTy &Pts) : PointsToSet(Pts) {}
 
-            // std::map<const Function*, WorkListTy> getWorkList() {return Worklist;}
-            // void setWorkList(std::map<const Function*, WorkListTy> WL) {Worklist = WL; return;}
             PointsToSetTy getPointsToSet(){
                 return PointsToSet;
             }
             void setPointsToSet(PointsToSetTy PTS){
                 PointsToSet = PTS;
             }
-
-            // std::map<const Function*, SetVector<const Value*>> getFunc2Pointers() {return Func2AllocatedPointersAndParameterAliases;}
-            // void setFunc2Pointers(std::map<const Function*, SetVector<const Value*>> F2P){
-            //     Func2AllocatedPointersAndParameterAliases = F2P;
-            //     return;
-            // }
     };
 
     struct Label;
@@ -131,17 +115,11 @@ namespace llvm{
 
         // Map each pointer to the program location that requires its alias information.
         PointsToSetTy AliasMap;
-        std::map<const PointerTy*, std::set<const User*>> AliasUser;
-        std::map<const Function*, std::set<const Function*>> Caller2Callee;
         DefUseGraphTy DefUseGraph;
-        std::map<const Function*, SetVector<const PointerTy*>> Func2AllocatedPointersAndParameterAliases;
         // Map function to all call sites that may call it.
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2CallerLocation;
         std::map<const Function*, WorkListTy> Func2WorkList; 
-        // Map function to all return instructions in itself.
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2Returns;
-
-        std::map<const Function*, PointsToSetTy::mapped_type> FuncParas2PointsToSet;
         WorkListTy GlobalWorkList;
         std::map<const ProgramLocationTy*, std::set<Label>> LabelMap; 
         PointsToSetTy PointsToSetOut;
@@ -160,50 +138,38 @@ namespace llvm{
 
         private:
             void addDefUseEdge(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
-            void addDefLabel(size_t Ptr, const ProgramLocationTy *Loc);
-            void addUseLabel(size_t Ptr, const ProgramLocationTy *Loc);
-            std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> 
-                buildDominatorGraph(const Function *Func, size_t PtrId);
-            void buildDefUseGraph(std::set<const ProgramLocationTy*>, size_t, 
-                std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
+            void addDefLabel(size_t, const ProgramLocationTy*);
+            void addUseLabel(size_t, const ProgramLocationTy*);
+            std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> buildDominatorGraph(const Function*, size_t);
+            void buildDefUseGraph(std::set<const ProgramLocationTy*>, size_t, std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
+            double computeAvgPtsSize();
             size_t computePointerLevel(size_t);
             void dumpAliasMap();
+            void dumpDefUseGraph();
             void dumpLabelMap();
             void dumpPointsToSet();
+            void dumpWorkList();
             std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, size_t);
-            std::set<size_t> getAlias(const ProgramLocationTy*, const LoadInst*);
-            std::set<size_t> getRealPointsToSet(const ProgramLocationTy*, const PointerTy*);
+            const Instruction* getFirstInst(const Function*);
             std::set<const ProgramLocationTy*> getUseLocations(size_t);
+            const std::set<size_t>& getPointersInWorkList(size_t, const Function*);
             void globalInitialize(Module&);
-            bool hasDef(const ProgramLocationTy*, size_t);
             void initialize(const Function*);
-            SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function *);
+            SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function*);
             bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, size_t, std::set<size_t>&);
-            void markLabelsForPtr(const PointerTy*, bool isTopLevel);
+            bool isAlias(size_t, size_t, const PointerTy*);
+            void markLabelsForPtr(const PointerTy*, bool);
+            void markLabelsAtUser(const PointerTy*, size_t, const User*);
             void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
-            void processGlobalVariables(size_t);
             void propagate(SetVector<DefUseEdgeTupleTy>&, const Function*);
             void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
-            std::vector<size_t> ptsPointsTo(const ProgramLocationTy*, const PointerTy*);
             void updateAliasInformation(const ProgramLocationTy *, size_t, size_t);
-            void updateAliasUsers(const ProgramLocationTy*, size_t, size_t, SetVector<DefUseEdgeTupleTy>&);
+            void updateAliasUsers(const ProgramLocationTy*, size_t, SetVector<DefUseEdgeTupleTy>&);
             void updateArgPointsToSetOfFunc(const Function*, std::set<size_t>, size_t, SetVector<DefUseEdgeTupleTy> &);
-            void updatePointsToSet(const ProgramLocationTy*, size_t, 
-                std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
+            void updatePointsToSet(const ProgramLocationTy*, size_t, std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, size_t, std::set<size_t>&);
-            std::set<size_t> getPointsToSet(size_t Ptr, const ProgramLocationTy *Store);
+            std::set<size_t> getPointsToSet(size_t, const ProgramLocationTy*);
 
-            bool isAlias(size_t LoadId, size_t PtrId, const PointerTy *Loc);
-
-            double computeAvgPtsSize();
-            void dumpWorkList();
-            void dumpDefUseGraph();
-
-            const std::set<size_t>& getPointersInWorkList(size_t PointerLevel, const Function *Func);
-            const Instruction* getFirstInst(const Function *Func);
-            void markLabelsAtUser(const PointerTy*, size_t, const User*);
-
-            
         public:
             using Result = FlowSensitivePointerAnalysisResult;
             FlowSensitivePointerAnalysisResult run(Module&, ModuleAnalysisManager&);
@@ -222,11 +188,7 @@ namespace llvm{
         };
         LabelType Type;
 
-        // Label() = default;
         Label(size_t Ptr, Label::LabelType Type) : Ptr(Ptr), Type(Type) {}
-        bool operator=(const Label &l){
-            return this->Ptr == l.Ptr && this->Type==l.Type;
-        }
     };
 
     raw_ostream& operator<<(raw_ostream&, const Label&);
