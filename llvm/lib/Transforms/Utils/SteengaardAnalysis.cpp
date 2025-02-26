@@ -5,20 +5,113 @@
 #include "llvm/Support/raw_ostream.h"
 
 
+
 using namespace llvm;
 
 AnalysisKey SteengaardAnalysis::Key;
 
 size_t SteengaardAnalysis::id = 0;
 
+size_t getPl(const Value *v, bool istop){
+    auto Type = v->getType();
+    auto res = 0;
+    while(Type->isPointerTy()){
+        Type = Type->getPointerElementType();
+        res += 1;
+    }
+
+    return istop ? res : res-1;
+}
+
+void SteengaardAnalysis::SCCtoDAG(){
+    
+    for(auto p : truePts){
+        if(!Visited.count(p.first)){
+            findSCC(p.first);
+        }
+    }
+
+    outs() << "truepts\n";
+    for(auto p : truePts){
+        for(auto e : p.second){
+            outs() << p.first << " => " << e << "\n";
+        }
+    }
+
+    outs() << "Lowlink\n";
+    for(auto p : LowLink){
+        outs() << p.first << " => " << p.second << "\n";
+    }
+
+    outs() << "SCC2Node\n";
+    for(auto p : SCC2Node){
+        for(auto e : p.second){
+            outs() << p.first << " => " << e << "\n";
+        }
+    }
+
+    for(auto p : truePts){
+        for(auto to : p.second){
+            if(LowLink[p.first] != LowLink[to]){
+                RealPts[LowLink[p.first]].insert(LowLink[to]);
+            }
+        }
+    }
+
+    outs() << "realpts\n";
+    for(auto p : RealPts){
+        for(auto e : p.second){
+            outs() << p.first << " => " << e << "\n";
+        }
+    }
+}
+
+void SteengaardAnalysis::findSCC(size_t node){
+
+    outs() << "Find scc " << node << "\n";
+
+    Visited.insert(node);
+    IndexOf[node] = index;
+    LowLink[node] = index;
+    ++index;
+    Stack.push(node);
+    OnStack[node] = 1;
+
+    if(truePts.count(node)){
+        for(auto to : truePts.at(node)){
+            if(!Visited.count(to)){
+                findSCC(to);
+                LowLink[node] = std::min(LowLink[node], LowLink[to]);
+            }
+            else if(OnStack[to]){
+                LowLink[node] = std::min(LowLink[node], LowLink[to]);
+            }
+        }
+    }
+
+    if(LowLink[node] == IndexOf[node]){
+        while(true){
+            auto n = Stack.top();
+            Stack.pop();
+            OnStack[n] = 0;
+            SCC2Node[IndexOf[node]].insert(n);
+            if(n == node){
+                break;
+            }
+        }
+    }
+    
+}
 
 SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManager &MAM){
+
 
     // Create Id for nullptr;
     getID(nullptr, true);
 
     for(auto &F : M){
         for(auto &Inst : instructions(F)){
+            // outs() << Inst << "\n";
             if(auto Alloca = dyn_cast<AllocaInst>(&Inst)){
                 auto topLevel = getID(Alloca, true);
                 auto AddrTaken = getID(Alloca, false);
@@ -54,7 +147,6 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
             }
             else if(auto BitCast = dyn_cast<BitCastInst>(&Inst)){
                 
-
                 if(BitCast->getType()->isPointerTy()){
                     auto Lhs = getID(BitCast, true);
                     auto Rhs = getID(BitCast->getOperand(0), true);
@@ -62,25 +154,26 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 }
             }
             else if(auto GEP = dyn_cast<GetElementPtrInst>(&Inst)){
-                
-                if(GEP->getType()->isPointerTy()){
                     auto Lhs = getID(GEP, true);
                     auto Rhs = getID(GEP->getOperand(0), true);
                     Uf.merge(Uf.find(Lhs), Uf.find(Rhs));
-                }
+                
             }
             else if(auto Call = dyn_cast<CallBase>(&Inst)){
-                if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
+                if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration() || Call->getFunctionType()->isVarArg()){
+                    // Do not process variadic arguments.
                     continue;
                 }
                 // para-arg passing
                 size_t i = 0;
                 while(i < Call->arg_size()){
+                    // outs() << *Call << " " << i << "\n";
                     auto Para = getID(Call->getCalledFunction()->getArg(i), true);
-                    auto Arg = getID(Call->getOperand(i), true);
+                    auto Arg = getID(Call->getArgOperand(i), true);
                     Uf.merge(Uf.find(Para), Uf.find(Arg));
                     ++i;
                 }
+
 
 
                 // return-call passing
@@ -93,13 +186,47 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                     }
                 }
             }
+            // outs() << "end\n";
         }
     }
 
-    
-
     computePtsAndAlias();
+
+    outs() << "truepts  size" << truePts.size() << "\n"; 
+
+    outs() << "truepts\n";
+    for(auto p : truePts){
+        outs() << "{";
+        for(auto alias : trueAlias.at(Uf.find(p.first))){
+            outs() << alias << " ";
+        }
+        outs() << "} => ";
+
+        outs() << "{";
+        for(auto pointee : truePts.at(Uf.find(p.first))){
+            outs() << pointee << " ";
+        }
+        outs() << "}\n";
+    }
+
+    SCCtoDAG();
+
+    outs() << "truepts size " << truePts.size() << "\n"; 
+
     auto MaxPl = computeMaxPointerLevel();
+
+    outs() << PointerLevel.size() << "\n";
+    for(auto p : PointerLevel){
+        if(ID2Ptr[p.first].first){
+            outs() << *(ID2Ptr[p.first].first) << " " << ID2Ptr[p.first].second << " " << p.second << "\n";
+        }
+        else{
+            outs() << "nullptr " << ID2Ptr[p.first].second << " " << p.second << "\n";
+        }
+        
+    }
+
+
 
     printStats();
     // outs() << "Pointer ID:\n";
@@ -113,6 +240,8 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     // }
     
     Result AnalysisResult(truePts, trueAlias, PointerLevel, pointerID, ID2Ptr, MaxPl);
+
+    llvm_unreachable("test");
 
     return AnalysisResult;
 
@@ -134,35 +263,43 @@ size_t SteengaardAnalysis::getID(const Value *Ptr, bool isTopLevel){
 }
 
 
-size_t SteengaardAnalysis::getPointerLevel(size_t Pointer){
+size_t SteengaardAnalysis::getPointerLevel(size_t SCCNode){
+    // get pointer level for scc group
 
-    if(!truePts.count(Uf.find(Pointer))){
-        PointerLevel.try_emplace(Pointer, 0);
-        return PointerLevel.at(Pointer);
+    // Avoid infinite loop because two pointers may recursively point to each other.
+
+    // outs() << "GPL: " << Pointer << "\n";
+
+    // auto SCCNode = LowLink[Pointer];
+
+    if(PointerLevel.count(SCCNode)){
+        return PointerLevel.at(SCCNode);
     }
 
-    if(PointerLevel.count(Uf.find(Pointer))){
-        PointerLevel.try_emplace(Pointer, PointerLevel.at(Uf.find(Pointer)));
-        return PointerLevel.at(Pointer);
+    if(RealPts[SCCNode].empty()){
+        PointerLevel.try_emplace(SCCNode, 0);
+        // PointerLevel.try_emplace(Pointer, 0);
+        return PointerLevel.at(SCCNode);
     }
 
     size_t maxPl = 0;
-    for(auto pointee : truePts.at(Uf.find(Pointer))){
-        maxPl = std::max(maxPl, getPointerLevel(pointee));
+    for(auto Pointee : RealPts[SCCNode]){
+        maxPl = std::max(maxPl, getPointerLevel(Pointee));
     }
-
-    PointerLevel.try_emplace(Pointer, maxPl+1);
-    return PointerLevel.at(Pointer);
+    PointerLevel.try_emplace(SCCNode, maxPl+1);
+    // PointerLevel.try_emplace(Pointer, maxPl+1);
+    return PointerLevel.at(SCCNode);
 
 }
 
 void SteengaardAnalysis::computePtsAndAlias(){
+    outs() << "size: " << Uf.getParent().size() << "\n";
     for(auto p : Uf.getParent()){
         auto Key = p.first;
         auto PtsClass = Uf.find(Key);
         trueAlias[PtsClass].insert(Key);
         if(Pts.count(Key)){
-            truePts[PtsClass].insert(Pts.at(Key));
+            truePts[PtsClass].insert(Uf.find(Pts.at(Key)));
         }
     }
 }
@@ -170,7 +307,7 @@ void SteengaardAnalysis::computePtsAndAlias(){
 size_t SteengaardAnalysis::computeMaxPointerLevel(){
     size_t maxPl = 0;
     for(auto p : Uf.getParent()){
-        maxPl = std::max(maxPl, getPointerLevel(p.first));
+        maxPl = std::max(maxPl, getPointerLevel(LowLink[Uf.find(p.first)]));
     }
     return maxPl;
 }
@@ -186,6 +323,11 @@ void SteengaardAnalysis::printStats(){
             outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
         }
     }
+
+    outs() << "Pts\n";
+    for(auto p : Pts){
+        outs() << p.first << " " << p.second << "\n";
+    }
      
     outs() << "Parents\n";
     for(auto p : Uf.getParent()){
@@ -193,24 +335,26 @@ void SteengaardAnalysis::printStats(){
         
     }
 
+
+
     outs() << "pts\n";
     for(auto p : truePts){
         outs() << "{";
-        for(auto alias : trueAlias.at(p.first)){
+        for(auto alias : trueAlias.at(Uf.find(p.first))){
             outs() << alias << " ";
         }
         outs() << "} => ";
 
         outs() << "{";
-        for(auto pointee : truePts.at(p.first)){
+        for(auto pointee : truePts.at(Uf.find(p.first))){
             outs() << pointee << " ";
         }
         outs() << "}\n";
     }
 
     outs() << "pointer level\n";
-    for(auto p : Uf.getParent()){
-        outs() << p.first << " => " << getPointerLevel(p.first) << "\n";
+    for(auto p : PointerLevel){
+        outs() << p.first << " => " << p.second << "\n";
     }
 
     // outs() << "id2Ptr\n";

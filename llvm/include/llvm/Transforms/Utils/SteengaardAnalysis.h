@@ -6,14 +6,20 @@
 
 #include <map>
 #include <set>
+#include <stack>
+
 
 
 
 namespace llvm{
 
+    
+
     class UnionFind{
         private:
             std::map<size_t, size_t> Parent;
+
+
 
         public:
             size_t find(size_t Ptr){
@@ -29,6 +35,7 @@ namespace llvm{
             }
 
             void merge(size_t Ptr1, size_t Ptr2){
+                // outs() << "merge " << Ptr1 << " " << Ptr2 << "\n";
                 auto Parent1 = find(Ptr1);
                 auto Parent2 = find(Ptr2);
 
@@ -119,6 +126,16 @@ namespace llvm{
         std::map<size_t, std::set<size_t>> truePts;
         std::map<size_t, std::set<size_t>> trueAlias;
         std::map<size_t, size_t> PointerLevel;
+        std::set<size_t> Visited;
+        std::map<size_t, size_t> LowLink;
+        std::map<size_t, std::set<size_t>> SCC2Node;
+        std::stack<size_t> Stack;
+        std::map<size_t, size_t> OnStack;
+        std::map<size_t, std::set<size_t>> RealPts;
+        std::map<size_t, size_t> IndexOf;
+
+        size_t index = 0;
+
 
         static size_t id;
         UnionFind Uf;
@@ -141,6 +158,8 @@ namespace llvm{
             size_t getPointerLevel(size_t Pointer);
             void computePtsAndAlias();
             size_t computeMaxPointerLevel();
+            void SCCtoDAG();
+            void findSCC(size_t node);
     };
 
 

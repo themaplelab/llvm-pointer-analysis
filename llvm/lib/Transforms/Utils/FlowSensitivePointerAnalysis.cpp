@@ -212,18 +212,48 @@ size_t FlowSensitivePointerAnalysis::computePointerLevel(size_t PtrId){
 }
 
 void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocationTy *Loc){
-    DefLocations[PtrId][Loc->getFunction()].insert(Loc);
+
+    DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << "add def label " << PtrId << " at " << *Loc << "\n");
+
+
+    auto IsInserted = DefLocations[PtrId][Loc->getFunction()].insert(Loc).second;
+
+    if(!IsInserted){
+        return;
+    }
+
+    // outs() << "aaaaa\n";
     
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
+    if(!Ptr){
+        return;
+    }
     auto PtrLoc = dyn_cast<Instruction>(Ptr);
+    // outs() << "b\n";
+
+        // todo: the bug is due to infinite loop.
 
     // If using a ptr created in other functions.
     if(PtrLoc && PtrLoc->getFunction() != Loc->getFunction()){
+        // outs() << "c\n";
         Func2WorkList[Loc->getFunction()][SteengaardResult.getPointerLevels().at(PtrId)].insert(PtrId);
-
+        // outs() << "c.1\n";
+        // outs() << Loc->getFunction()->getName().str() << "\n";
+        // Loc->getFunction();
+        // outs() << "c.1.1\n";
+        // Loc->getFunction()->getEntryBlock();
+        // outs() << Loc->getFunction()->getEntryBlock() << "\n";
+        // outs() << "c.1.2\n";
+        
+        // Loc->getFunction()->getEntryBlock().getFirstNonPHIOrDbg();
+        // outs() << "c.1.3\n";
         auto FirstInst = getFirstInst(Loc->getFunction());
+        // outs() << "c.2\n";
         LabelMap[FirstInst].insert(Label(PtrId, Label::LabelType::Def));
+        // outs() << "c.3\n";
         DefLocations[PtrId][FirstInst->getFunction()].insert(FirstInst);
+
+        // outs() << "d\n";
 
         // Recursively add use label at all callsite of the current function.
         std::set<const ProgramLocationTy*> WorkList = Func2CallerLocation[Loc->getFunction()];
@@ -232,6 +262,7 @@ void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocati
             addDefLabel(PtrId, CallSite);
             WorkList.erase(CallSite);
         }
+        // outs() << "e\n";
     }
 
     return;
@@ -244,8 +275,13 @@ void FlowSensitivePointerAnalysis::addUseLabel(size_t PtrId, const ProgramLocati
     if(!IsInserted){
         return;
     }
-
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
+    // outs() << PtrId << "\n";
+
+    if(!Ptr){
+        return;
+    }
+
     auto PtrLoc = dyn_cast<Instruction>(Ptr);
     // If using a ptr created in other functions.
     if(PtrLoc && PtrLoc->getFunction() != Loc->getFunction()){
@@ -316,7 +352,7 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
         }
         else if(const auto Call = dyn_cast<CallBase>(&Inst)){
             Func2CallerLocation[Call->getCalledFunction()].insert(Call);
-            if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
+            if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration() || Call->getFunctionType()->isVarArg()){
                 DEBUG_WITH_TYPE("warning", dbgs() << getCurrentTime() << " WARNING:" << *Call << " performs an indirect call\n");
                 continue;
             }
@@ -377,7 +413,19 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
             auto CallId = SteengaardResult.getID(Call, true);
             return PointsToSetOut[Call][CallId];
         }
+        else if(auto Global = dyn_cast<GlobalValue>(Ptr)){
+            DEBUG_WITH_TYPE("pts", dbgs() << "Run into global values\n");
+            return std::set<size_t>{};
+        }
+        else if(auto Null = dyn_cast<Constant>(Ptr)){
+            if(Null->isNullValue()){
+                auto NullPtrId = SteengaardResult.getID(nullptr, true);
+                return std::set<size_t>{NullPtrId};
+            }
+            llvm_unreachable("toplevel ptr is constant but not null");
+        }
         else{
+            outs() << *Ptr << "\n";
             llvm_unreachable("toplevel ptr has unknown type");
         }
     }
@@ -707,10 +755,8 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
     
     for(auto User : Loc->users()){      
 
-        DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << " Updating alias user for pointer " 
-            << *Loc << " at " << *User << "\n");  
+        DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << " Updating alias user for pointer " << *Loc << " at " << *User << "\n");  
         auto UseLoc = dyn_cast<Instruction>(User);
-        
         auto Ptr = dyn_cast<PointerTy>(Loc);
         auto LoadId = SteengaardResult.getID(Ptr, true);
 
@@ -721,22 +767,29 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
         }
         
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
+            // outs() << "11111\n";
             if(!Store->getValueOperand()->getType()->isPointerTy()){
                 continue;
             }
-
             if(Ptr == Store->getPointerOperand()){ 
+                // outs() << "22222\n";
 
                 if(!Store->getValueOperand()->getType()->isPointerTy()){
                     continue;
                 }
+                // outs() << "33333\n";
 
                 auto PointerOpId = SteengaardResult.getID(dyn_cast<LoadInst>(Loc), true);
-
+                // outs() << "44444\n";
                 for(auto Pid : getPointsToSet(PointerOpId, Loc)){
+                    // outs() << "55555\n";
                     addDefLabel(Pid, UseLoc);
+                    // outs() << "66666\n";
                     addUseLabel(Pid, UseLoc);
+                    // outs() << "77777\n";
+                    
                 }
+                // outs() << "88888\n";
                 
             }
             else if(Ptr == Store->getValueOperand()){
@@ -777,12 +830,26 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const ProgramLocationTy *Loc
             }
         }
         else if(auto Ret = dyn_cast<ReturnInst>(UseLoc)){
-            for(auto AliasId : AliasMap.at(UseLoc).at(PtrId)){
-                auto Alias = SteengaardResult.getPtr(AliasId).first;
-                if(Alias && (dyn_cast<AllocaInst>(Alias) || dyn_cast<LoadInst>(Alias))){
-                    addUseLabel(AliasId, UseLoc);
-                }
+
+            propagatePointsToInformation(Ret, Loc, PtrId);
+            PointsToSetOut[Ret][PtrId] = PointsToSetIn[Ret][PtrId];
+
+            //pass back to callsite
+            for(auto CallSite : Func2CallerLocation[Ret->getFunction()]){
+                auto CallPtrId = SteengaardResult.getID(CallSite, true);
+                PointsToSetOut[CallSite][CallPtrId].insert(PointsToSetOut[Ret][PtrId].begin(), PointsToSetOut[Ret][PtrId].end());
             }
+
+
+
+            // outs() << *(SteengaardResult.getPtr(PtrId).first) << "\n";
+            // // UseLoc -> Loc
+            // for(auto AliasId : AliasMap.at(Loc).at(PtrId)){
+            //     auto Alias = SteengaardResult.getPtr(AliasId).first;
+            //     if(Alias && (dyn_cast<AllocaInst>(Alias) || dyn_cast<LoadInst>(Alias))){
+            //         addUseLabel(AliasId, UseLoc);
+            //     }
+            // }
         }
         else if (auto Call = dyn_cast<CallBase>(UseLoc)){
             if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
@@ -819,7 +886,7 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
     size_t ArgIdx, SetVector<DefUseEdgeTupleTy> &PropagateList){
     // Densemap has no at member function in llvm-14. Move back to use std::map.
 
-    outs() << "UAPTSOF: " << Func->getName().str() << " " << ArgIdx << "\n";
+    // outs() << "UAPTSOF: " << Func->getName().str() << " " << ArgIdx << "\n";
 
     const Value *Parameter = Func->getArg(ArgIdx);
     
@@ -854,13 +921,12 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
         const auto& [DefLoc, UseLoc, PtrId] = PropagateList.front();
         DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << " Propagating edge " << *DefLoc << " === " << PtrId << " ===> " << *UseLoc << "\n");
         propagatePointsToInformation(UseLoc, DefLoc, PtrId);
-        // outs() << "pts-in of " << PtrId << " \n";
-        // for(auto p : PointsToSetIn[UseLoc][PtrId]){
-        //     outs() << p << "\n";
-        // }
 
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
-            // PointsToSetOut[UseLoc][PtrId] = PointsToSetIn.at(UseLoc).at(PtrId);
+            if(isa<GlobalValue>(Store->getPointerOperand()->stripPointerCastsAndAliases()) || isa<GlobalValue>(Store->getValueOperand()->stripPointerCastsAndAliases())){
+                PropagateList.erase(PropagateList.begin());
+                continue;
+            }
             auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand()->stripPointerCastsAndAliases(), true);
             auto ValueOpId = SteengaardResult.getID(Store->getValueOperand()->stripPointerCastsAndAliases(), true);
             updatePointsToSet(UseLoc, PtrId, getPointsToSet(ValueOpId, DefLoc), PropagateList);
@@ -890,7 +956,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
                 updateAliasUsers(UseLoc, PtrId, PropagateList);
             }
         }
-        else if(auto Call = dyn_cast<CallInst>(UseLoc)){
+        else if(auto Call = dyn_cast<CallBase>(UseLoc)){
             if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
                 // Ignore indirect call.
                 PropagateList.erase(PropagateList.begin());
@@ -1116,12 +1182,17 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-    dumpWorkList();
-    dumpLabelMap();
-    dumpDefUseGraph();
-    dumpPointsToSet();
-    dumpPointsToSetIn();
-    dumpAliasMap();
+    DEBUG_WITH_TYPE("fspa", dumpPointsToSet());
+    DEBUG_WITH_TYPE("fspa", outs() << "\n");
+
+
+
+    // dumpWorkList();
+    // dumpLabelMap();
+    // dumpDefUseGraph();
+    // dumpPointsToSet();
+    // dumpPointsToSetIn();
+    // dumpAliasMap();
  
     dbgs() << "Runtime: " << duration.count() << "ms\n";
     std::cout << "End of analysis. Avg Pts Size is " << std::setprecision(5) << computeAvgPtsSize() << "\n";
