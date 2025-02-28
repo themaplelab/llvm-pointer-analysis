@@ -5,13 +5,13 @@ using namespace llvm;
 
 
 PreservedAnalyses PointerAnalysis::run(Module &m, ModuleAnalysisManager &mam){
-    auto SteengaardAnalysisResult = mam.getResult<SteengaardAnalysis>(m);
+    // auto SteengaardAnalysisResult = mam.getResult<SteengaardAnalysis>(m);
 
-    auto PointerLevels = SteengaardAnalysisResult.getPointerLevels();
+    // auto PointerLevels = SteengaardAnalysisResult.getPointerLevels();
 
-    for(auto p : PointerLevels){
-        outs() << p.first << " => " << p.second << "\n";
-    }
+    // for(auto p : PointerLevels){
+    //     outs() << p.first << " => " << p.second << "\n";
+    // }
 
     return PreservedAnalyses::all();
 }

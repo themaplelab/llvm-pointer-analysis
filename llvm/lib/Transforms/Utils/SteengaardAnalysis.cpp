@@ -171,7 +171,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
 
     DEBUG_WITH_TYPE("steengaard", verifyResult(M));
     
-    Result AnalysisResult(PointsToMap, PointerLevel, pointerID, ID2Ptr, MaxPl);
+    Result AnalysisResult(PointsToMap, PointerLevel, pointerID, ID2Ptr, MaxPl, Uf, PtgNodeToSccGroupMap);
     return AnalysisResult;
 
 }

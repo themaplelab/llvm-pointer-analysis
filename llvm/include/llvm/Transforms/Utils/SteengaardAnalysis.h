@@ -51,49 +51,28 @@ namespace llvm{
         std::map<std::pair<const Value*, bool>, size_t> PointerID;
         std::map<size_t, std::pair<const Value*, bool>> ID2Ptr;
         size_t MaxPl;
+        UnionFind Uf;
+        std::map<size_t, size_t> PtgNodeToSccGroupMap;
 
 
         public:
             SteengaardAnalysisResult() = default;
             SteengaardAnalysisResult(const std::map<size_t, std::set<size_t>> &Pts, const std::map<size_t, size_t> &PointerLevel,
-                const std::map<std::pair<const Value*, bool>, size_t> &PointerID, const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr, size_t MaxPl) : Pts(Pts),
-                PointerLevel(PointerLevel), PointerID(PointerID), ID2Ptr(ID2Ptr), MaxPl(MaxPl) {}
-
-            void setPts(const std::map<size_t, std::set<size_t>> &Pts){
-                this->Pts = Pts;
-            }
-
-            void setPointerLevels(std::map<size_t, size_t> &PointerLevel){
-                this->PointerLevel = PointerLevel;
-            }
-
-            void setPointerID(std::map<std::pair<const Value*, bool>, size_t> &PointerID){
-                this->PointerID = PointerID;
-            }
-
-            void setId2Ptr(const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr){
-                this->ID2Ptr = ID2Ptr;
-            }
-
-            void setMaxPl(size_t pl){
-                this->MaxPl = pl;
-            }
+                const std::map<std::pair<const Value*, bool>, size_t> &PointerID, const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr, size_t MaxPl,
+                UnionFind Uf, const std::map<size_t, size_t> &PtgNodeToSccGroupMap) : Pts(Pts),
+                PointerLevel(PointerLevel), PointerID(PointerID), ID2Ptr(ID2Ptr), MaxPl(MaxPl), Uf(Uf), PtgNodeToSccGroupMap(PtgNodeToSccGroupMap) {}
 
             size_t getMaxPl(){
                 return MaxPl;
             }
 
-            const std::map<size_t, size_t>& getPointerLevels(){
-                return PointerLevel;
+            size_t getPointerLevel(size_t Pointer){
+                return PointerLevel.at(PtgNodeToSccGroupMap[Uf.find(Pointer)]);
             }
 
-            const std::map<std::pair<const Value*, bool>, size_t> & getPointerIDs(){
-                return PointerID;
-            }
 
             size_t getID(const Value *Ptr, bool isTopLevel){
                 if(PointerID.find({Ptr, isTopLevel}) == PointerID.end()){
-                    errs() << "Cannot find id for pointer " << *Ptr << " " << isTopLevel << "\n";
                     std::terminate();
                 }
             
@@ -111,7 +90,7 @@ namespace llvm{
         
         std::map<std::pair<const Value*, bool>, size_t> pointerID;
         std::map<size_t, std::pair<const Value*, bool>> ID2Ptr;
-        
+
         std::map<size_t, size_t> AllocatedTopLevelPointsToMap;
 
         std::map<size_t, std::set<size_t>> PointsToMap;
@@ -138,10 +117,10 @@ namespace llvm{
         public:
             
             static AnalysisKey Key;
+            using Result = SteengaardAnalysisResult;
 
             size_t getID(const Value *Ptr, bool isTopLevel);
-
-            using Result = SteengaardAnalysisResult;
+            size_t getPointerLevel(size_t Pointer);
             SteengaardAnalysisResult run(Module &M, ModuleAnalysisManager &MAM);
             void printStats();
             
@@ -149,7 +128,6 @@ namespace llvm{
         private:
 
             void createID(const Value *Ptr, bool isTopLevel = true);
-            size_t getPointerLevel(size_t Pointer);
             size_t getPointerLevelForSCCGraph(size_t SCCNode);
             void computePtsAndAlias();
             size_t computeMaxPointerLevel();

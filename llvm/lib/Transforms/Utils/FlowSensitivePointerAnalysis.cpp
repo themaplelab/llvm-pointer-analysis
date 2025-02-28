@@ -202,18 +202,13 @@ void FlowSensitivePointerAnalysis::globalInitialize(Module &M){
 /// @brief Compute the pointer level of an allocated pointer.
 /// @return Pointer level for \p Ptr.
 size_t FlowSensitivePointerAnalysis::computePointerLevel(size_t PtrId){
-
-    const auto &PointerLevel = SteengaardResult.getPointerLevels();
-    if(!PointerLevel.count(PtrId)){
-        errs() << PtrId << "\n";
-        llvm_unreachable("Cannot get pointer level for a missing pointer.");
-    }
-    return PointerLevel.at(PtrId);
+    auto Pl = SteengaardResult.getPointerLevel(PtrId);
+    return Pl;
 }
 
 void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocationTy *Loc){
 
-    DEBUG_WITH_TYPE("fspa", dbgs() << getCurrentTime() << "add def label " << PtrId << " at " << *Loc << "\n");
+    DEBUG_WITH_TYPE("pts", dbgs() << getCurrentTime() << "add def label " << PtrId << " at " << *Loc << "\n");
 
 
     auto IsInserted = DefLocations[PtrId][Loc->getFunction()].insert(Loc).second;
@@ -221,39 +216,19 @@ void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocati
     if(!IsInserted){
         return;
     }
-
-    // outs() << "aaaaa\n";
     
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
     if(!Ptr){
         return;
     }
     auto PtrLoc = dyn_cast<Instruction>(Ptr);
-    // outs() << "b\n";
-
-        // todo: the bug is due to infinite loop.
 
     // If using a ptr created in other functions.
     if(PtrLoc && PtrLoc->getFunction() != Loc->getFunction()){
-        // outs() << "c\n";
-        Func2WorkList[Loc->getFunction()][SteengaardResult.getPointerLevels().at(PtrId)].insert(PtrId);
-        // outs() << "c.1\n";
-        // outs() << Loc->getFunction()->getName().str() << "\n";
-        // Loc->getFunction();
-        // outs() << "c.1.1\n";
-        // Loc->getFunction()->getEntryBlock();
-        // outs() << Loc->getFunction()->getEntryBlock() << "\n";
-        // outs() << "c.1.2\n";
-        
-        // Loc->getFunction()->getEntryBlock().getFirstNonPHIOrDbg();
-        // outs() << "c.1.3\n";
+        Func2WorkList[Loc->getFunction()][SteengaardResult.getPointerLevel(PtrId)].insert(PtrId);
         auto FirstInst = getFirstInst(Loc->getFunction());
-        // outs() << "c.2\n";
         LabelMap[FirstInst].insert(Label(PtrId, Label::LabelType::Def));
-        // outs() << "c.3\n";
         DefLocations[PtrId][FirstInst->getFunction()].insert(FirstInst);
-
-        // outs() << "d\n";
 
         // Recursively add use label at all callsite of the current function.
         std::set<const ProgramLocationTy*> WorkList = Func2CallerLocation[Loc->getFunction()];
@@ -262,7 +237,6 @@ void FlowSensitivePointerAnalysis::addDefLabel(size_t PtrId, const ProgramLocati
             addDefLabel(PtrId, CallSite);
             WorkList.erase(CallSite);
         }
-        // outs() << "e\n";
     }
 
     return;
@@ -285,7 +259,7 @@ void FlowSensitivePointerAnalysis::addUseLabel(size_t PtrId, const ProgramLocati
     auto PtrLoc = dyn_cast<Instruction>(Ptr);
     // If using a ptr created in other functions.
     if(PtrLoc && PtrLoc->getFunction() != Loc->getFunction()){
-        Func2WorkList[Loc->getFunction()][SteengaardResult.getPointerLevels().at(PtrId)].insert(PtrId);
+        Func2WorkList[Loc->getFunction()][SteengaardResult.getPointerLevel(PtrId)].insert(PtrId);
 
         auto FirstInst = getFirstInst(Loc->getFunction());
         LabelMap[FirstInst].insert(Label(PtrId, Label::LabelType::Use));
