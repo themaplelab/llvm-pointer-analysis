@@ -18,9 +18,6 @@ namespace llvm{
     class UnionFind{
         private:
             std::map<size_t, size_t> Parent;
-
-
-
         public:
             size_t find(size_t Ptr){
                 if(Parent.find(Ptr) == Parent.end()){
@@ -35,7 +32,6 @@ namespace llvm{
             }
 
             void merge(size_t Ptr1, size_t Ptr2){
-                // outs() << "merge " << Ptr1 << " " << Ptr2 << "\n";
                 auto Parent1 = find(Ptr1);
                 auto Parent2 = find(Ptr2);
 
@@ -51,7 +47,6 @@ namespace llvm{
 
     class SteengaardAnalysisResult{
         std::map<size_t, std::set<size_t>> Pts;
-        std::map<size_t, std::set<size_t>> Alias;
         std::map<size_t, size_t> PointerLevel;
         std::map<std::pair<const Value*, bool>, size_t> PointerID;
         std::map<size_t, std::pair<const Value*, bool>> ID2Ptr;
@@ -60,16 +55,12 @@ namespace llvm{
 
         public:
             SteengaardAnalysisResult() = default;
-            SteengaardAnalysisResult(const std::map<size_t, std::set<size_t>> &Pts, const std::map<size_t, std::set<size_t>> &Alias, const std::map<size_t, size_t> &PointerLevel,
-                const std::map<std::pair<const Value*, bool>, size_t> &PointerID, const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr, size_t MaxPl) : Pts(Pts), Alias(Alias),
+            SteengaardAnalysisResult(const std::map<size_t, std::set<size_t>> &Pts, const std::map<size_t, size_t> &PointerLevel,
+                const std::map<std::pair<const Value*, bool>, size_t> &PointerID, const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr, size_t MaxPl) : Pts(Pts),
                 PointerLevel(PointerLevel), PointerID(PointerID), ID2Ptr(ID2Ptr), MaxPl(MaxPl) {}
 
             void setPts(const std::map<size_t, std::set<size_t>> &Pts){
                 this->Pts = Pts;
-            }
-
-            void setAlias(const std::map<size_t, std::set<size_t>> &Alias){
-                this->Alias = Alias;
             }
 
             void setPointerLevels(std::map<size_t, size_t> &PointerLevel){
@@ -110,7 +101,6 @@ namespace llvm{
             }
 
             std::pair<const Value*, bool> getPtr(size_t Id){
-                // errs() << Id << "\n";
                 assert(ID2Ptr.count(Id) && "Cannot retrieve id.");
                 return ID2Ptr.at(Id);
             }
@@ -121,18 +111,22 @@ namespace llvm{
         
         std::map<std::pair<const Value*, bool>, size_t> pointerID;
         std::map<size_t, std::pair<const Value*, bool>> ID2Ptr;
-        std::map<size_t, size_t> Pts;
+        
+        std::map<size_t, size_t> AllocatedTopLevelPointsToMap;
 
-        std::map<size_t, std::set<size_t>> truePts;
-        std::map<size_t, std::set<size_t>> trueAlias;
+        std::map<size_t, std::set<size_t>> PointsToMap;
+        std::map<size_t, std::set<size_t>> DagPointsToMap;
         std::map<size_t, size_t> PointerLevel;
         std::set<size_t> Visited;
-        std::map<size_t, size_t> LowLink;
+
         std::map<size_t, std::set<size_t>> SCC2Node;
         std::stack<size_t> Stack;
         std::map<size_t, size_t> OnStack;
-        std::map<size_t, std::set<size_t>> RealPts;
-        std::map<size_t, size_t> IndexOf;
+        
+        // Map node in original points-to graph to the node index of DAG.
+        std::map<size_t, size_t> PtgNodeToDagNodeMap;
+        // Map node to the SCC id it belongs to.
+        std::map<size_t, size_t> PtgNodeToSccGroupMap;
 
         size_t index = 0;
 

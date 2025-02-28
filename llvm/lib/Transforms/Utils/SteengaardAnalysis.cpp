@@ -28,16 +28,16 @@ size_t getPl(const Value *v, bool istop){
 
 void SteengaardAnalysis::SCCtoDAG(){
     
-    for(auto p : truePts){
-        if(!Visited.count(p.first)){
-            findSCC(p.first);
+    for(auto p : pointerID){
+        if(!Visited.count(Uf.find(p.second))){
+            findSCC(Uf.find(p.second));
         }
     }
 
-    for(auto p : truePts){
+    for(auto p : PointsToMap){
         for(auto to : p.second){
-            if(LowLink[p.first] != LowLink[to]){
-                RealPts[LowLink[p.first]].insert(LowLink[to]);
+            if(PtgNodeToSccGroupMap[p.first] != PtgNodeToSccGroupMap[to]){
+                DagPointsToMap[PtgNodeToSccGroupMap[p.first]].insert(PtgNodeToSccGroupMap[to]);
             }
         }
     }
@@ -45,33 +45,31 @@ void SteengaardAnalysis::SCCtoDAG(){
 
 void SteengaardAnalysis::findSCC(size_t node){
 
-    // outs() << "Find scc " << node << "\n";
-
     Visited.insert(node);
-    IndexOf[node] = index;
-    LowLink[node] = index;
+    PtgNodeToDagNodeMap[node] = index;
+    PtgNodeToSccGroupMap[node] = index;
     ++index;
     Stack.push(node);
     OnStack[node] = 1;
 
-    if(truePts.count(node)){
-        for(auto to : truePts.at(node)){
+    if(PointsToMap.count(node)){
+        for(auto to : PointsToMap.at(node)){
             if(!Visited.count(to)){
                 findSCC(to);
-                LowLink[node] = std::min(LowLink[node], LowLink[to]);
+                PtgNodeToSccGroupMap[node] = std::min(PtgNodeToSccGroupMap[node], PtgNodeToSccGroupMap[to]);
             }
             else if(OnStack[to]){
-                LowLink[node] = std::min(LowLink[node], LowLink[to]);
+                PtgNodeToSccGroupMap[node] = std::min(PtgNodeToSccGroupMap[node], PtgNodeToSccGroupMap[to]);
             }
         }
     }
 
-    if(LowLink[node] == IndexOf[node]){
+    if(PtgNodeToSccGroupMap[node] == PtgNodeToDagNodeMap[node]){
         while(true){
             auto n = Stack.top();
             Stack.pop();
             OnStack[n] = 0;
-            SCC2Node[IndexOf[node]].insert(n);
+            SCC2Node[PtgNodeToDagNodeMap[node]].insert(n);
             if(n == node){
                 break;
             }
@@ -94,7 +92,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 auto AddrTaken = getID(Alloca, false);
                 Uf.find(topLevel);
                 Uf.find(AddrTaken);
-                Pts.try_emplace(topLevel, AddrTaken);
+                AllocatedTopLevelPointsToMap.try_emplace(topLevel, AddrTaken);
             }
             else if(auto Load = dyn_cast<LoadInst>(&Inst)){
 
@@ -104,8 +102,8 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
 
                 auto PointerOp = getID(Load->getPointerOperand(), true);
                 auto PtsKey = Uf.find(PointerOp);
-                if(Pts.count(PtsKey)){
-                    Uf.merge(Uf.find(getID(Load, true)), Uf.find(Pts.at(PtsKey)));
+                if(AllocatedTopLevelPointsToMap.count(PtsKey)){
+                    Uf.merge(Uf.find(getID(Load, true)), Uf.find(AllocatedTopLevelPointsToMap.at(PtsKey)));
                 }
             }
             else if(auto Store = dyn_cast<StoreInst>(&Inst)){
@@ -118,8 +116,8 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 auto PointerOp = getID(Store->getPointerOperand(), true);
                 auto ValueOp = getID(Store->getValueOperand(), true);
                 auto PtsKey = Uf.find(PointerOp);
-                if(Pts.count(PtsKey)){
-                    Uf.merge(Uf.find(Pts.at(PtsKey)), Uf.find(ValueOp));
+                if(AllocatedTopLevelPointsToMap.count(PtsKey)){
+                    Uf.merge(Uf.find(AllocatedTopLevelPointsToMap.at(PtsKey)), Uf.find(ValueOp));
                 }
             }
             else if(auto BitCast = dyn_cast<BitCastInst>(&Inst)){
@@ -171,13 +169,9 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     SCCtoDAG();
     auto MaxPl = computeMaxPointerLevel();
 
-
     DEBUG_WITH_TYPE("steengaard", verifyResult(M));
     
-    Result AnalysisResult(truePts, trueAlias, PointerLevel, pointerID, ID2Ptr, MaxPl);
-
-    llvm_unreachable("test");
-
+    Result AnalysisResult(PointsToMap, PointerLevel, pointerID, ID2Ptr, MaxPl);
     return AnalysisResult;
 
 }
@@ -214,26 +208,27 @@ void SteengaardAnalysis::verifyResult(Module &M){
         // DEBUG_WITH_TYPE("steengaard", printStats());
         outs() << "Expected\n";
         for(auto p : ExpectedPointerLevel2Count){
-            outs() << "Pointer level " << p.first << " contains " << p.second << "pointers\n";
+            outs() << "Pointer level " << p.first << " contains " << p.second << " pointers\n";
         }
         outs() << "Actual\n";
         for(auto p : PointerLevel2Count){
-            outs() << "Pointer level " << p.first << " contains " << p.second << "pointers\n";
+            outs() << "Pointer level " << p.first << " contains " << p.second << " pointers\n";
         }
+        printStats();
         llvm_unreachable("Incorrect pointer level.");
     }
     else{
         DEBUG_WITH_TYPE("steengaard", outs() << "Steengaard test passed.\n");
     }
 
-}
+    llvm_unreachable("End of Steengaard analysis.");
 
+}
 
 void SteengaardAnalysis::createID(const Value *Ptr, bool isTopLevel){
     pointerID.try_emplace({Ptr,isTopLevel}, id);
     ID2Ptr.try_emplace(id++, std::make_pair(Ptr,isTopLevel));
 }
-
 
 size_t SteengaardAnalysis::getID(const Value *Ptr, bool isTopLevel){
     if(pointerID.find({Ptr, isTopLevel}) == pointerID.end()){
@@ -243,9 +238,8 @@ size_t SteengaardAnalysis::getID(const Value *Ptr, bool isTopLevel){
     return pointerID.at({Ptr, isTopLevel});
 }
 
-
 size_t SteengaardAnalysis::getPointerLevel(size_t Pointer){
-    return getPointerLevelForSCCGraph(LowLink[Uf.find(Pointer)]);
+    return getPointerLevelForSCCGraph(PtgNodeToSccGroupMap[Uf.find(Pointer)]);
 }
 
 size_t SteengaardAnalysis::getPointerLevelForSCCGraph(size_t SCCNode){
@@ -255,13 +249,13 @@ size_t SteengaardAnalysis::getPointerLevelForSCCGraph(size_t SCCNode){
         return PointerLevel.at(SCCNode);
     }
 
-    if(RealPts[SCCNode].empty()){
+    if(DagPointsToMap[SCCNode].empty()){
         PointerLevel.try_emplace(SCCNode, 0);
         return PointerLevel.at(SCCNode);
     }
 
     size_t maxPl = 0;
-    for(auto Pointee : RealPts[SCCNode]){
+    for(auto Pointee : DagPointsToMap[SCCNode]){
         maxPl = std::max(maxPl, getPointerLevelForSCCGraph(Pointee));
     }
     PointerLevel.try_emplace(SCCNode, maxPl+1);
@@ -273,9 +267,8 @@ void SteengaardAnalysis::computePtsAndAlias(){
     for(auto p : Uf.getParent()){
         auto Key = p.first;
         auto PtsClass = Uf.find(Key);
-        trueAlias[PtsClass].insert(Key);
-        if(Pts.count(Key)){
-            truePts[PtsClass].insert(Uf.find(Pts.at(Key)));
+        if(AllocatedTopLevelPointsToMap.count(Key)){
+            PointsToMap[PtsClass].insert(Uf.find(AllocatedTopLevelPointsToMap.at(Key)));
         }
     }
 }
@@ -283,7 +276,7 @@ void SteengaardAnalysis::computePtsAndAlias(){
 size_t SteengaardAnalysis::computeMaxPointerLevel(){
     size_t maxPl = 0;
     for(auto p : Uf.getParent()){
-        maxPl = std::max(maxPl, getPointerLevelForSCCGraph(LowLink[Uf.find(p.first)]));
+        maxPl = std::max(maxPl, getPointerLevelForSCCGraph(PtgNodeToSccGroupMap[Uf.find(p.first)]));
     }
     return maxPl;
 }
@@ -300,8 +293,8 @@ void SteengaardAnalysis::printStats(){
         }
     }
 
-    outs() << "Pts\n";
-    for(auto p : Pts){
+    outs() << "AllocatedTopLevelPointsToMap\n";
+    for(auto p : AllocatedTopLevelPointsToMap){
         outs() << p.first << " " << p.second << "\n";
     }
      
@@ -311,19 +304,20 @@ void SteengaardAnalysis::printStats(){
         
     }
 
-    outs() << "truepts\n";
-    for(auto p : truePts){
-        outs() << "{";
-        for(auto alias : trueAlias.at(Uf.find(p.first))){
-            outs() << alias << " ";
-        }
-        outs() << "} => ";
+    outs() << "PointsToMap\n";
+    for(auto p : PointsToMap){
+        outs() << p.first << " => ";
 
         outs() << "{";
-        for(auto pointee : truePts.at(Uf.find(p.first))){
+        for(auto pointee : PointsToMap.at(Uf.find(p.first))){
             outs() << pointee << " ";
         }
         outs() << "}\n";
+    }
+
+    outs() << "NodeToSccGroup\n";
+    for(auto p : PtgNodeToSccGroupMap){
+        outs() << p.first << " => " << p.second << "\n";
     }
 
     outs() << "sccNode pointer level\n";
