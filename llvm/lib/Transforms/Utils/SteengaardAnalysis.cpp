@@ -4,6 +4,9 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <fstream>
+#include <sstream>
+
 
 
 using namespace llvm;
@@ -31,25 +34,6 @@ void SteengaardAnalysis::SCCtoDAG(){
         }
     }
 
-    // outs() << "truepts\n";
-    // for(auto p : truePts){
-    //     for(auto e : p.second){
-    //         outs() << p.first << " => " << e << "\n";
-    //     }
-    // }
-
-    // outs() << "Lowlink\n";
-    // for(auto p : LowLink){
-    //     outs() << p.first << " => " << p.second << "\n";
-    // }
-
-    // outs() << "SCC2Node\n";
-    // for(auto p : SCC2Node){
-    //     for(auto e : p.second){
-    //         outs() << p.first << " => " << e << "\n";
-    //     }
-    // }
-
     for(auto p : truePts){
         for(auto to : p.second){
             if(LowLink[p.first] != LowLink[to]){
@@ -57,13 +41,6 @@ void SteengaardAnalysis::SCCtoDAG(){
             }
         }
     }
-
-    // outs() << "realpts\n";
-    // for(auto p : RealPts){
-    //     for(auto e : p.second){
-    //         outs() << p.first << " => " << e << "\n";
-    //     }
-    // }
 }
 
 void SteengaardAnalysis::findSCC(size_t node){
@@ -195,12 +172,59 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     auto MaxPl = computeMaxPointerLevel();
 
 
-    DEBUG_WITH_TYPE("steengaard", printStats());
+    DEBUG_WITH_TYPE("steengaard", verifyResult(M));
+    
     Result AnalysisResult(truePts, trueAlias, PointerLevel, pointerID, ID2Ptr, MaxPl);
 
     llvm_unreachable("test");
 
     return AnalysisResult;
+
+}
+
+void SteengaardAnalysis::verifyResult(Module &M){
+    auto SourceFileName = M.getSourceFileName();
+    auto DotPosition = SourceFileName.rfind('.');
+    auto ExpectedOutPutFileName = SourceFileName.substr(0, DotPosition) + ".out";
+
+    std::ifstream ifs(ExpectedOutPutFileName);
+    std::string Line;
+    std::map<size_t, size_t> ExpectedPointerLevel2Count;
+    while(std::getline(ifs, Line)){
+
+        std::istringstream iss(Line);
+        std::vector<size_t> Nums;
+        std::string Num;
+
+        while(std::getline(iss, Num, ',')){
+            Nums.push_back(std::stoul(Num));
+        }
+        ExpectedPointerLevel2Count[Nums[0]] = Nums[1];
+    }
+
+
+    // analysis result
+    std::map<size_t, size_t> PointerLevel2Count;
+    for(auto p : Uf.getParent()){
+        PointerLevel2Count[getPointerLevel(p.first)] += 1;
+    }
+
+    auto CorrectAnswer = (ExpectedPointerLevel2Count.size() == PointerLevel2Count.size() && std::equal(ExpectedPointerLevel2Count.begin(), ExpectedPointerLevel2Count.end(), PointerLevel2Count.begin()));
+    if(!CorrectAnswer){
+        // DEBUG_WITH_TYPE("steengaard", printStats());
+        outs() << "Expected\n";
+        for(auto p : ExpectedPointerLevel2Count){
+            outs() << "Pointer level " << p.first << " contains " << p.second << "pointers\n";
+        }
+        outs() << "Actual\n";
+        for(auto p : PointerLevel2Count){
+            outs() << "Pointer level " << p.first << " contains " << p.second << "pointers\n";
+        }
+        llvm_unreachable("Incorrect pointer level.");
+    }
+    else{
+        DEBUG_WITH_TYPE("steengaard", outs() << "Steengaard test passed.\n");
+    }
 
 }
 

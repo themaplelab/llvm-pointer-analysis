@@ -161,6 +161,7 @@ namespace llvm{
             size_t computeMaxPointerLevel();
             void SCCtoDAG();
             void findSCC(size_t node);
+            void verifyResult(Module &M);
     };
 
 
