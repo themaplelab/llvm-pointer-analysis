@@ -156,6 +156,7 @@ namespace llvm{
 
             void createID(const Value *Ptr, bool isTopLevel = true);
             size_t getPointerLevel(size_t Pointer);
+            size_t getPointerLevelForSCCGraph(size_t SCCNode);
             void computePtsAndAlias();
             size_t computeMaxPointerLevel();
             void SCCtoDAG();
