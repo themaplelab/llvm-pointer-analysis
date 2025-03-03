@@ -170,6 +170,16 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     auto MaxPl = computeMaxPointerLevel();
 
     DEBUG_WITH_TYPE("steengaard", verifyResult(M));
+
+    outs() << "Pointer ID:\n";
+    for(auto p : pointerID){
+        if(!p.first.first){
+            outs() << "nullptr " << p.first.second << " => " << p.second << "\n";
+        }
+        else{
+            outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
+        }
+    }
     
     Result AnalysisResult(PointsToMap, PointerLevel, pointerID, ID2Ptr, MaxPl, Uf, PtgNodeToSccGroupMap);
     return AnalysisResult;

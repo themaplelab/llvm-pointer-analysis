@@ -165,7 +165,7 @@ namespace llvm{
             void propagate(SetVector<DefUseEdgeTupleTy>&, const Function*);
             void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
             void updateAliasInformation(const ProgramLocationTy *, size_t, size_t);
-            void updateAliasUsers(const ProgramLocationTy*, size_t, SetVector<DefUseEdgeTupleTy>&);
+            void updateAliasUsers(const Value*, size_t, SetVector<DefUseEdgeTupleTy>&);
             void updateArgPointsToSetOfFunc(const Function*, std::set<size_t>, size_t, SetVector<DefUseEdgeTupleTy> &);
             void updatePointsToSet(const ProgramLocationTy*, size_t, std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, size_t, std::set<size_t>&);
