@@ -73,7 +73,14 @@ namespace llvm{
 
             size_t getID(const Value *Ptr, bool isTopLevel){
                 if(PointerID.find({Ptr, isTopLevel}) == PointerID.end()){
-                    std::terminate();
+                    if(!Ptr){
+                        outs() << "nullptr\n";
+                    }
+                    else{
+                        outs() << *Ptr << "\n";
+                    }
+                    
+                    llvm_unreachable("Cannot get id.");
                 }
             
                 return PointerID.at({Ptr, isTopLevel});

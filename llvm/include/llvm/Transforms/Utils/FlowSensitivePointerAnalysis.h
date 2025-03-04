@@ -68,10 +68,15 @@ namespace llvm{
                     return;
                 }
                 Edges[From].insert(To);
+                Parents[To].insert(From);
             }
 
             std::map<const Instruction *, std::set<const Instruction *>> getEdges(){
                 return Edges;
+            }
+
+            std::map<const Instruction *, std::set<const Instruction *>> getParents(){
+                return Parents;
             }
 
 
@@ -79,6 +84,7 @@ namespace llvm{
             // const Instruction *Root;
             std::set<const Instruction *> Nodes;
             std::map<const Instruction *, std::set<const Instruction *>> Edges;
+            std::map<const Instruction *, std::set<const Instruction *>> Parents;
     };
 
     /// @brief Class that keeps result of flow sensitive pointer analysis
@@ -170,6 +176,7 @@ namespace llvm{
             void updatePointsToSet(const ProgramLocationTy*, size_t, std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, size_t, std::set<size_t>&);
             std::set<size_t> getPointsToSet(size_t, const ProgramLocationTy*);
+            void verify(Module &M);
 
         public:
             using Result = FlowSensitivePointerAnalysisResult;

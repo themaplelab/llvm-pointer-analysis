@@ -161,6 +161,23 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                     }
                 }
             }
+            else if(auto Phi = dyn_cast<PHINode>(&Inst)){
+                const Value *Ptr = nullptr;
+                size_t i = 0;
+                while(i < Phi->getNumIncomingValues()){
+                    if(!Ptr){
+                        Ptr = Phi->getIncomingValue(i);
+                    }
+                    else{
+                        Uf.merge(Uf.find(getID(Ptr, true)), Uf.find(getID(Phi->getIncomingValue(i), true)));
+                    }
+                    ++i;
+                }
+                if(Ptr) {
+                    Uf.merge(Uf.find(getID(Phi, true)), Uf.find(getID(Ptr, true)));
+                }
+
+            }
             // outs() << "end\n";
         }
     }
@@ -171,15 +188,15 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
 
     DEBUG_WITH_TYPE("steengaard", verifyResult(M));
 
-    outs() << "Pointer ID:\n";
-    for(auto p : pointerID){
-        if(!p.first.first){
-            outs() << "nullptr " << p.first.second << " => " << p.second << "\n";
-        }
-        else{
-            outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
-        }
-    }
+    // outs() << "Pointer ID:\n";
+    // for(auto p : pointerID){
+    //     if(!p.first.first){
+    //         outs() << "nullptr " << p.first.second << " => " << p.second << "\n";
+    //     }
+    //     else{
+    //         outs() << *p.first.first << " " << p.first.second << " => " << p.second << "\n";
+    //     }
+    // }
     
     Result AnalysisResult(PointsToMap, PointerLevel, pointerID, ID2Ptr, MaxPl, Uf, PtgNodeToSccGroupMap);
     return AnalysisResult;
@@ -189,9 +206,14 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
 void SteengaardAnalysis::verifyResult(Module &M){
     auto SourceFileName = M.getSourceFileName();
     auto DotPosition = SourceFileName.rfind('.');
-    auto ExpectedOutPutFileName = SourceFileName.substr(0, DotPosition) + ".out";
+    auto ExpectedOutPutFileName = SourceFileName.substr(0, DotPosition) + ".steengaard.out";
+
+    // outs() << ExpectedOutPutFileName << "\n";
 
     std::ifstream ifs(ExpectedOutPutFileName);
+    if(!ifs){
+        llvm_unreachable("Cannot open expected output file.");
+    }
     std::string Line;
     std::map<size_t, size_t> ExpectedPointerLevel2Count;
     while(std::getline(ifs, Line)){
@@ -210,7 +232,11 @@ void SteengaardAnalysis::verifyResult(Module &M){
     // analysis result
     std::map<size_t, size_t> PointerLevel2Count;
     for(auto p : Uf.getParent()){
-        PointerLevel2Count[getPointerLevel(p.first)] += 1;
+        auto Ptr = ID2Ptr.at(p.first).first;
+        if(Ptr && isa<AllocaInst>(Ptr)){
+            PointerLevel2Count[getPointerLevel(p.first)] += 1;
+        }
+        
     }
 
     auto CorrectAnswer = (ExpectedPointerLevel2Count.size() == PointerLevel2Count.size() && std::equal(ExpectedPointerLevel2Count.begin(), ExpectedPointerLevel2Count.end(), PointerLevel2Count.begin()));
