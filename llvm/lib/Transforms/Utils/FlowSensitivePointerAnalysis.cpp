@@ -406,13 +406,6 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
             DEBUG_WITH_TYPE("pts", outs() << "Run into global values\n");
             return std::set<size_t>{};
         }
-        else if(auto Null = dyn_cast<Constant>(Ptr)){
-            if(Null->isNullValue()){
-                auto NullPtrId = SteengaardResult.getID(nullptr, true);
-                return std::set<size_t>{NullPtrId};
-            }
-            llvm_unreachable("toplevel ptr is constant but not null");
-        }
         else if(auto Phi = dyn_cast<PHINode>(Ptr)){
             std::set<size_t> res;
             for(size_t i = 0; i < Phi->getNumIncomingValues(); ++i){
@@ -422,6 +415,13 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
             return res;
         }
         else if(auto IntToPtr = dyn_cast<IntToPtrInst>(Ptr)){
+            return std::set<size_t>{};
+        }
+        else if(auto Null = dyn_cast<Constant>(Ptr)){
+            if(Null->isNullValue()){
+                auto NullPtrId = SteengaardResult.getID(nullptr, true);
+                return std::set<size_t>{NullPtrId};
+            }
             return std::set<size_t>{};
         }
         else{
@@ -748,6 +748,9 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
     else if(auto Call = dyn_cast<CallBase>(Alias)){
         Loc = dyn_cast<CallBase>(Alias);
     }
+    else if(auto Phi = dyn_cast<PHINode>(Alias)){
+        Loc = dyn_cast<PHINode>(Alias);
+    }
 
     
     for(auto User : Alias->users()){      
@@ -854,9 +857,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
             if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
                 continue;
             }
-            outs() << "1111111\n";
             auto PointerOpId = SteengaardResult.getID(Loc, true);
-            outs() << "2222222\n";
             auto Pts = getPointsToSet(PointerOpId, Loc);
             size_t ArgIdx = 0;
             while(ArgIdx < Call->arg_size() && ArgIdx < Call->getCalledFunction()->arg_size()){
@@ -868,13 +869,10 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
             
 
             if(ArgIdx < Call->arg_size() && ArgIdx < Call->getCalledFunction()->arg_size()){
-                outs() << ArgIdx << "\n";
                 // update pts of parameter
                 bool isUpdated = false;
                 auto FirstInst = getFirstInst(Call->getCalledFunction());
-                outs() << "3333333\n";
                 auto ParameterId = SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgIdx), true);
-                outs() << "4444444\n";
                 for(auto Pointee : Pts){
                     isUpdated = isUpdated || PointsToSetOut[FirstInst][ParameterId].insert(Pointee).second;
                 }
@@ -905,7 +903,7 @@ void FlowSensitivePointerAnalysis::updateArgPointsToSetOfFunc(const Function *Fu
     size_t ArgIdx, SetVector<DefUseEdgeTupleTy> &PropagateList){
     // Densemap has no at member function in llvm-14. Move back to use std::map.
 
-    outs() << "UAPTSOF: " << Func->getName().str() << " " << ArgIdx << "\n";
+    // outs() << "UAPTSOF: " << Func->getName().str() << " " << ArgIdx << "\n";
 
     const Value *Parameter = Func->getArg(ArgIdx);
     
@@ -1152,6 +1150,7 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
         for(auto Node : DG.getNodes()){
 
             // outs() << "Node: " << *Node << "\n";
+            // outs() << *SteengaardResult.getPtr(PtrId).first << " " << Func->getName().str() << "\n";
 
             // update IN
 
@@ -1159,9 +1158,6 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
             for(auto Parent : Parents[Node]){
                 IN[Node].insert(OUT[Parent].begin(), OUT[Parent].end());
             }
-
-            
-
             // update out
             auto OldOut = OUT[Node];
 
@@ -1176,7 +1172,11 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
                 OUT[Node] = std::set<const ProgramLocationTy*>{Node};
             }
             else if(auto Store = dyn_cast<StoreInst>(Node)){
-                if(getPointsToSet(SteengaardResult.getID(dyn_cast<StoreInst>(Node)->getPointerOperand(), true), Node).size() <= 1){
+                if(isa<GlobalValue>(dyn_cast<StoreInst>(Node)->getPointerOperand()) || isa<GetElementPtrInst>(dyn_cast<StoreInst>(Node)->getPointerOperand())){
+                    OUT[Node] = IN[Node];
+                    OUT[Node].insert(Node);
+                }
+                else if(getPointsToSet(SteengaardResult.getID(dyn_cast<StoreInst>(Node)->getPointerOperand(), true), Node).size() <= 1){
                     OUT[Node] = std::set<const ProgramLocationTy*>{Node};
                 }
                 else{
