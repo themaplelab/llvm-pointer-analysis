@@ -53,14 +53,16 @@ namespace llvm{
         size_t MaxPl;
         UnionFind Uf;
         std::map<size_t, size_t> PtgNodeToSccGroupMap;
+        std::map<size_t, std::set<size_t>> PointerLevelToPointersMap;
+        size_t id;
 
 
         public:
             SteengaardAnalysisResult() = default;
             SteengaardAnalysisResult(const std::map<size_t, std::set<size_t>> &Pts, const std::map<size_t, size_t> &PointerLevel,
                 const std::map<std::pair<const Value*, bool>, size_t> &PointerID, const std::map<size_t, std::pair<const Value*, bool>> &ID2Ptr, size_t MaxPl,
-                UnionFind Uf, const std::map<size_t, size_t> &PtgNodeToSccGroupMap) : Pts(Pts),
-                PointerLevel(PointerLevel), PointerID(PointerID), ID2Ptr(ID2Ptr), MaxPl(MaxPl), Uf(Uf), PtgNodeToSccGroupMap(PtgNodeToSccGroupMap) {}
+                UnionFind Uf, const std::map<size_t, size_t> &PtgNodeToSccGroupMap, const std::map<size_t, std::set<size_t>> &PointerLevelToPointersMap, size_t id) : Pts(Pts),
+                PointerLevel(PointerLevel), PointerID(PointerID), ID2Ptr(ID2Ptr), MaxPl(MaxPl), Uf(Uf), PtgNodeToSccGroupMap(PtgNodeToSccGroupMap), PointerLevelToPointersMap(PointerLevelToPointersMap), id(id) {}
 
             size_t getMaxPl(){
                 return MaxPl;
@@ -90,6 +92,16 @@ namespace llvm{
                 assert(ID2Ptr.count(Id) && "Cannot retrieve id.");
                 return ID2Ptr.at(Id);
             }
+
+            std::set<size_t> getPointersInPointerLevel(size_t pl){
+                return PointerLevelToPointersMap[pl];
+            }
+
+            size_t getIndex(){
+                return id;
+            }
+
+
     };
 
     class SteengaardAnalysis : public AnalysisInfoMixin<SteengaardAnalysis>{
@@ -113,6 +125,9 @@ namespace llvm{
         std::map<size_t, size_t> PtgNodeToDagNodeMap;
         // Map node to the SCC id it belongs to.
         std::map<size_t, size_t> PtgNodeToSccGroupMap;
+
+
+        std::map<size_t, std::set<size_t>> PointerLevelToPointersMap;
 
         size_t index = 0;
 

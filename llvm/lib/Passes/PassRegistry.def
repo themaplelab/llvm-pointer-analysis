@@ -33,6 +33,8 @@ MODULE_ANALYSIS("fspa", FlowSensitivePointerAnalysis())
 MODULE_ANALYSIS("ander", AndersenPointerAnalysis())
 MODULE_ANALYSIS("sfs", StagedFlowSensitivePointerAnalysis())
 MODULE_ANALYSIS("steengaard", SteengaardAnalysis())
+MODULE_ANALYSIS("levpa", LevPA())
+
 
 
 
@@ -130,6 +132,7 @@ MODULE_PASS("print-pointer-level", PrintPL())
 //MODULE_PASS("print-alias-pairs", PrintAliasToPairs())
 //MODULE_PASS("nullptr-checker", NullPointerChecker())
 MODULE_PASS("pointer-analysis", PointerAnalysis())
+
 
 
 #undef MODULE_PASS

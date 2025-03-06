@@ -1,12 +1,17 @@
 #include "llvm/Transforms/Utils/FSPAprint.h"
 #include "llvm/Transforms/Utils/AndersenPointerAnalysis.h"
 #include "llvm/Transforms/Utils/StagedFlowSensitivePointerAnalysis.h"
+#include "llvm/Transforms/Utils/LevPA.h"
 
 
 using namespace llvm;
 
 PreservedAnalyses PrintPL::run(Module &m, ModuleAnalysisManager &mam){
     auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
+
+
+    auto levPaResult = mam.getResult<LevPA>(m);
+
     // auto AndersenResult = mam.getResult<AndersenPointerAnalysis>(m);
     // auto SFSResult = mam.getResult<StagedFlowSensitivePointerAnalysis>(m);
     // auto worklist = result.getWorkList();

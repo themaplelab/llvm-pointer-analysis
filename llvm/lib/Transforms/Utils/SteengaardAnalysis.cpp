@@ -186,7 +186,11 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     SCCtoDAG();
     auto MaxPl = computeMaxPointerLevel();
 
+    // printStats();
+
+
     DEBUG_WITH_TYPE("steengaard", verifyResult(M));
+
 
     // outs() << "Pointer ID:\n";
     // for(auto p : pointerID){
@@ -198,7 +202,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     //     }
     // }
     
-    Result AnalysisResult(PointsToMap, PointerLevel, pointerID, ID2Ptr, MaxPl, Uf, PtgNodeToSccGroupMap);
+    Result AnalysisResult(PointsToMap, PointerLevel, pointerID, ID2Ptr, MaxPl, Uf, PtgNodeToSccGroupMap, PointerLevelToPointersMap, id);
     return AnalysisResult;
 
 }
@@ -312,7 +316,11 @@ void SteengaardAnalysis::computePtsAndAlias(){
 size_t SteengaardAnalysis::computeMaxPointerLevel(){
     size_t maxPl = 0;
     for(auto p : Uf.getParent()){
-        maxPl = std::max(maxPl, getPointerLevelForSCCGraph(PtgNodeToSccGroupMap[Uf.find(p.first)]));
+
+        auto Pl = getPointerLevelForSCCGraph(PtgNodeToSccGroupMap[Uf.find(p.first)]);
+        PointerLevelToPointersMap[Pl].insert(p.first);
+
+        maxPl = std::max(maxPl, Pl);
     }
     return maxPl;
 }
