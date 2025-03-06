@@ -132,6 +132,7 @@ MODULE_PASS("print-pointer-level", PrintPL())
 //MODULE_PASS("print-alias-pairs", PrintAliasToPairs())
 //MODULE_PASS("nullptr-checker", NullPointerChecker())
 MODULE_PASS("pointer-analysis", PointerAnalysis())
+MODULE_PASS("levpa-print", LevPaPrint())
 
 
 

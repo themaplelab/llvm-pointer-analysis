@@ -255,6 +255,7 @@
 #include "llvm/Transforms/Utils/SteengaardAnalysis.h"
 #include "llvm/Transforms/Utils/PointerAnalysis.h"
 #include "llvm/Transforms/Utils/LevPA.h"
+#include "llvm/Transforms/Utils/LevPaPrint.h"
 
 
 using namespace llvm;

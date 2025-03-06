@@ -86,6 +86,7 @@ add_llvm_component_library(LLVMTransformUtils
   SteengaardAnalysis.cpp
   PointerAnalysis.cpp
   LevPA.cpp
+  LevPaPrint.cpp
 
 
   ADDITIONAL_HEADER_DIRS

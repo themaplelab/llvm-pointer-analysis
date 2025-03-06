@@ -10,7 +10,7 @@ PreservedAnalyses PrintPL::run(Module &m, ModuleAnalysisManager &mam){
     auto result = mam.getResult<FlowSensitivePointerAnalysis>(m);
 
 
-    auto levPaResult = mam.getResult<LevPA>(m);
+    // auto levPaResult = mam.getResult<LevPA>(m);
 
     // auto AndersenResult = mam.getResult<AndersenPointerAnalysis>(m);
     // auto SFSResult = mam.getResult<StagedFlowSensitivePointerAnalysis>(m);
