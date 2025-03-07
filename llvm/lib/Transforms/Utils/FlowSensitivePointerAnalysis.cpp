@@ -641,20 +641,26 @@ void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLoc
 
 /// @brief Update points-to-set for \p Ptr at program location \p Loc.
 /// @return True if the points-to set is changed.
-bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const ProgramLocationTy *Loc, 
-    size_t PtrId, std::set<size_t> &PTS){
+bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const ProgramLocationTy *Loc, size_t PtrId, std::set<size_t> &PTS){
 
-    auto OldPTS = std::set<size_t>{};
     if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(PtrId)){
-        OldPTS = PointsToSetOut.at(Loc).at(PtrId);
+        return PointsToSetOut.at(Loc).at(PtrId) != PTS;
     }
+    else{
+        return !PTS.empty();
+    }
+
+    // auto OldPTS = std::set<size_t>{};
+    // if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(PtrId)){
+    //     OldPTS = PointsToSetOut.at(Loc).at(PtrId);
+    // }
 
     
-    if(OldPTS != PTS){
-        PointsToSetOut[Loc][PtrId] = PTS;
-        return true;
-    }
-    return false;
+    // if(OldPTS != PTS){
+    //     PointsToSetOut[Loc][PtrId] = PTS;
+    //     return true;
+    // }
+    // return false;
 }
 
 bool FlowSensitivePointerAnalysis::insertPointsToSetAtProgramLocation(const ProgramLocationTy *Loc, 
@@ -686,9 +692,7 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
         // Strong update
         if(updatePointsToSetAtProgramLocation(Loc, PointerId, AdjustedPointsToSet)){
             for(auto UseLoc : getAffectUseLocations(Loc, PointerId)){   
-                // if(Loc != UseLoc){
-                    PropagateList.insert(std::make_tuple(Loc, UseLoc, PointerId));
-                // } 
+                PropagateList.insert(std::make_tuple(Loc, UseLoc, PointerId));
             }
         }
     }
@@ -703,9 +707,7 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
             PointsToSetOut[Loc][AliasId] = PointsToSetIn[Loc][AliasId];
             if(insertPointsToSetAtProgramLocation(Loc, AliasId, AdjustedPointsToSet)){
                 for(auto UseLoc : getAffectUseLocations(Loc, AliasId)){    
-                    // if(Loc != UseLoc){
-                        PropagateList.insert(std::make_tuple(Loc, UseLoc, AliasId));
-                    // }
+                    PropagateList.insert(std::make_tuple(Loc, UseLoc, AliasId));
                 }
             }
         }
