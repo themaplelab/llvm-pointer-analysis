@@ -224,7 +224,7 @@
 #include "llvm/Transforms/Utils/EntryExitInstrumenter.h"
 #include "llvm/Transforms/Utils/FixIrreducible.h"
 #include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
-#include "llvm/Transforms/Utils/FSPAprint.h"
+#include "llvm/Transforms/Utils/LfsPaPrint.h"
 #include "llvm/Transforms/Utils/HelloWorld.h"
 #include "llvm/Transforms/Utils/InjectTLIMappings.h"
 #include "llvm/Transforms/Utils/InstructionNamer.h"

@@ -26,7 +26,6 @@ add_llvm_component_library(LLVMTransformUtils
   FixIrreducible.cpp
   FlattenCFG.cpp
   FlowSensitivePointerAnalysis.cpp
-  FSPAprint.cpp
   FunctionComparator.cpp
   FunctionImportUtils.cpp
   GlobalStatus.cpp
@@ -87,6 +86,7 @@ add_llvm_component_library(LLVMTransformUtils
   PointerAnalysis.cpp
   LevPA.cpp
   LevPaPrint.cpp
+  LfsPaPrint.cpp
 
 
   ADDITIONAL_HEADER_DIRS

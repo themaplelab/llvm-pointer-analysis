@@ -6,10 +6,9 @@
 
 
 namespace llvm{
-    class PrintPL : public PassInfoMixin<PrintPL>{
+    class LfspaPrint : public PassInfoMixin<LfspaPrint>{
         public:
             PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
-            void processWorkListForFunction(std::map<size_t, std::set<const Value *>> worklist);
     };
 }
 

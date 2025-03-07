@@ -81,6 +81,8 @@ void SteengaardAnalysis::findSCC(size_t node){
 SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManager &MAM){
 
 
+    // size_t AllocaNums = 0;
+
     // Create Id for nullptr;
     getID(nullptr, true);
 
@@ -88,6 +90,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
         for(auto &Inst : instructions(F)){
             // outs() << Inst << "\n";
             if(auto Alloca = dyn_cast<AllocaInst>(&Inst)){
+                // ++AllocaNums;
                 auto topLevel = getID(Alloca, true);
                 auto AddrTaken = getID(Alloca, false);
                 Uf.find(topLevel);
@@ -185,6 +188,8 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     computePtsAndAlias();
     SCCtoDAG();
     auto MaxPl = computeMaxPointerLevel();
+
+    // outs() << AllocaNums << "\n";
 
     // printStats();
 
