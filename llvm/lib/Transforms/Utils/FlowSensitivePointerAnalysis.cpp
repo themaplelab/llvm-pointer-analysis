@@ -630,6 +630,7 @@ void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLoc
         PointsToSetIn[UseLoc][PtrId];
         for(auto PointerId : PointsToSetOut.at(DefLoc).at(PtrId)){
             auto Pointer = SteengaardResult.getPtr(PointerId).first;
+            // todo: consider removing this.
             if(!isa_and_nonnull<LoadInst>(Pointer)){
                 PointsToSetIn[UseLoc][PtrId].insert(PointerId);
             }
@@ -676,6 +677,8 @@ void FlowSensitivePointerAnalysis::updatePointsToSet(const ProgramLocationTy *Lo
      size_t PointerId, std::set<size_t> AdjustedPointsToSet, SetVector<DefUseEdgeTupleTy> &PropagateList){
 
     auto Store = dyn_cast<StoreInst>(Loc);
+    assert(Store && "Cannot update points-to set at non-store instruction");
+    // todo: may not need stripPointerCastsAndAliases()
     auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand()->stripPointerCastsAndAliases(), true);
     auto AliasSet = getPointsToSet(PointerOpId, Store);
     
@@ -952,8 +955,6 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
 
         propagatePointsToInformation(UseLoc, DefLoc, PtrId);
 
-        
-
         if(auto Store = dyn_cast<StoreInst>(UseLoc)){
             if(isa<GlobalValue>(Store->getPointerOperand()->stripPointerCastsAndAliases()) || isa<GlobalValue>(Store->getValueOperand()->stripPointerCastsAndAliases()) || !Store->getValueOperand()->getType()->isPointerTy()){
                 continue;
@@ -961,6 +962,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
 
             auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand()->stripPointerCastsAndAliases(), true);
             auto ValueOpId = SteengaardResult.getID(Store->getValueOperand()->stripPointerCastsAndAliases(), true);
+            //todo: should be getPointsToSet(ValueOpId, UseLoc)?
             updatePointsToSet(UseLoc, PtrId, getPointsToSet(ValueOpId, DefLoc), PropagateList);
             
             if(isAlias(PointerOpId, PtrId, Store)){
@@ -1306,10 +1308,6 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
-            // for(auto PtrId : Pointers){
-            //     const auto& [Out, DG] = buildDominatorGraph(&Func, PtrId);
-            //     buildDefUseGraph(getUseLocations(PtrId), PtrId, Out, DG);
-            // }
             auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
             propagate(PropagateList, &Func);
         }
