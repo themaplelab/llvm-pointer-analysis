@@ -325,7 +325,6 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
             WorkList[computePointerLevel(AllocaAddrTakenId)].insert(AllocaAddrTakenId);
             addDefLabel(AllocaAddrTakenId, Alloca);
             // A -> nullptr means A is not initialized. It helps us to find dereference of nullptr.
-            // todo: add nullptr
             PointsToSetIn[&Inst][AllocaAddrTakenId] = std::set<size_t>{NullPtrId};
             PointsToSetOut[&Inst][AllocaAddrTakenId] = std::set<size_t>{NullPtrId};
             
