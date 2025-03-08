@@ -1288,16 +1288,8 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-
-
-
-    // dumpPointsToSet();
-    // dumpWorkList();
-    // dumpDefUseGraph();
-
-
     outs() << "Runtime: " << duration.count() << "ms\n";
-    computeAvgPtsSize();
+    // computeAvgPtsSize();
     
 
     DEBUG_WITH_TYPE("lfspa", verify(m));
