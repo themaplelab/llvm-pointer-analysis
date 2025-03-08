@@ -373,14 +373,15 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
         }
         else if(auto Load = dyn_cast<LoadInst>(Ptr)){
             std::set<size_t> res;
-            auto DLoc = dyn_cast<Instruction>(SteengaardResult.getPtr(PtrId).first);
-            if(!DLoc){
-                return res;
-            }
+            auto DLoc = Load;
+
+            // auto PointerOp = Load->getPointerOperand();
+            // auto PtsOfPointerOp = getPointsToSet(SteengaardResult.getID(PointerOp, true), Load);
+
             // todo: a better logic
             // to get pts of an intermediate variable %0, go to its definition (%0 = load x), get pts of x, get pts for each pointer y in pts(x).
-            for(auto AliasId : AliasMap[DLoc][PtrId]){
-                res.insert(PointsToSetIn.at(DLoc).at(AliasId).begin(), PointsToSetIn.at(DLoc).at(AliasId).end());
+            for(auto AliasId : AliasMap[Load][PtrId]){
+                res.insert(PointsToSetIn.at(Load).at(AliasId).begin(), PointsToSetIn.at(Load).at(AliasId).end());
             }
             return res;
         }  
@@ -734,6 +735,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
         Loc = getFirstInst(dyn_cast<Argument>(Alias)->getParent());
     }
     //todo: add gep.
+    //todo: add alloca
     else if(auto BitCast = dyn_cast<BitCastInst>(Alias)){
         auto OriginalPointer = BitCast->stripPointerCastsAndAliases();
         if(isa<LoadInst>(OriginalPointer)){
@@ -1304,8 +1306,13 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
+            
             // todo: for each pointer, we also want to update its alias users.
             auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
+            for(auto PointerId : Pointers){
+                auto Pointer = SteengaardResult.getPtr(PointerId).first;
+                updateAliasUsers(Pointer, PointerId, PropagateList);
+            }
             propagate(PropagateList, &Func);
             
         }
