@@ -1,0 +1,209 @@
+#ifndef LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_H
+#define LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_H
+
+#include "llvm/ADT/BreadthFirstIterator.h"
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/DirectedGraph.h"
+#include "llvm/ADT/SetVector.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/DominanceFrontier.h"
+#include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/WithColor.h"
+#include <functional>
+#include <map>
+#include <new>
+#include <set>
+#include <stack>
+#include <utility>
+#include <vector>
+
+#include "llvm/Transforms/Utils/SteengaardAnalysis.h"
+
+
+#define LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_ANALYSIS
+
+
+
+/*
+    Run interprocedural pointer analysis on LLVM module. The module should contain all related source code linked with
+    llvm-link. 
+
+    Potential bug:
+        For some LLVM installation, we need -DNDEBUG to enable traversing CallGraph.
+*/
+
+namespace llvm{
+
+    class DomGraph{
+        public:
+            DomGraph() = default;
+            ~DomGraph(){};
+
+            void addNode(const Instruction *Node){
+                Nodes.insert(Node);
+            }
+
+            std::set<const Instruction *> getNodes(){
+                return Nodes;
+            }
+
+            void addEdge(const Instruction *From,  const Instruction *To){
+                if(Nodes.find(From) == Nodes.end()){
+                    dbgs() << "Node " << *From << "not in node list\n";
+                    return;
+                }
+                if(Nodes.find(To) == Nodes.end()){
+                    dbgs() << "Node " << *To << "not in node list\n";
+                    return;
+                }
+                Edges[From].insert(To);
+                Parents[To].insert(From);
+            }
+
+            std::map<const Instruction *, std::set<const Instruction *>> getEdges(){
+                return Edges;
+            }
+
+            std::map<const Instruction *, std::set<const Instruction *>> getParents(){
+                return Parents;
+            }
+
+
+        private:
+            // const Instruction *Root;
+            std::set<const Instruction *> Nodes;
+            std::map<const Instruction *, std::set<const Instruction *>> Edges;
+            std::map<const Instruction *, std::set<const Instruction *>> Parents;
+    };
+
+    /// @brief Class that keeps result of flow sensitive pointer analysis
+    class FlowSensitivePointerAnalysisResult{
+
+        using ProgramLocationTy = Instruction;
+        using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<size_t>>>;
+
+        PointsToSetTy PointsToSet;
+
+        public:
+            FlowSensitivePointerAnalysisResult(const PointsToSetTy &Pts) : PointsToSet(Pts) {}
+
+            PointsToSetTy getPointsToSet(){
+                return PointsToSet;
+            }
+            void setPointsToSet(PointsToSetTy PTS){
+                PointsToSet = PTS;
+            }
+    };
+
+    struct Label;
+
+    class FlowSensitivePointerAnalysis : public AnalysisInfoMixin<FlowSensitivePointerAnalysis>{
+        friend AnalysisInfoMixin<FlowSensitivePointerAnalysis>;
+        friend Label;
+
+        using PointerTy = Value;
+        using ProgramLocationTy = Instruction;
+        using PointsToSetTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<size_t>>>;
+        using WorkListTy = std::map<size_t, std::set<size_t>>;
+        using DefUseEdgeTupleTy = std::tuple<const ProgramLocationTy*, const ProgramLocationTy*, size_t>;
+        using DefUseGraphTy = std::map<const ProgramLocationTy*, std::map<size_t, std::set<const ProgramLocationTy*>>>;
+
+        // Map each pointer to the program location that requires its alias information.
+        PointsToSetTy AliasMap;
+        DefUseGraphTy DefUseGraph;
+        // Map function to all call sites that may call it.
+        std::map<const Function*, std::set<const ProgramLocationTy*>> Func2CallerLocation;
+        std::map<const Function*, WorkListTy> Func2WorkList; 
+        std::map<const Function*, std::set<const ProgramLocationTy*>> Func2Returns;
+        WorkListTy GlobalWorkList;
+        std::map<const ProgramLocationTy*, std::set<Label>> LabelMap; 
+        PointsToSetTy PointsToSetOut;
+        PointsToSetTy PointsToSetIn;
+        std::map<size_t, std::set<const ProgramLocationTy*>> UseList;
+        std::map<const Function*, std::reference_wrapper<DominatorTreeAnalysis::Result>> Func2DomTree;
+        std::map<const Function*, std::reference_wrapper<DominanceFrontierAnalysis::Result>> Func2DomFrontier;
+        std::map<size_t, std::map<const Function*, std::set<const ProgramLocationTy*>>> DefLocations;
+        // At each callsite, map the argument to its position at the call site.
+        std::map<const CallBase*, std::map<size_t, std::set<size_t>>> CallSite2ArgIdx;
+
+        SteengaardAnalysisResult SteengaardResult;
+
+        static AnalysisKey Key;
+        static bool isRequired() { return true; }
+
+        private:
+            void addDefUseEdge(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
+            void addDefLabel(size_t, const ProgramLocationTy*);
+            void addUseLabel(size_t, const ProgramLocationTy*);
+            std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph> buildDominatorGraph(const Function*, size_t);
+            void buildDefUseGraph(std::set<const ProgramLocationTy*>, size_t, std::map<const Instruction*, std::set<const Instruction*>>, DomGraph);
+            double computeAvgPtsSize();
+            size_t computePointerLevel(size_t);
+            void dumpAliasMap();
+            void dumpDefUseGraph();
+            void dumpLabelMap();
+            void dumpPointsToSet();
+            void dumpPointsToSetIn();
+            void dumpWorkList();
+            std::vector<const ProgramLocationTy*> getAffectUseLocations(const ProgramLocationTy*, size_t);
+            const Instruction* getFirstInst(const Function*);
+            std::set<const ProgramLocationTy*> getUseLocations(size_t);
+            const std::set<size_t>& getPointersInWorkList(size_t, const Function*);
+            void globalInitialize(Module&);
+            void initialize(const Function*);
+            SetVector<DefUseEdgeTupleTy> initializePropagateList(std::set<size_t>, size_t, const Function*);
+            bool insertPointsToSetAtProgramLocation(const ProgramLocationTy *, size_t, std::set<size_t>&);
+            bool isAlias(size_t, size_t, const PointerTy*);
+            void markLabelsForPtr(const PointerTy*, bool);
+            void markLabelsAtUser(const PointerTy*, size_t, const User*);
+            void printPointsToSetAtProgramLocation(const ProgramLocationTy*);
+            void propagate(SetVector<DefUseEdgeTupleTy>&, const Function*);
+            void propagatePointsToInformation(const ProgramLocationTy*, const ProgramLocationTy*, size_t);
+            void updateAliasInformation(const ProgramLocationTy *, size_t, size_t);
+            void updateAliasUsers(const Value*, size_t, SetVector<DefUseEdgeTupleTy>&);
+            void updateArgPointsToSetOfFunc(const Function*, std::set<size_t>, size_t, SetVector<DefUseEdgeTupleTy> &);
+            void updatePointsToSet(const ProgramLocationTy*, size_t, std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
+            bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, size_t, std::set<size_t>&);
+            std::set<size_t> getPointsToSet(size_t, const ProgramLocationTy*);
+            void verify(Module &M);
+
+        public:
+            using Result = FlowSensitivePointerAnalysisResult;
+            FlowSensitivePointerAnalysisResult run(Module&, ModuleAnalysisManager&);
+    };
+
+
+    // Since we need to create labels before creating def-use edge, we need to associate an instruction to a series of labels.
+    // This class represents a single label. As a label, it records:
+    //      1. whether this is a def or use or def-use.
+    //      2. the memoryobject being defed or used. 
+    struct Label{
+
+        size_t Ptr;
+        enum class LabelType{
+            None = 0, Use, Def, DefUse
+        };
+        LabelType Type;
+
+        Label(size_t Ptr, Label::LabelType Type) : Ptr(Ptr), Type(Type) {}
+    };
+
+    raw_ostream& operator<<(raw_ostream&, const Label&);
+    bool operator<(const Label&, const Label&);
+
+} //namespace llvm
+
+
+
+#endif //LLVM_TRANSFORM_FLOW_SENSITIVE_POINTER_ANALYSIS_H

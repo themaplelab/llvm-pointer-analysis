@@ -260,6 +260,13 @@
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
+
+#include "llvm/Transforms/Utils/LfsPaPrint.h"
+#include "llvm/Transforms/Utils/FlowSensitivePointerAnalysis.h"
+#include "llvm/Transforms/Utils/LevPA.h"
+#include "llvm/Transforms/Utils/LevPaPrint.h"
+#include "llvm/Transforms/Utils/SteengaardAnalysis.h"
+
 #include <optional>
 
 using namespace llvm;
