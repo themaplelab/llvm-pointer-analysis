@@ -84,7 +84,7 @@ add_llvm_component_library(LLVMTransformUtils
   VNCoercion.cpp
   SteengaardAnalysis.cpp
   PointerAnalysis.cpp
-  LevPA.cpp
+  LevPa.cpp
   LevPaPrint.cpp
   LfsPaPrint.cpp
 
