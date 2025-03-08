@@ -360,8 +360,6 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
 }
 
 std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, const ProgramLocationTy *Loc){
-
-
     auto PtrIsTopLevel = SteengaardResult.getPtr(PtrId).second;
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
 
@@ -377,11 +375,6 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
         }
         else if(auto Load = dyn_cast<LoadInst>(Ptr)){
             std::set<size_t> res;
-
-            // auto PointerOp = Load->getPointerOperand();
-            // auto PtsOfPointerOp = getPointsToSet(SteengaardResult.getID(PointerOp, true), Load);
-
-            // todo: a better logic
             // to get pts of an intermediate variable %0, go to its definition (%0 = load x), get pts of x, get pts for each pointer y in pts(x).
             for(auto AliasId : AliasMap[Load][PtrId]){
                 res.insert(PointsToSetIn.at(Load).at(AliasId).begin(), PointsToSetIn.at(Load).at(AliasId).end());
@@ -458,8 +451,6 @@ void FlowSensitivePointerAnalysis::markLabelsAtUser(const PointerTy *Ptr, size_t
         }
     }
     else if(auto Call = dyn_cast<CallBase>(User)){
-        // todo: If an allocated top-level variable is directly used as the argument of a call, the points-to set of para is not properly updated.
-        // needs verify.
         addDefLabel(PtrId, Call);
         addUseLabel(PtrId, Call);
     }
@@ -527,7 +518,7 @@ std::set<const FlowSensitivePointerAnalysis::ProgramLocationTy*> FlowSensitivePo
 /// @brief Add def use graph for pointer \p Ptr.
 void FlowSensitivePointerAnalysis::addDefUseEdge(const ProgramLocationTy *Def, const ProgramLocationTy *Use, size_t PtrId){
 
-    DEBUG_WITH_TYPE("dug", outs() << getCurrentTime() << " Add def Use edge " << *Def << " === " << PtrId << " ===> " << *Use << "\n");
+    DEBUG_WITH_TYPE("fspa", outs() << getCurrentTime() << " Add def Use edge " << *Def << " === " << PtrId << " " << *SteengaardResult.getPtr(PtrId).first << " ===> " << *Use << "\n");
     DefUseGraph[Def][PtrId].insert(Use);
 }
 
@@ -724,7 +715,9 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
     else if(isa<Argument>(Alias)){
         Loc = getFirstInst(dyn_cast<Argument>(Alias)->getParent());
     }
-    //todo: add gep.
+    else if(auto GEP = dyn_cast<GetElementPtrInst>(Alias)){
+        Loc = GEP;
+    }
     else if(auto BitCast = dyn_cast<BitCastInst>(Alias)){
         auto OriginalPointer = BitCast->stripPointerCastsAndAliases();
         if(isa<LoadInst>(OriginalPointer)){
@@ -824,7 +817,6 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
             }
         }
         else if(auto Ret = dyn_cast<ReturnInst>(UseLoc)){
-
             propagatePointsToInformation(Ret, Loc, PtrId);
             PointsToSetOut[Ret][PtrId] = PointsToSetIn[Ret][PtrId];
 
@@ -851,7 +843,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
             if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
                 continue;
             }
-            auto PointerOpId = SteengaardResult.getID(Loc, true);
+            auto PointerOpId = SteengaardResult.getID(Alias, true);
             auto Pts = getPointsToSet(PointerOpId, Loc);
             size_t ArgIdx = 0;
             while(ArgIdx < Call->arg_size() && ArgIdx < Call->getCalledFunction()->arg_size()){
@@ -873,9 +865,10 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
                 AliasMap[FirstInst][ParameterId].insert(AliasMap[Loc][PointerOpId].begin(), AliasMap[Loc][PointerOpId].end());
                 if(isUpdated){
                     updateAliasUsers(Call->getCalledFunction()->getArg(ArgIdx), ParameterId, PropagateList);
+                    for(auto UseLoc : getAffectUseLocations(FirstInst, ParameterId)){    
+                        PropagateList.insert(std::make_tuple(FirstInst, UseLoc, ParameterId));
+                    }
                 }
-
-                // todo: add handling for store ? p - getUseLocation(ParaId), add to propagateList
             }
         }
         else if(auto BitCast = dyn_cast<BitCastInst>(UseLoc)){
@@ -990,35 +983,28 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
             }
         }
         else if(auto Call = dyn_cast<CallBase>(UseLoc)){
-
             if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
-                // Ignore indirect call.
                 continue;
             }
 
-            // todo: there should not be any nono-pointer being pass.
             if(!SteengaardResult.getPtr(PtrId).first->getType()->isPointerTy()){
                 continue;
             }
             // Find corresponding parameter index from the actual argument.
-            // todo: this will always be empty.
             auto ArgumentIdxs = CallSite2ArgIdx[Call][PtrId];
             auto FirstInst = getFirstInst(Call->getCalledFunction());
             for(auto ArgumentIdx : ArgumentIdxs){
-
                 assert(ArgumentIdx < Call->arg_size() && ArgumentIdx < Call->getCalledFunction()->arg_size() && "Arguemnt idx out of bound.");
                 updateArgPointsToSetOfFunc(Call->getCalledFunction(), PointsToSetIn.at(UseLoc).at(PtrId), ArgumentIdx, PropagateList);
                 // also update the alias information.
                 AliasMap[FirstInst][SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgumentIdx), true)].insert(PtrId);
 
             }
-            //todo: if the in set in changed.
             bool isChanged = false;
             for(auto Pointer : PointsToSetIn[Call][PtrId]){
                 isChanged = isChanged || PointsToSetOut[FirstInst][PtrId].insert(Pointer).second;
             }
             
-            // PointsToSetOut[FirstInst][PtrId].insert(PointsToSetIn[Call][PtrId].begin(), PointsToSetIn[Call][PtrId].end());
             if(isChanged){
                 for(auto Loc : getAffectUseLocations(FirstInst, PtrId)){
                     PropagateList.insert(std::make_tuple(FirstInst, Loc, PtrId));
@@ -1027,12 +1013,8 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
             
         }
         else if(auto Return = dyn_cast<ReturnInst>(UseLoc)){
-            // todo: should be insert. This is wrong for multiple reaching control flow.
             PointsToSetOut[UseLoc][PtrId] = PointsToSetIn.at(UseLoc).at(PtrId);
             if(SteengaardResult.getPtr(PtrId).first->getType()->isPointerTy()){
-
-                // todo: for "ret p" and "x = call f", set pts(x) = pts(p)
-
                 for(auto CallSite : Func2CallerLocation[Return->getFunction()]){
 
                     bool isChanged = false;
