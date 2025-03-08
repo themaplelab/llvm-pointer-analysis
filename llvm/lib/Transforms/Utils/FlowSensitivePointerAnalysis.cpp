@@ -894,14 +894,12 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
                 PtsIsChanged = true;
             }
             if(PtsIsChanged){
-                // also add to propagatelist
                 updateAliasUsers(Phi, PhiId, PropagateList);
                 for(auto UseLoc : getAffectUseLocations(Phi, PhiId)){    
                     PropagateList.insert(std::make_tuple(Phi, UseLoc, PhiId));
                 }
             }
         }    
-        // todo : add case for phinode
         else{
             DEBUG_WITH_TYPE("fspa", outs() << getCurrentTime() << " Cannot process alias user clause type: " 
                 << *UseLoc << "\n");
@@ -969,18 +967,9 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
             if(isa<GlobalValue>(Store->getPointerOperand()->stripPointerCastsAndAliases()) || isa<GlobalValue>(Store->getValueOperand()->stripPointerCastsAndAliases()) || !Store->getValueOperand()->getType()->isPointerTy()){
                 continue;
             }
-
-            auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand()->stripPointerCastsAndAliases(), true);
             auto ValueOpId = SteengaardResult.getID(Store->getValueOperand()->stripPointerCastsAndAliases(), true);
-            //todo: should be getPointsToSet(ValueOpId, UseLoc)?
-            updatePointsToSet(UseLoc, PtrId, getPointsToSet(ValueOpId, DefLoc), PropagateList);
+            updatePointsToSet(UseLoc, PtrId, getPointsToSet(ValueOpId, UseLoc), PropagateList);
             
-            // todo: this seems never to be true.
-            if(isAlias(PointerOpId, PtrId, Store)){
-                for(auto Pe : PointsToSetOut[UseLoc][PtrId]){
-                    addUseLabel(Pe, Store);
-                }
-            }
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
             if(!Load->getType()->isPointerTy()){
@@ -995,13 +984,8 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
 
             auto OldAliasSet = std::set<size_t>{};
             auto UseLocId = SteengaardResult.getID(UseLoc, true);
-            
-            // todo: aliasmap should be irrelevant here. We only care whether pts is changed.
-            if(AliasMap.count(UseLoc) && AliasMap[UseLoc].count(UseLocId)){
-                OldAliasSet = AliasMap.at(UseLoc).at(UseLocId);
-            }
             updateAliasInformation(UseLoc, UseLocId, SteengaardResult.getID(Load->getPointerOperand(), true));
-            if(OldAliasSet != AliasMap.at(UseLoc).at(UseLocId) || PtsIsChanged){
+            if(PtsIsChanged){
                 updateAliasUsers(UseLoc, PtrId, PropagateList);
             }
         }
