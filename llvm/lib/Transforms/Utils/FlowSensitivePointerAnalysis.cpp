@@ -365,6 +365,10 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
     auto PtrIsTopLevel = SteengaardResult.getPtr(PtrId).second;
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
 
+    if(!Ptr){
+        return std::set<size_t>{};
+    }
+
 
     if(PtrIsTopLevel){
         // pts of top-level variable only defined once.
@@ -640,25 +644,12 @@ void FlowSensitivePointerAnalysis::propagatePointsToInformation(const ProgramLoc
 /// @brief Update points-to-set for \p Ptr at program location \p Loc.
 /// @return True if the points-to set is changed.
 bool FlowSensitivePointerAnalysis::updatePointsToSetAtProgramLocation(const ProgramLocationTy *Loc, size_t PtrId, std::set<size_t> &PTS){
-
-    if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(PtrId)){
-        return PointsToSetOut.at(Loc).at(PtrId) != PTS;
-    }
-    else{
-        return !PTS.empty();
-    }
-
-    // auto OldPTS = std::set<size_t>{};
-    // if(PointsToSetOut.count(Loc) && PointsToSetOut[Loc].count(PtrId)){
-    //     OldPTS = PointsToSetOut.at(Loc).at(PtrId);
-    // }
-
     
-    // if(OldPTS != PTS){
-    //     PointsToSetOut[Loc][PtrId] = PTS;
-    //     return true;
-    // }
-    // return false;
+    if(PointsToSetOut[Loc][PtrId] != PTS){
+        PointsToSetOut[Loc][PtrId] = PTS;
+        return true;
+    }
+    return false;
 }
 
 bool FlowSensitivePointerAnalysis::insertPointsToSetAtProgramLocation(const ProgramLocationTy *Loc, size_t PtrId, std::set<size_t> &PTS){
@@ -735,7 +726,6 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
         Loc = getFirstInst(dyn_cast<Argument>(Alias)->getParent());
     }
     //todo: add gep.
-    //todo: add alloca
     else if(auto BitCast = dyn_cast<BitCastInst>(Alias)){
         auto OriginalPointer = BitCast->stripPointerCastsAndAliases();
         if(isa<LoadInst>(OriginalPointer)){
@@ -749,10 +739,13 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
         }
     }
     else if(auto Call = dyn_cast<CallBase>(Alias)){
-        Loc = dyn_cast<CallBase>(Alias);
+        Loc = Call;
     }
     else if(auto Phi = dyn_cast<PHINode>(Alias)){
-        Loc = dyn_cast<PHINode>(Alias);
+        Loc = Phi;
+    }
+    else if(auto Alloca = dyn_cast<AllocaInst>(Alias)){
+        Loc = Alloca;
     }
 
     
@@ -1307,7 +1300,6 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
             
-            // todo: for each pointer, we also want to update its alias users.
             auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
             for(auto PointerId : Pointers){
                 auto Pointer = SteengaardResult.getPtr(PointerId).first;
