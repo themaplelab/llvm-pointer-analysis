@@ -377,7 +377,6 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
         }
         else if(auto Load = dyn_cast<LoadInst>(Ptr)){
             std::set<size_t> res;
-            auto DLoc = Load;
 
             // auto PointerOp = Load->getPointerOperand();
             // auto PtsOfPointerOp = getPointsToSet(SteengaardResult.getID(PointerOp, true), Load);
@@ -750,7 +749,8 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
 
     
     for(auto User : Alias->users()){      
-        DEBUG_WITH_TYPE("fspa", outs() << getCurrentTime() << " Updating alias user for pointer " << *Alias << " at " << *User << " with id " << PtrId << "\n");  
+        
+        DEBUG_WITH_TYPE("fspa", outs() << getCurrentTime() << " Updating alias user for pointer " << *Alias << " at " << *User << " with id " << " " << PtrId << " " << *SteengaardResult.getPtr(PtrId).first << "\n");  
 
         auto UseLoc = dyn_cast<Instruction>(User);
         auto Ptr = dyn_cast<PointerTy>(Alias);
@@ -880,7 +880,27 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
         }
         else if(auto BitCast = dyn_cast<BitCastInst>(UseLoc)){
             updateAliasUsers(BitCast, PtrId, PropagateList);
-        }        
+        }    
+        else if(auto Phi = dyn_cast<PHINode>(UseLoc)){
+
+            bool PtsIsChanged = false;
+            auto PhiId = SteengaardResult.getID(Phi, true);
+
+            auto OldPts = PointsToSetOut[UseLoc][PhiId];
+            auto AliasId = SteengaardResult.getID(Alias, true);
+            auto Pts = getPointsToSet(AliasId, Phi);
+            PointsToSetOut[UseLoc][PhiId].insert(Pts.begin(), Pts.end());
+            if(OldPts != PointsToSetOut[UseLoc][PhiId]){
+                PtsIsChanged = true;
+            }
+            if(PtsIsChanged){
+                // also add to propagatelist
+                updateAliasUsers(Phi, PhiId, PropagateList);
+                for(auto UseLoc : getAffectUseLocations(Phi, PhiId)){    
+                    PropagateList.insert(std::make_tuple(Phi, UseLoc, PhiId));
+                }
+            }
+        }    
         // todo : add case for phinode
         else{
             DEBUG_WITH_TYPE("fspa", outs() << getCurrentTime() << " Cannot process alias user clause type: " 
@@ -1043,19 +1063,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
                 }
             }
         }
-        // todo: there should not be any cases that propagating to a phi node.
-        else if(auto Phi = dyn_cast<PHINode>(UseLoc)){
-            bool PtsIsChanged = false;
-            auto OldPts = PointsToSetOut[UseLoc][PtrId];
-            PointsToSetOut[UseLoc][PtrId].insert(PointsToSetIn.at(UseLoc).at(PtrId).begin(), PointsToSetIn.at(UseLoc).at(PtrId).end());
-            if(OldPts != PointsToSetOut[UseLoc][PtrId]){
-                PtsIsChanged = true;
-            }
-            if(PtsIsChanged){
-                // also add to propagatelist
-                updateAliasUsers(UseLoc, PtrId, PropagateList);
-            }
-        }
+
 
     }
     return;
