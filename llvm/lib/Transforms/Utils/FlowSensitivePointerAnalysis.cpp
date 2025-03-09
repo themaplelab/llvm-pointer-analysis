@@ -311,12 +311,14 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
     WorkListTy WorkList;
 
     // Initialize function parameters
-    if(!Func->isDeclaration()){
+    if(!Func->isDeclaration() && !Func->getFunctionType()->isVarArg()){
         auto FirstInst = getFirstInst(Func);
         for(const auto &Arg : Func->args()){
             if(!Arg.getType()->isPointerTy()){
                 continue;
             }
+
+            // outs() << Arg.getParent()->getName().str() << "\n";
             auto ArgId = SteengaardResult.getID(&Arg, true);
             addDefLabel(ArgId, FirstInst);
             PointsToSetOut[FirstInst][ArgId] = std::set<size_t>{};
@@ -441,6 +443,9 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
             Pts = getPointsToSet(SteengaardResult.getID(Select->getFalseValue(), true), Select);
             res.insert(Pts.begin(), Pts.end());
             return res;
+        }
+        else if(auto Extract = dyn_cast<ExtractValueInst>(Ptr)){
+            return std::set<size_t>{};
         }
         else{
             outs() << *Ptr << "\n";
@@ -865,7 +870,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
 
         }
         else if(auto Call = dyn_cast<CallBase>(UseLoc)){   
-            if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
+            if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration() || Call->getFunctionType()->isVarArg()){
                 continue;
             }
             auto PointerOpId = SteengaardResult.getID(Alias, true);
@@ -1034,7 +1039,7 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
             }
         }
         else if(auto Call = dyn_cast<CallBase>(UseLoc)){
-            if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration()){
+            if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration() || Call->getFunctionType()->isVarArg()){
                 continue;
             }
 

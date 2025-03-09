@@ -76,6 +76,10 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
     getID(nullptr, true);
 
     for(auto &F : M){
+        for(auto &A : F.args()){
+            getID(&A, true);
+        }
+
         for(auto &Inst : instructions(F)){
             // outs() << Inst << "\n";
             if(auto Alloca = dyn_cast<AllocaInst>(&Inst)){
@@ -132,6 +136,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                     // Do not process variadic arguments.
                     continue;
                 }
+                getID(Call, true);
                 // para-arg passing
                 size_t i = 0;
                 while(i < Call->arg_size()){
