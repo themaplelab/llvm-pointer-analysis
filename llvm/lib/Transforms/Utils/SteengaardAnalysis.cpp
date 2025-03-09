@@ -93,9 +93,10 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 }
 
                 auto PointerOp = getID(Load->getPointerOperand(), true);
+                auto LoadId = getID(Load, true);
                 auto PtsKey = Uf.find(PointerOp);
                 if(AllocatedTopLevelPointsToMap.count(PtsKey)){
-                    Uf.merge(Uf.find(getID(Load, true)), Uf.find(AllocatedTopLevelPointsToMap.at(PtsKey)));
+                    Uf.merge(Uf.find(LoadId), Uf.find(AllocatedTopLevelPointsToMap.at(PtsKey)));
                 }
             }
             else if(auto Store = dyn_cast<StoreInst>(&Inst)){

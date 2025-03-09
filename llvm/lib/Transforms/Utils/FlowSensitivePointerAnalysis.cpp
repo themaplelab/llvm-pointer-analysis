@@ -1024,6 +1024,9 @@ void FlowSensitivePointerAnalysis::propagate(SetVector<DefUseEdgeTupleTy> &Propa
             }
 
             auto OldAliasSet = std::set<size_t>{};
+
+            // outs() << *Load->getType() << " " << Load->getOpcodeName() << "\n";
+
             auto UseLocId = SteengaardResult.getID(UseLoc, true);
             updateAliasInformation(UseLoc, UseLocId, SteengaardResult.getID(Load->getPointerOperand(), true));
             if(PtsIsChanged){
