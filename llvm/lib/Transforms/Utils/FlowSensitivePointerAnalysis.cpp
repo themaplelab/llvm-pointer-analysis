@@ -1327,12 +1327,8 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
             
             auto PropagateList = initializePropagateList(Pointers, CurrentPointerLevel, &Func);
             for(auto PointerId : Pointers){
-                // auto Pointer = SteengaardResult.getPtr(PointerId).first;
-                // updateAliasUsers(Pointer, PointerId, PropagateList);
-                // if(!isa<AllocaInst>(SteengaardResult.getPtr(PointerId).first) && !isa<Argument>(SteengaardResult.getPtr(PointerId).first)){
-                //     outs() << "!!!!! " << *SteengaardResult.getPtr(PointerId).first << "\n";
-                //     llvm_unreachable("test");
-                // }
+                auto Pointer = SteengaardResult.getPtr(PointerId).first;
+                updateAliasUsers(Pointer, PointerId, PropagateList);
             }
             propagate(PropagateList, &Func);
             
