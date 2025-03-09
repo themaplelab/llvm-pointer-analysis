@@ -780,7 +780,9 @@ LevPaResult LevPA::run(Module &m, ModuleAnalysisManager &mam){
                             }
                             ++ArgIdx;
                         }
-                        createCopyRule(SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgIdx), true), PointerId, CurrentPointerLevel);
+                        if(ArgIdx < Call->arg_size() && ArgIdx < Call->getCalledFunction()->arg_size()){
+                            createCopyRule(SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgIdx), true), PointerId, CurrentPointerLevel);
+                        }
                     }
                     else if(auto Return = dyn_cast<ReturnInst>(Usr)){
                         for(auto CallSite : Func2CallerLocation[Return->getFunction()]){
