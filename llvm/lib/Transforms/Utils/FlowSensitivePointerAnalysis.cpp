@@ -433,7 +433,7 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
         }
         else if(auto Select = dyn_cast<SelectInst>(Ptr)){
             std::set<size_t> res;
-            if(!Select->getTrueValue()->getType()->isPointerTy() || !Select->getFalseValue()->getType()->isPointerTy()){
+            if(!Select->getTrueValue()->getType()->isPointerTy() || !Select->getFalseValue()->getType()->isPointerTy() || isa<GlobalValue>(Select->getTrueValue()) || isa<GlobalValue>(Select->getFalseValue())){
                 return res;
             }
             auto Pts = getPointsToSet(SteengaardResult.getID(Select->getTrueValue(), true), Select);
