@@ -417,10 +417,11 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
         }
         else if(auto Phi = dyn_cast<PHINode>(Ptr)){
             std::set<size_t> res;
-            for(size_t i = 0; i < Phi->getNumIncomingValues(); ++i){
-                auto Pts = getPointsToSet(SteengaardResult.getID(Phi->getIncomingValue(i)->stripPointerCastsAndAliases(), true), Phi);
-                res.insert(Pts.begin(), Pts.end());
-            }
+            //todo: infinite loop
+            // for(size_t i = 0; i < Phi->getNumIncomingValues(); ++i){
+            //     auto Pts = getPointsToSet(SteengaardResult.getID(Phi->getIncomingValue(i), true), Phi);
+            //     res.insert(Pts.begin(), Pts.end());
+            // }
             return res;
         }
         else if(auto IntToPtr = dyn_cast<IntToPtrInst>(Ptr)){
@@ -502,7 +503,7 @@ void FlowSensitivePointerAnalysis::markLabelsAtUser(const PointerTy *Ptr, size_t
     else if(auto Phi = dyn_cast<PHINode>(User)){
         addUseLabel(PtrId, Phi);
     }
-    else if(dyn_cast<CmpInst>(User) || dyn_cast<VAArgInst>(User) || dyn_cast<PtrToIntInst>(User)){
+    else if(dyn_cast<CmpInst>(User) || dyn_cast<VAArgInst>(User) || dyn_cast<PtrToIntInst>(User) || dyn_cast<SelectInst>(User)){
 
         DEBUG_WITH_TYPE("warning", outs() << getCurrentTime() << "WARNING:" << *User << " is in the user list of pointer "
             << *Ptr << ", but it's neither storeinst nor loadinst.\n");
@@ -735,6 +736,10 @@ void FlowSensitivePointerAnalysis::updateAliasInformation(const ProgramLocationT
 ///     Update its user accordingly.
 void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t PtrId, SetVector<DefUseEdgeTupleTy> &PropagateList){
 
+    if(!Alias->getType()->isPointerTy()){
+        return;
+    }
+
     const ProgramLocationTy *Loc;
     if(isa<LoadInst>(Alias)){
         Loc = dyn_cast<LoadInst>(Alias);
@@ -772,6 +777,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
 
     
     for(auto User : Alias->users()){      
+        // outs() << getCurrentTime() << " Updating alias user for pointer " << *Alias << " at " << *User << " with id " << " " << PtrId << " " << *SteengaardResult.getPtr(PtrId).first << "\n";
         
         DEBUG_WITH_TYPE("fspa", outs() << getCurrentTime() << " Updating alias user for pointer " << *Alias << " at " << *User << " with id " << " " << PtrId << " " << *SteengaardResult.getPtr(PtrId).first << "\n");  
 
@@ -794,7 +800,9 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
                 if(!Store->getValueOperand()->getType()->isPointerTy()){
                     continue;
                 }
-
+                if(!Loc->getType()->isPointerTy()){
+                    continue;
+                }
                 auto PointerOpId = SteengaardResult.getID(dyn_cast<LoadInst>(Loc), true);
                 for(auto Pid : getPointsToSet(PointerOpId, Loc)){
                     addDefLabel(Pid, UseLoc);
@@ -806,9 +814,15 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
 
                 auto Pts = getPointsToSet(LoadId, Loc);
 
+
                 auto LoadId = SteengaardResult.getID(Ptr, true);
+
                 if(isAlias(LoadId, PtrId, Store)){
+
+
                     auto PointerOpId = SteengaardResult.getID(Store->getPointerOperand()->stripPointerCastsAndAliases(), true);
+
+
 
                     if(isa<LoadInst>(Store->getPointerOperand()->stripPointerCastsAndAliases())){
 
@@ -839,6 +853,9 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
             }
         }
         else if(auto Load = dyn_cast<LoadInst>(UseLoc)){
+            if(!Load->getType()->isPointerTy()){
+                continue;
+            }
             if(isAlias(LoadId, PtrId, Load)){
                 for(auto Pe : getPointsToSet(PtrId, Loc)){
                     // outs() << "add use label " << Pe << "\n";                    
@@ -1164,6 +1181,7 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
     std::map<const Instruction*, std::set<const Instruction*>> OUT;
 
 
+
     while(true){
         bool Changed = false;
         auto Nodes = DG.getNodes();
@@ -1171,6 +1189,7 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
         auto Parents = DG.getParents();
 
         for(auto Node : DG.getNodes()){
+
             
             // update IN
 
@@ -1197,14 +1216,24 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
                 //     outs() << "Constant" << "\n";
                 // }
                 
+                // outs() << "Node: " << *Node << "\n";
+
+
+
+
                 if(isa<GlobalValue>(dyn_cast<StoreInst>(Node)->getPointerOperand()) || isa<Constant>(dyn_cast<StoreInst>(Node)->getPointerOperand()) ){
+                    // outs() << "a\n";
                     OUT[Node] = IN[Node];
                     OUT[Node].insert(Node);
                 }
                 else if(getPointsToSet(SteengaardResult.getID(dyn_cast<StoreInst>(Node)->getPointerOperand()->stripPointerCastsAndAliases(), true), Node).size() <= 1){
+                    // outs() << "b\n";
+
                     OUT[Node] = std::set<const ProgramLocationTy*>{Node};
                 }
                 else{
+                    // outs() << "c\n";
+
                     OUT[Node] = IN[Node];
                     OUT[Node].insert(Node);
                 }
@@ -1216,6 +1245,8 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
             if(OldOut != OUT[Node]){
                 Changed = true;
             }
+
+            // outs() << "2\n";
 
         }
 
@@ -1325,8 +1356,11 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
             for(auto PtrId : Pointers){
+                // outs() << *SteengaardResult.getPtr(PtrId).first << "\n";
                 const auto& [Out, DG] = buildDominatorGraph(&Func, PtrId);
+                // outs() << "1\n";
                 buildDefUseGraph(getUseLocations(PtrId), PtrId, Out, DG);
+                // outs() << "end\n";
             }
         }
 
