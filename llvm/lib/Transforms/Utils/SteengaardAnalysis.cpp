@@ -133,11 +133,12 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 
             }
             else if(auto Call = dyn_cast<CallBase>(&Inst)){
+                getID(Call, true);
                 if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration() || Call->getFunctionType()->isVarArg()){
                     // Do not process variadic arguments.
                     continue;
                 }
-                getID(Call, true);
+                
                 // para-arg passing
                 size_t i = 0;
                 while(i < Call->arg_size()){

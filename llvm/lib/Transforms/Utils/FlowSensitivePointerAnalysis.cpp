@@ -1352,7 +1352,8 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
     auto &FAM = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     
     while(CurrentPointerLevel > 0){
-        // outs() << "Current pointer level: " << CurrentPointerLevel << "\n";
+        outs() << "Current pointer level: " << CurrentPointerLevel << "\n";
+        outs() << getCurrentTime() << " Creating labels\n";
         for(auto &Func : m.functions()){
             if(Func.isDeclaration()){
                 continue;
@@ -1367,10 +1368,14 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
                 markLabelsForPtr(Ptr, IsTopLevel);
             }
         }
+        outs() << getCurrentTime() << " Building DUG\n";
 
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
             for(auto PtrId : Pointers){
+                if(SteengaardResult.getPtr(PtrId).second){
+                    continue;
+                }
                 // outs() << *SteengaardResult.getPtr(PtrId).first << "\n";
                 const auto& [Out, DG] = buildDominatorGraph(&Func, PtrId);
                 // outs() << "1\n";
@@ -1378,6 +1383,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
                 // outs() << "end\n";
             }
         }
+        outs() << getCurrentTime() << " Propagating\n";
 
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
