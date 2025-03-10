@@ -753,7 +753,7 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
         return;
     }
 
-    const ProgramLocationTy *Loc;
+    const ProgramLocationTy *Loc=nullptr;
     if(isa<LoadInst>(Alias)){
         Loc = dyn_cast<LoadInst>(Alias);
     }
