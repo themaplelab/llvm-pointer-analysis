@@ -234,13 +234,29 @@ void LevPA::addUseLabel(size_t PtrId, const ProgramLocationTy *Loc){
     return;
 }
 
-std::set<size_t> LevPA::getPointsToSet(size_t PtrId, const ProgramLocationTy *Loc){
 
+std::set<size_t> LevPA::getPointsToSet(size_t PtrId, const ProgramLocationTy *Loc){
+    std::set<size_t> Visited;
+
+    return getPointsToSetHelper(PtrId, Loc, Visited);
+    
+}
+
+std::set<size_t> LevPA::getPointsToSetHelper(size_t PtrId, const ProgramLocationTy *Loc, std::set<size_t> &Visited){
+
+
+    if(Visited.count(PtrId)){
+        return std::set<size_t>{};
+    }
+
+    Visited.insert(PtrId);
 
     auto PtrIsTopLevel = SteengaardResult.getPtr(PtrId).second;
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
 
-    // outs() << "GPTS: " << *Ptr << " " << *Loc << "\n";
+    if(!Ptr){
+        return std::set<size_t>{};
+    }
 
 
     if(PtrIsTopLevel){
@@ -250,12 +266,11 @@ std::set<size_t> LevPA::getPointsToSet(size_t PtrId, const ProgramLocationTy *Lo
         }
         else if(auto Load = dyn_cast<LoadInst>(Ptr)){
             std::set<size_t> res;
-            auto DLoc = dyn_cast<Instruction>(SteengaardResult.getPtr(PtrId).first);
-            if(!DLoc){
-                return res;
-            }
-            for(auto AliasId : AliasMap[DLoc][PtrId]){
-                res.insert(PointsToSetIn.at(DLoc).at(AliasId).begin(), PointsToSetIn.at(DLoc).at(AliasId).end());
+            // to get pts of an intermediate variable %0, go to its definition (%0 = load x), get pts of x, get pts for each pointer y in pts(x).
+            for(auto AliasId : AliasMap[Load][PtrId]){
+                if(PointsToSetIn.count(Load) && PointsToSetIn.at(Load).count(AliasId)){
+                    res.insert(PointsToSetIn.at(Load).at(AliasId).begin(), PointsToSetIn.at(Load).at(AliasId).end());
+                }
             }
             return res;
         }  
@@ -266,11 +281,11 @@ std::set<size_t> LevPA::getPointsToSet(size_t PtrId, const ProgramLocationTy *Lo
         }
         else if(auto GEP = dyn_cast<GetElementPtrInst>(Ptr)){
             auto PointerOpId = SteengaardResult.getID(GEP->getPointerOperand(), true);
-            return getPointsToSet(PointerOpId, GEP);
+            return getPointsToSetHelper(PointerOpId, GEP, Visited);
         }
         else if(auto BitCast = dyn_cast<BitCastInst>(Ptr)){
             auto PointerOpId = SteengaardResult.getID(BitCast->getOperand(0), true);
-            return getPointsToSet(PointerOpId, BitCast);
+            return getPointsToSetHelper(PointerOpId, BitCast, Visited);
         }
         else if(auto Call = dyn_cast<CallBase>(Ptr)){
             auto CallId = SteengaardResult.getID(Call, true);
@@ -282,8 +297,9 @@ std::set<size_t> LevPA::getPointsToSet(size_t PtrId, const ProgramLocationTy *Lo
         }
         else if(auto Phi = dyn_cast<PHINode>(Ptr)){
             std::set<size_t> res;
+            //todo: infinite loop
             for(size_t i = 0; i < Phi->getNumIncomingValues(); ++i){
-                auto Pts = getPointsToSet(SteengaardResult.getID(Phi->getIncomingValue(i)->stripPointerCastsAndAliases(), true), Phi);
+                auto Pts = getPointsToSetHelper(SteengaardResult.getID(Phi->getIncomingValue(i), true), Phi, Visited);
                 res.insert(Pts.begin(), Pts.end());
             }
             return res;
@@ -296,6 +312,20 @@ std::set<size_t> LevPA::getPointsToSet(size_t PtrId, const ProgramLocationTy *Lo
                 auto NullPtrId = SteengaardResult.getID(nullptr, true);
                 return std::set<size_t>{NullPtrId};
             }
+            return std::set<size_t>{};
+        }
+        else if(auto Select = dyn_cast<SelectInst>(Ptr)){
+            std::set<size_t> res;
+            if(!Select->getTrueValue()->getType()->isPointerTy() || !Select->getFalseValue()->getType()->isPointerTy() || isa<GlobalValue>(Select->getTrueValue()) || isa<GlobalValue>(Select->getFalseValue())){
+                return res;
+            }
+            auto Pts = getPointsToSetHelper(SteengaardResult.getID(Select->getTrueValue(), true), Select, Visited);
+            res.insert(Pts.begin(), Pts.end());
+            Pts = getPointsToSetHelper(SteengaardResult.getID(Select->getFalseValue(), true), Select, Visited);
+            res.insert(Pts.begin(), Pts.end());
+            return res;
+        }
+        else if(auto Extract = dyn_cast<ExtractValueInst>(Ptr)){
             return std::set<size_t>{};
         }
         else{

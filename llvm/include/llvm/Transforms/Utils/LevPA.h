@@ -110,6 +110,8 @@ namespace llvm{
             void createWeakUpdateRule(size_t CurrentVersion, std::set<size_t> LastVersions, size_t ValueOpId, size_t pl);
             void solveConstraints(size_t CurrentPointerLevel);
             void markLabelsforNextPointerLevel(size_t CurrentPointerLevel);
+            std::set<size_t> getPointsToSetHelper(size_t PtrId, const ProgramLocationTy *Loc, std::set<size_t> &Visited);
+
 
 
 
