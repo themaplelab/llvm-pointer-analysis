@@ -813,9 +813,9 @@ void FlowSensitivePointerAnalysis::updateAliasUsers(const Value *Alias, size_t P
                 if(!Store->getValueOperand()->getType()->isPointerTy()){
                     continue;
                 }
-                if(!Loc->getType()->isPointerTy()){
-                    continue;
-                }
+                // if(!Loc->getType()->isPointerTy()){
+                //     continue;
+                // }
                 auto PointerOpId = SteengaardResult.getID(dyn_cast<LoadInst>(Loc), true);
                 for(auto Pid : getPointsToSet(PointerOpId, Loc)){
                     addDefLabel(Pid, UseLoc);

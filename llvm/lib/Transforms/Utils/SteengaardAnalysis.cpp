@@ -93,6 +93,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
             else if(auto Load = dyn_cast<LoadInst>(&Inst)){
 
                 if(!Load->getType()->isPointerTy()){
+                    getID(Load, true);
                     continue;
                 }
 
