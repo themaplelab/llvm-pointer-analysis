@@ -367,16 +367,29 @@ void FlowSensitivePointerAnalysis::initialize(const Function *Func){
     Func2WorkList.emplace(Func, WorkList);
 }
 
+
 std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, const ProgramLocationTy *Loc){
+    std::set<size_t> Visited;
+
+    return getPointsToSetHelper(PtrId, Loc, Visited);
+    
+}
+
+
+std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSetHelper(size_t PtrId, const ProgramLocationTy *Loc, std::set<size_t> &Visited){
+
+    if(Visited.count(PtrId)){
+        return std::set<size_t>{};
+    }
+
+    Visited.insert(PtrId);
+
     auto PtrIsTopLevel = SteengaardResult.getPtr(PtrId).second;
     auto Ptr = SteengaardResult.getPtr(PtrId).first;
 
     if(!Ptr){
         return std::set<size_t>{};
     }
-
-
-    // outs() << PtrId << " " << *Ptr << " " << PtrIsTopLevel << "\n";
 
 
     if(PtrIsTopLevel){
@@ -401,11 +414,11 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
         }
         else if(auto GEP = dyn_cast<GetElementPtrInst>(Ptr)){
             auto PointerOpId = SteengaardResult.getID(GEP->getPointerOperand(), true);
-            return getPointsToSet(PointerOpId, GEP);
+            return getPointsToSetHelper(PointerOpId, GEP, Visited);
         }
         else if(auto BitCast = dyn_cast<BitCastInst>(Ptr)){
             auto PointerOpId = SteengaardResult.getID(BitCast->getOperand(0), true);
-            return getPointsToSet(PointerOpId, BitCast);
+            return getPointsToSetHelper(PointerOpId, BitCast, Visited);
         }
         else if(auto Call = dyn_cast<CallBase>(Ptr)){
             auto CallId = SteengaardResult.getID(Call, true);
@@ -418,10 +431,10 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
         else if(auto Phi = dyn_cast<PHINode>(Ptr)){
             std::set<size_t> res;
             //todo: infinite loop
-            // for(size_t i = 0; i < Phi->getNumIncomingValues(); ++i){
-            //     auto Pts = getPointsToSet(SteengaardResult.getID(Phi->getIncomingValue(i), true), Phi);
-            //     res.insert(Pts.begin(), Pts.end());
-            // }
+            for(size_t i = 0; i < Phi->getNumIncomingValues(); ++i){
+                auto Pts = getPointsToSetHelper(SteengaardResult.getID(Phi->getIncomingValue(i), true), Phi, Visited);
+                res.insert(Pts.begin(), Pts.end());
+            }
             return res;
         }
         else if(auto IntToPtr = dyn_cast<IntToPtrInst>(Ptr)){
@@ -439,9 +452,9 @@ std::set<size_t> FlowSensitivePointerAnalysis::getPointsToSet(size_t PtrId, cons
             if(!Select->getTrueValue()->getType()->isPointerTy() || !Select->getFalseValue()->getType()->isPointerTy() || isa<GlobalValue>(Select->getTrueValue()) || isa<GlobalValue>(Select->getFalseValue())){
                 return res;
             }
-            auto Pts = getPointsToSet(SteengaardResult.getID(Select->getTrueValue(), true), Select);
+            auto Pts = getPointsToSetHelper(SteengaardResult.getID(Select->getTrueValue(), true), Select, Visited);
             res.insert(Pts.begin(), Pts.end());
-            Pts = getPointsToSet(SteengaardResult.getID(Select->getFalseValue(), true), Select);
+            Pts = getPointsToSetHelper(SteengaardResult.getID(Select->getFalseValue(), true), Select, Visited);
             res.insert(Pts.begin(), Pts.end());
             return res;
         }
@@ -1221,21 +1234,23 @@ std::pair<std::map<const Instruction*, std::set<const Instruction*>>, DomGraph>
 
 
 
-                if(isa<GlobalValue>(dyn_cast<StoreInst>(Node)->getPointerOperand()) || isa<Constant>(dyn_cast<StoreInst>(Node)->getPointerOperand()) ){
+                if(isa<GlobalValue>(dyn_cast<StoreInst>(Node)->getPointerOperand()) || isa<Constant>(dyn_cast<StoreInst>(Node)->getPointerOperand()) || isa<PHINode>(dyn_cast<StoreInst>(Node)->getPointerOperand())){
                     // outs() << "a\n";
                     OUT[Node] = IN[Node];
                     OUT[Node].insert(Node);
                 }
-                else if(getPointsToSet(SteengaardResult.getID(dyn_cast<StoreInst>(Node)->getPointerOperand()->stripPointerCastsAndAliases(), true), Node).size() <= 1){
-                    // outs() << "b\n";
-
-                    OUT[Node] = std::set<const ProgramLocationTy*>{Node};
-                }
                 else{
-                    // outs() << "c\n";
-
-                    OUT[Node] = IN[Node];
-                    OUT[Node].insert(Node);
+                    if(getPointsToSet(SteengaardResult.getID(dyn_cast<StoreInst>(Node)->getPointerOperand(), true), Node).size() <= 1){
+                        // outs() << "b\n";
+    
+                        OUT[Node] = std::set<const ProgramLocationTy*>{Node};
+                    }
+                    else{
+                        // outs() << "c\n";
+    
+                        OUT[Node] = IN[Node];
+                        OUT[Node].insert(Node);
+                    }
                 }
             }
             else{

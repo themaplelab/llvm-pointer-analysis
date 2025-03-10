@@ -176,6 +176,8 @@ namespace llvm{
             void updatePointsToSet(const ProgramLocationTy*, size_t, std::set<size_t>, SetVector<DefUseEdgeTupleTy>&);
             bool updatePointsToSetAtProgramLocation(const ProgramLocationTy*, size_t, std::set<size_t>&);
             std::set<size_t> getPointsToSet(size_t, const ProgramLocationTy*);
+            std::set<size_t> getPointsToSetHelper(size_t, const ProgramLocationTy*, std::set<size_t>&);
+
             void verify(Module &M);
 
         public:
