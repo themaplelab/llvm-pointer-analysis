@@ -1404,6 +1404,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     outs() << "Runtime: " << duration.count() << "ms\n";
     // computeAvgPtsSize();
+    // dumpPointsToSet();
     
 
     DEBUG_WITH_TYPE("lfspa", verify(m));

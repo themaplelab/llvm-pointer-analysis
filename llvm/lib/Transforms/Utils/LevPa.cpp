@@ -367,8 +367,8 @@ void LevPA::markLabelsAtUser(const PointerTy *Ptr, size_t PtrId, const User *Use
     }
     else if(auto Phi = dyn_cast<PHINode>(User)){
         addUseLabel(PtrId, Phi);
-    }
-    else if(dyn_cast<CmpInst>(User) || dyn_cast<VAArgInst>(User) || dyn_cast<PtrToIntInst>(User)){
+    }    
+    else if(dyn_cast<CmpInst>(User) || dyn_cast<VAArgInst>(User) || dyn_cast<PtrToIntInst>(User) || dyn_cast<SelectInst>(User)){
 
         DEBUG_WITH_TYPE("warning", outs() << getCurrentTime() << "WARNING:" << *User << " is in the user list of pointer "
             << *Ptr << ", but it's neither storeinst nor loadinst.\n");
