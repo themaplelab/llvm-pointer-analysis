@@ -127,7 +127,7 @@ LevPA::buildDominatorGraph(const Function *Func, size_t PtrId){
                 OUT[Node] = std::set<const ProgramLocationTy*>{Node};
             }
             else if(auto Store = dyn_cast<StoreInst>(Node)){
-                if(isa<GlobalValue>(dyn_cast<StoreInst>(Node)->getPointerOperand()) || isa<GetElementPtrInst>(dyn_cast<StoreInst>(Node)->getPointerOperand())){
+                if(isa<GlobalValue>(dyn_cast<StoreInst>(Node)->getPointerOperand()) || isa<Constant>(dyn_cast<StoreInst>(Node)->getPointerOperand()) || isa<GetElementPtrInst>(dyn_cast<StoreInst>(Node)->getPointerOperand())){
                     OUT[Node] = IN[Node];
                     OUT[Node].insert(Node);
                 }
