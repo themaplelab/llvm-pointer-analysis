@@ -69,6 +69,12 @@ void SteengaardAnalysis::findSCC(size_t node){
 
 SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManager &MAM){
 
+    size_t NumAlloca = 0;
+    size_t NumLoad = 0;
+    size_t NumStore = 0;
+    size_t NumGepOrBitcast = 0;
+    size_t NumCall = 0;
+    size_t NumPhi = 0;
 
     // size_t AllocaNums = 0;
 
@@ -83,7 +89,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
         for(auto &Inst : instructions(F)){
             // outs() << Inst << "\n";
             if(auto Alloca = dyn_cast<AllocaInst>(&Inst)){
-                // ++AllocaNums;
+                ++NumAlloca;
                 auto topLevel = getID(Alloca, true);
                 auto AddrTaken = getID(Alloca, false);
                 Uf.find(topLevel);
@@ -91,7 +97,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 AllocatedTopLevelPointsToMap.try_emplace(topLevel, AddrTaken);
             }
             else if(auto Load = dyn_cast<LoadInst>(&Inst)){
-
+                ++NumLoad;
                 if(!Load->getType()->isPointerTy()){
                     getID(Load, true);
                     continue;
@@ -105,6 +111,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 }
             }
             else if(auto Store = dyn_cast<StoreInst>(&Inst)){
+                ++NumStore;
                 // outs() << "Store: " << *Store << "\n";
                 if(!Store->getValueOperand()->getType()->isPointerTy()){
                     // outs() << "cont\n";
@@ -119,7 +126,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 }
             }
             else if(auto BitCast = dyn_cast<BitCastInst>(&Inst)){
-                
+                ++NumGepOrBitcast;
                 if(BitCast->getType()->isPointerTy()){
                     auto Lhs = getID(BitCast, true);
                     auto Rhs = getID(BitCast->getOperand(0), true);
@@ -127,12 +134,14 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 }
             }
             else if(auto GEP = dyn_cast<GetElementPtrInst>(&Inst)){
-                    auto Lhs = getID(GEP, true);
-                    auto Rhs = getID(GEP->getOperand(0), true);
-                    Uf.merge(Uf.find(Lhs), Uf.find(Rhs));
+                ++NumGepOrBitcast;
+                auto Lhs = getID(GEP, true);
+                auto Rhs = getID(GEP->getOperand(0), true);
+                Uf.merge(Uf.find(Lhs), Uf.find(Rhs));
                 
             }
             else if(auto Call = dyn_cast<CallBase>(&Inst)){
+                ++NumCall;
                 getID(Call, true);
                 if(!Call->getCalledFunction() || Call->getCalledFunction()->isDeclaration() || Call->getFunctionType()->isVarArg()){
                     // Do not process variadic arguments.
@@ -162,6 +171,7 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
                 }
             }
             else if(auto Phi = dyn_cast<PHINode>(&Inst)){
+                ++NumPhi;
                 const Value *Ptr = nullptr;
                 size_t i = 0;
                 while(i < Phi->getNumIncomingValues()){
@@ -184,9 +194,19 @@ SteengaardAnalysisResult SteengaardAnalysis::run(Module &M, ModuleAnalysisManage
 
     computePtsAndAlias();
     SCCtoDAG();
+    auto start = std::chrono::high_resolution_clock::now();
+
     auto MaxPl = computeMaxPointerLevel();
 
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+    outs() << "Pointer level time: " << duration.count() << "ms\n";
+
+
     // outs() << AllocaNums << "\n";
+    outs() << NumAlloca << " " << NumLoad << " " << NumStore << " " << NumGepOrBitcast << " " << NumCall << " " << NumPhi << "\n";
 
     // printStats();
 

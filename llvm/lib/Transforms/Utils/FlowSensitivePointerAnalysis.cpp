@@ -162,16 +162,32 @@ void FlowSensitivePointerAnalysis::dumpLabelMap(){
 double FlowSensitivePointerAnalysis::computeAvgPtsSize(){
     size_t TotalPtsSize = 0, NumPts = 0, MaxPtsSize = 0;
     for(auto Pair : PointsToSetOut){
-        for(auto P : Pair.second){
-            if(!SteengaardResult.getPtr(P.first).second){
-                if(P.second.size() > MaxPtsSize){
-                    MaxPtsSize = P.second.size();
-                }
-                TotalPtsSize += P.second.size();
-                NumPts += 1;    
+        auto inst = Pair.first;
+        auto pts = std::set<size_t>();
+        if(auto load = dyn_cast<LoadInst>(inst)){
+            auto alias = PointsToSetIn[load][SteengaardResult.getID(load->getPointerOperand(), false)];
+            for(auto a : alias){
+                pts.insert(PointsToSetIn[load][a].begin(), PointsToSetIn[load][a].end());
             }
-            
         }
+
+        if(pts.size() > MaxPtsSize){
+            MaxPtsSize = pts.size();
+        }
+        TotalPtsSize += pts.size();
+        NumPts += 1;  
+
+
+        // for(auto P : Pair.second){
+        //     if(!SteengaardResult.getPtr(P.first).second){
+        //         if(P.second.size() > MaxPtsSize){
+        //             MaxPtsSize = P.second.size();
+        //         }
+        //         TotalPtsSize += P.second.size();
+        //         NumPts += 1;    
+        //     }
+            
+        // }
     }
     std::cout << "End of analysis. Avg Pts Size is " << std::setprecision(5) << (double)TotalPtsSize / NumPts << "\n";
     std::cout << "Max Pts size is: " << MaxPtsSize << "\n";
@@ -1341,11 +1357,18 @@ void FlowSensitivePointerAnalysis::verify(Module &M){
 
 /// @brief Main entry of flow sensitive pointer analysis. Process pointer variables level by level. 
 FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, ModuleAnalysisManager &mam){
+
     DEBUG_WITH_TYPE("fspa", outs() << getCurrentTime() << " Start analyzing module " << m.getName() << "\n");
     SteengaardResult = mam.getResult<SteengaardAnalysis>(m);
 
 
     auto start = std::chrono::high_resolution_clock::now();
+
+
+    auto dugBuildTime = std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now();
+    auto propBuildTime = std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now();
+
+
     auto CurrentPointerLevel = SteengaardResult.getMaxPl();
     globalInitialize(m);
 
@@ -1370,6 +1393,9 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
         }
         outs() << getCurrentTime() << " Building DUG\n";
 
+        auto dugStart = std::chrono::high_resolution_clock::now();
+
+
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
             for(auto PtrId : Pointers){
@@ -1378,12 +1404,20 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
                 }
                 // outs() << *SteengaardResult.getPtr(PtrId).first << "\n";
                 const auto& [Out, DG] = buildDominatorGraph(&Func, PtrId);
+
                 // outs() << "1\n";
                 buildDefUseGraph(getUseLocations(PtrId), PtrId, Out, DG);
                 // outs() << "end\n";
             }
         }
+
+        auto dugEnd = std::chrono::high_resolution_clock::now();
+        dugBuildTime += dugEnd - dugStart;
+
+
         outs() << getCurrentTime() << " Propagating\n";
+        auto propStart = std::chrono::high_resolution_clock::now();
+
 
         for(auto &Func : m.functions()){
             auto Pointers = getPointersInWorkList(CurrentPointerLevel, &Func);
@@ -1396,15 +1430,52 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
             propagate(PropagateList, &Func);
             
         }
+
+        auto propEnd = std::chrono::high_resolution_clock::now();
+        propBuildTime += propEnd - propStart;
+
         --CurrentPointerLevel;
     }
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    auto dugDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dugBuildTime);
+    auto propDuration = std::chrono::duration_cast<std::chrono::milliseconds>(propBuildTime);
+
+
+    outs() << "DUG Runtime: " << dugDuration.count() << "ms\n";
+    outs() << "Prop Runtime: " << propDuration.count() << "ms\n";
+
 
     outs() << "Runtime: " << duration.count() << "ms\n";
     // computeAvgPtsSize();
     // dumpPointsToSet();
+
+    std::set<const Instruction*> DugNodes;
+    size_t NumDugEdges = 0;
+    for(auto p : DefUseGraph){
+        DugNodes.insert(p.first);
+        for(auto pp : p.second){
+            DugNodes.insert(pp.second.begin(), pp.second.end());
+            NumDugEdges += pp.second.size();
+        }
+    }
+
+    outs() << DugNodes.size() << " " << NumDugEdges << "\n";
+
+    size_t numDef = 0, numUse = 0;
+    for(auto p : LabelMap){
+        for(auto pp : p.second){
+            if(pp.Type == Label::LabelType::Def){
+                numDef += 1;
+            }
+            else{
+                numUse += 1;
+            }
+        }
+    }
+
+    outs() << numDef << " " << numUse << "\n";
     
 
     DEBUG_WITH_TYPE("lfspa", verify(m));

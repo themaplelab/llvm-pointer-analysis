@@ -181,6 +181,9 @@ void LevPA::addDefLabel(size_t PtrId, const ProgramLocationTy *Loc){
         auto FirstInst = getFirstInst(Loc->getFunction());
         LabelMap[FirstInst].insert(Label(PtrId, Label::LabelType::Def));
         DefLocations[PtrId][FirstInst->getFunction()].insert(FirstInst);
+        for(auto ret : Func2Returns[Loc->getFunction()]){
+            LabelMap[ret].insert(Label(PtrId, Label::LabelType::Use));
+        }
 
         // Recursively add use label at all callsite of the current function.
         std::set<const ProgramLocationTy*> WorkList = Func2CallerLocation[Loc->getFunction()];
@@ -583,6 +586,7 @@ std::set<size_t> LevPA::getLastVersion(size_t PointerId, const Instruction *Loc)
     std::set<size_t> res;
     auto DefLocs = getDefinitionLocs(PointerId, Loc);
     for(auto dl : DefLocs){
+
         auto Pid = getCurrentVersion(PointerId, dl);
         res.insert(Pid);
     }
@@ -590,68 +594,109 @@ std::set<size_t> LevPA::getLastVersion(size_t PointerId, const Instruction *Loc)
     return res;
 }
 
+size_t LevPA::getCurrentVersionOut(size_t PointerId, const Instruction *Loc){
+    std::set<size_t> res;
+
+    if(!AdditionalPointerIdMapOut[Loc].count(PointerId)){
+        AdditionalPointerIdMapOut[Loc][PointerId] = index++;
+    }
+    return AdditionalPointerIdMapOut[Loc].at(PointerId);
+}
+
 size_t LevPA::getCurrentVersion(size_t PointerId, const Instruction *Loc){
     std::set<size_t> res;
 
-    if(!AdditionalPointerIdMap[Loc].count(PointerId)){
-        createNewVersionOfPointer(PointerId, Loc);
+    if(!AdditionalPointerIdMapIn[Loc].count(PointerId)){
+        AdditionalPointerIdMapIn[Loc][PointerId] = index++;
     }
-    return AdditionalPointerIdMap[Loc].at(PointerId);
+    return AdditionalPointerIdMapIn[Loc].at(PointerId);
 }
 
 void LevPA::createNewVersionOfPointer(size_t PointerId, const Instruction *Loc){
-    AdditionalPointerIdMap[Loc][PointerId] = index++;
+    // AdditionalPointerIdMap[Loc][PointerId] = index++;
     return;
 }
 
 void LevPA::createCopyRule(size_t Lhs, size_t Rhs, size_t pl){
-    PointerLevelToConstraints[pl].insert({Lhs, Rhs, true});
+    // PointerLevelToConstraints[pl].insert({Lhs, Rhs, true});
+    CopyGraph[Rhs].insert(Lhs);
 }
 
 void LevPA::createAllocaRule(size_t TopLvlId, size_t AddrTakenId, size_t pl){
-    PointerLevelToConstraints[pl].insert({TopLvlId, AddrTakenId, false});
+    // PointerLevelToConstraints[pl].insert({TopLvlId, AddrTakenId, false});
+    LevPaPts[TopLvlId].insert(AddrTakenId);
 }
     
 void LevPA::createStrongUpdateRule(size_t CurrentVersion, size_t Pointer, size_t pl){
-    PointerLevelToConstraints[pl].insert({CurrentVersion, Pointer, true});
+    // PointerLevelToConstraints[pl].insert({CurrentVersion, Pointer, true});
+    CopyGraph[Pointer].insert(CurrentVersion);
 }
 
 void LevPA::createWeakUpdateRule(size_t CurrentVersion, std::set<size_t> LastVersions, size_t ValueOpId, size_t pl){
     for(auto lv : LastVersions){
-        PointerLevelToConstraints[pl].insert({CurrentVersion, lv, true});
+        // PointerLevelToConstraints[pl].insert({CurrentVersion, lv, true});
+        CopyGraph[lv].insert(CurrentVersion);
     }
-    PointerLevelToConstraints[pl].insert({CurrentVersion, ValueOpId, true});
+    // PointerLevelToConstraints[pl].insert({CurrentVersion, ValueOpId, true});
+    CopyGraph[ValueOpId].insert(CurrentVersion);
 
 
 }
 
 void LevPA::solveConstraints(size_t CurrentPointerLevel){
-    auto cons = PointerLevelToConstraints[CurrentPointerLevel];
+    // auto cons = PointerLevelToConstraints[CurrentPointerLevel];
+    // for(auto c : cons){
+    //     outs() << (std::get<2>(c) ? " COPY " : " PT ") << std::get<0>(c) << " => " << std::get<1>(c) << "\n";
+    // }
 
     std::map<size_t, std::set<size_t>> CEdges;
 
-
-    for(auto [lhs, rhs, isCopy] : cons){
-
-        if(isCopy){
-            CEdges[rhs].insert(lhs);
-        }
-        else{
-            LevPaPts[lhs].insert(rhs);
-        }
+    std::set<size_t> wl;
+    for(size_t i = 0; i < index; ++i){
+        wl.insert(i);
     }
 
-    bool isChanged = true;
-    while(isChanged){
-        isChanged = false;
-        for(auto [from,toSet] : CEdges){
-            for(auto to : toSet){
-                for(auto e : LevPaPts[to]){
-                    isChanged = isChanged || LevPaPts[from].insert(e).second;
-                }
+    while(!wl.empty()){
+        auto node = *(wl.begin());
+        wl.erase(node);
+        // outs() << "Node " << node << "\n";
+
+        for(auto to : CopyGraph[node]){
+            // outs() << "making pts(" << to << ") U= pts(" << node <<") from sz " << LevPaPts[node].size() << "\n";
+            bool isChanged = false;
+            for(auto e : LevPaPts[node]){
+                isChanged = isChanged || LevPaPts[to].insert(e).second;
+            }
+            if(isChanged){
+                wl.insert(to);
             }
         }
+        
     }
+
+
+    // for(auto [lhs, rhs, isCopy] : cons){
+
+    //     if(isCopy){
+    //         CEdges[rhs].insert(lhs);
+    //     }
+    //     else{
+    //         LevPaPts[lhs].insert(rhs);
+    //     }
+    // }
+
+    // bool isChanged = true;
+    // while(isChanged){
+    //     isChanged = false;
+    //     for(auto [from,toSet] : CEdges){
+    //         for(auto to : toSet){
+    //             outs() << "making pts(" << to << ") U= pts(" << from <<") from sz " << LevPaPts[from].size() << "\n";
+    //             for(auto e : LevPaPts[from]){
+    //                 isChanged = isChanged || LevPaPts[to].insert(e).second;
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 
@@ -660,7 +705,10 @@ void LevPA::markLabelsforNextPointerLevel(size_t CurrentPointerLevel){
     for(auto PointerId : Pointers){
         auto Pointer = SteengaardResult.getPtr(PointerId).first;
 
+        // outs() << "marking labels for " << *Pointer << "\n";
+
         for(auto User : Pointer->users()){
+            // outs() << "\tAt " << *User << "\n";
             if(auto Store = dyn_cast<StoreInst>(User)){
                 if(Pointer != Store->getPointerOperand()){
                     continue;
@@ -751,12 +799,19 @@ LevPaResult LevPA::run(Module &m, ModuleAnalysisManager &mam){
                     auto PointerOpId = SteengaardResult.getID(Load->getPointerOperand(), true);
                     auto LoadId = SteengaardResult.getID(Load, true);
                     auto Pts = getLevPaPts(PointerOpId);
-                    for(auto PointeeId : Pts){
-                        for(auto lv : getLastVersion(PointeeId, Load)){
-                            createCopyRule(LoadId, lv, CurrentPointerLevel);
+                    for(auto ptr : Pts){
+                        auto curVersion = getCurrentVersion(ptr, Load);
+                        auto defVersion = getLastVersion(ptr, Load);
+                        // createcopyrule(dst, src, bool)
+                        for(auto dv : defVersion){
+                            createCopyRule(curVersion, dv, true);
                         }
-                        
+                        createCopyRule(LoadId, curVersion, true);
                     }
+
+                    // for(auto PointeeId : Pts){
+                    //     createCopyRule(PointeeId, LoadId, true);
+                    // }
                 }
                 else if(auto Alloca = dyn_cast<AllocaInst>(Pointer)){
                     auto TopLvlId = SteengaardResult.getID(Alloca, true);
@@ -783,6 +838,19 @@ LevPaResult LevPA::run(Module &m, ModuleAnalysisManager &mam){
                                 createWeakUpdateRule(getCurrentVersion(Pointee, Store), getLastVersion(Pointee, Store), PointerId, CurrentPointerLevel);
                             }
                         }
+                    }
+                    else if(auto Load = dyn_cast<LoadInst>(Usr)){
+                        // auto PointerOpId = SteengaardResult.getID(Load->getPointerOperand(), true);
+                        // auto LoadId = SteengaardResult.getID(Load, true);
+                        // auto Pts = getLevPaPts(PointerOpId);
+                        // for(auto ptr : Pts){
+                        //     //todo: rewrite getcurrent version
+                        //     auto curVersion = getCurrentVersion(ptr, Load);
+                        //     auto defVersion = getDefVersion(ptr, Load);
+                        //     // todo make sure copu rule is src, dst, bool
+                        //     createCopyRule(defVersion, curVersion, true);
+                        //     // createCopyRule(curVersion, LoadId, true);
+                        // }
                     }
                     else if(auto BitCast = dyn_cast<BitCastInst>(Usr)){
                         auto BitCastId = SteengaardResult.getID(BitCast, true);
@@ -812,6 +880,14 @@ LevPaResult LevPA::run(Module &m, ModuleAnalysisManager &mam){
                         }
                         if(ArgIdx < Call->arg_size() && ArgIdx < Call->getCalledFunction()->arg_size()){
                             createCopyRule(SteengaardResult.getID(Call->getCalledFunction()->getArg(ArgIdx), true), PointerId, CurrentPointerLevel);
+                            for(auto ret : Func2Returns[Call->getCalledFunction()]){
+                                for(auto label : LabelMap[ret]){
+                                    if(label.Type == Label::LabelType::Use){
+                                        createCopyRule(getCurrentVersion(label.Ptr, Call), getCurrentVersion(label.Ptr, ret), true);
+                                    }
+                                    
+                                }
+                            }
                         }
                     }
                     else if(auto Return = dyn_cast<ReturnInst>(Usr)){
@@ -839,6 +915,32 @@ LevPaResult LevPA::run(Module &m, ModuleAnalysisManager &mam){
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
     outs() << "Runtime: " << duration.count() << "ms\n";
+
+    size_t totalPtsSize = 0, numPts = 0, maxPtsSz = 0;
+    // for(auto p : LevPaPts){
+    //     // totalPtsSize += p.second.size();
+    //     // numPts += 1;
+    //     // if(p.second.size() > maxPtsSz){
+    //     //     maxPtsSz = p.second.size();
+    //     // }
+    //     outs() << "ptr " << p.first << " => \n";
+    //     for(auto pp : p.second){
+    //         outs() << pp << "\n";
+    //     } 
+    // }
+
+
+
+    // outs() << "Print label map\n";
+    // for(auto p : LabelMap){
+    //     outs() << "Labels at" << *p.first << "\n";
+    //     for(auto e : p.second){
+    //         outs() << "\t" << e << "\n";
+    //     }
+    // }
+
+
+    // outs() << "avg pts sz: " << (double)totalPtsSize / numPts << " max pts sz: " << maxPtsSz << "\n";
 
     return AnalysisResult;
 

@@ -54,7 +54,7 @@ namespace llvm{
                 Nodes.insert(Node);
             }
 
-            std::set<const Instruction *> getNodes(){
+            std::set<const Instruction *> getNodes() const{
                 return Nodes;
             }
 
@@ -71,11 +71,11 @@ namespace llvm{
                 Parents[To].insert(From);
             }
 
-            std::map<const Instruction *, std::set<const Instruction *>> getEdges(){
+            std::map<const Instruction *, std::set<const Instruction *>> getEdges() const{
                 return Edges;
             }
 
-            std::map<const Instruction *, std::set<const Instruction *>> getParents(){
+            std::map<const Instruction *, std::set<const Instruction *>> getParents() const{
                 return Parents;
             }
 

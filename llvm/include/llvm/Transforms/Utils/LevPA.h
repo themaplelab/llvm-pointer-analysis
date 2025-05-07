@@ -68,8 +68,10 @@ namespace llvm{
         std::map<const Function*, std::set<const ProgramLocationTy*>> Func2Returns;
         std::map<const Function*, WorkListTy> Func2WorkList; 
         std::map<const ProgramLocationTy*, std::set<Label>> LabelMap; 
-        std::map<const Instruction*, std::map<size_t, size_t>> AdditionalPointerIdMap;
+        std::map<const Instruction*, std::map<size_t,size_t>> AdditionalPointerIdMapIn;
+        std::map<const Instruction*, std::map<size_t,size_t>> AdditionalPointerIdMapOut;
         std::map<size_t, std::set<std::tuple<size_t, size_t, bool>>> PointerLevelToConstraints;
+        std::map<size_t, std::set<size_t>> CopyGraph;
 
         LevPaResult AnalysisResult;
 
@@ -102,6 +104,7 @@ namespace llvm{
             std::set<size_t> getLevPaPts(size_t);
             std::set<size_t> getLastVersion(size_t Pointer, const Instruction *Loc);
             size_t getCurrentVersion(size_t Pointer, const Instruction *Loc);
+            size_t getCurrentVersionOut(size_t Pointer, const Instruction *Loc);
             std::set<const Instruction*> getDefinitionLocs(size_t Pointer, const Instruction *Loc);
             void createNewVersionOfPointer(size_t PointerId, const Instruction *Loc);
             void createCopyRule(size_t Lhs, size_t Rhs, size_t pl);
