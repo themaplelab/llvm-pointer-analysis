@@ -740,6 +740,7 @@ LevPaResult LevPA::run(Module &m, ModuleAnalysisManager &mam){
 
     SteengaardResult = mam.getResult<SteengaardAnalysis>(m);
     index = SteengaardResult.getIndex();
+    size_t oldIdx = index;
 
 
 
@@ -915,6 +916,8 @@ LevPaResult LevPA::run(Module &m, ModuleAnalysisManager &mam){
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
     outs() << "Runtime: " << duration.count() << "ms\n";
+
+    outs() << "num new variable: " << index - oldIdx << "\n";
 
     size_t totalPtsSize = 0, numPts = 0, maxPtsSz = 0;
     // for(auto p : LevPaPts){
