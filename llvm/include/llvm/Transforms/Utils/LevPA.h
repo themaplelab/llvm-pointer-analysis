@@ -73,6 +73,8 @@ namespace llvm{
         std::map<size_t, std::set<std::tuple<size_t, size_t, bool>>> PointerLevelToConstraints;
         std::map<size_t, std::set<size_t>> CopyGraph;
 
+        std::map<const Instruction*, std::set<size_t>> CallSite2NewDefs;
+
         LevPaResult AnalysisResult;
 
 
@@ -110,12 +112,13 @@ namespace llvm{
             void createCopyRule(size_t Lhs, size_t Rhs, size_t pl);
             void createAllocaRule(size_t TopLvlId, size_t AddrTakenId, size_t pl);
             void createStrongUpdateRule(size_t CurrentVersion, size_t Pointer, size_t pl);
-            void createWeakUpdateRule(size_t CurrentVersion, std::set<size_t> LastVersions, size_t ValueOpId, size_t pl);
+            void createWeakUpdateRule(size_t PointerId, size_t ValueOpId, size_t pl, const StoreInst *store);
             void solveConstraints(size_t CurrentPointerLevel);
             void markLabelsforNextPointerLevel(size_t CurrentPointerLevel);
             std::set<size_t> getPointsToSetHelper(size_t PtrId, const ProgramLocationTy *Loc, std::set<size_t> &Visited);
 
 
+            void createConstraintsForInterProceduralAnalysis();
 
 
 
