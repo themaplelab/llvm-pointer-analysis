@@ -673,14 +673,14 @@ void LevPA::solveConstraints(size_t CurrentPointerLevel){
 
     std::map<size_t, std::set<size_t>> CEdges;
 
-    std::set<size_t> wl;
+    std::queue<size_t> wl;
     for(size_t i = 0; i < index; ++i){
-        wl.insert(i);
+        wl.push(i);
     }
 
     while(!wl.empty()){
-        auto node = *(wl.begin());
-        wl.erase(node);
+        auto node = wl.front();
+        wl.pop();
 
         for(auto to : CopyGraph[node]){
             // outs() << "making pts(" << to << ") U= pts(" << node <<") from sz " << LevPaPts[node].size() << "\n";
@@ -689,7 +689,7 @@ void LevPA::solveConstraints(size_t CurrentPointerLevel){
                 isChanged = isChanged || LevPaPts[to].insert(e).second;
             }
             if(isChanged){
-                wl.insert(to);
+                wl.push(to);
             }
         }
         
@@ -699,6 +699,7 @@ void LevPA::solveConstraints(size_t CurrentPointerLevel){
 
 void LevPA::markLabelsforNextPointerLevel(size_t CurrentPointerLevel){
     auto Pointers = SteengaardResult.getPointersInPointerLevel(CurrentPointerLevel);
+
     for(auto PointerId : Pointers){
         auto Pointer = SteengaardResult.getPtr(PointerId).first;
 
@@ -947,7 +948,9 @@ LevPaResult LevPA::run(Module &m, ModuleAnalysisManager &mam){
 
         solveConstraints(CurrentPointerLevel);
 
+
         markLabelsforNextPointerLevel(CurrentPointerLevel);
+        
 
         // outs() << "print points-to set\n";
         // for(auto p : LevPaPts){
