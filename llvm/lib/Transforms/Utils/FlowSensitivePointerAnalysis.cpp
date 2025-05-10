@@ -1449,7 +1449,7 @@ FlowSensitivePointerAnalysisResult FlowSensitivePointerAnalysis::run(Module &m, 
 
     outs() << "Runtime: " << duration.count() << "ms\n";
     // computeAvgPtsSize();
-    // dumpPointsToSet();
+    dumpPointsToSet();
 
     std::set<const Instruction*> DugNodes;
     size_t NumDugEdges = 0;
